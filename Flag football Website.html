@@ -965,9 +965,8 @@
         .admin-editable ::selection {
             background: rgba(255,111,0,0.3);
         }
-        /* Page navigation — each section is its own page */
-        #about, #standings, #leagueSchedule, #player-stats, #season-recap, #payments,
-        #documentsPublic, #guestArea, #myProfile, #contact {
+        /* Hide restricted/member-only sections until explicitly shown */
+        #documentsAdmin, #guestArea, #myProfile {
             display: none;
         }
         /* Admin nav items hidden by default, shown when admin is logged in */
@@ -1749,6 +1748,8 @@
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
             'documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
+        const RESTRICTED_PAGE_IDS = ['documentsAdmin','guestArea','myProfile'];
+        const PUBLIC_PAGE_IDS = ALL_PAGE_IDS.filter(function(id){ return RESTRICTED_PAGE_IDS.indexOf(id) === -1; });
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -1779,21 +1780,44 @@
             return true;
         }
 
-        function showPage(id) {
-            if (id && id.startsWith('#')) id = id.substring(1);
-            if (ALL_PAGE_IDS.indexOf(id) === -1 || !canAccessPage(id)) {
-                id = 'home';
-            }
-            ALL_PAGE_IDS.forEach(function(pageId) {
+        function revealPublicSections() {
+            PUBLIC_PAGE_IDS.forEach(function(pageId) {
                 var el = document.getElementById(pageId);
-                if (el) el.style.display = 'none';
+                if (el) el.style.display = 'block';
             });
-            var target = document.getElementById(id);
+        }
+
+        function showPage(id, options) {
+            options = options || {};
+            if (id && id.startsWith('#')) id = id.substring(1);
+            if (!id) id = 'home';
+
+            var targetId = ALL_PAGE_IDS.indexOf(id) !== -1 ? id : 'home';
+            if (!canAccessPage(targetId)) {
+                targetId = 'home';
+            }
+
+            revealPublicSections();
+
+            RESTRICTED_PAGE_IDS.forEach(function(pageId) {
+                var el = document.getElementById(pageId);
+                if (!el) return;
+                var shouldShow = pageId === targetId && canAccessPage(pageId);
+                el.style.display = shouldShow ? 'block' : 'none';
+            });
+
+            var target = document.getElementById(targetId);
             if (target) {
-                target.style.display = 'block';
-                window.scrollTo(0, 0);
-                if (history.pushState) history.pushState(null, '', '#' + id);
-                else window.location.hash = id;
+                var behavior = options.instant ? 'auto' : 'smooth';
+                if (typeof target.scrollIntoView === 'function') {
+                    target.scrollIntoView({ behavior: behavior, block: 'start' });
+                } else {
+                    window.scrollTo({ top: target.offsetTop || 0, behavior: behavior });
+                }
+                if (options.updateHash !== false) {
+                    if (history.pushState) history.pushState(null, '', '#' + targetId);
+                    else window.location.hash = targetId;
+                }
                 updateHeaderScrollState();
             }
         }
@@ -2010,17 +2034,7 @@
 
         window.addEventListener('popstate', function() {
             var id = window.location.hash ? window.location.hash.substring(1) : 'home';
-            if (ALL_PAGE_IDS.indexOf(id) !== -1 && canAccessPage(id)) {
-                ALL_PAGE_IDS.forEach(function(pageId) {
-                    var el = document.getElementById(pageId);
-                    if (el) el.style.display = 'none';
-                });
-                var target = document.getElementById(id);
-                if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
-                updateHeaderScrollState();
-            } else {
-                showPage('home');
-            }
+            showPage(id, { updateHash: false, instant: true });
         });
 
         window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
@@ -2448,9 +2462,8 @@
         // Show the correct page immediately after restoring content
         (function() {
             var h = window.location.hash ? window.location.hash.substring(1) : 'home';
-            var restricted = ['myProfile','guestArea','documentsAdmin'];
-            var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && restricted.indexOf(h) === -1 ? h : 'home';
-            showPage(validPage);
+            var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && RESTRICTED_PAGE_IDS.indexOf(h) === -1 ? h : 'home';
+            showPage(validPage, { updateHash: false, instant: true });
             updateHeaderScrollState();
         })();
 
