@@ -1,0 +1,2220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>865 ELITE FLAG FOOTBALL - 865eliteflagfootball.com</title>
+    <link rel="icon" href="assets/logo.jpg" type="image/jpeg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-image: url('https://images.unsplash.com/photo-1518604666860-9ed391f76460?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        header {
+            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+            color: white;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .site-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #fff;
+            padding: 2px;
+        }
+
+
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        /* Login menu (top-right) */
+        .login-menu { position: relative; }
+        .login-dropdown {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+            padding: 6px 0;
+            min-width: 160px;
+            display: none;
+            z-index: 2000;
+        }
+        .login-dropdown.visible { display: block; }
+        .login-dropdown .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 9px 14px;
+            border: none;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            color: #333;
+            font-size: 0.95rem;
+        }
+        .login-dropdown .dropdown-item:hover { background: #f5f5f5; }
+        .cta-button.small { padding: 6px 10px; font-size: 0.95rem; border-radius: 4px; }
+        .login-dropdown.hidden { display: none; }
+
+        .hero {
+            background: linear-gradient(rgba(26, 35, 126, 0.8), rgba(57, 73, 171, 0.8)), 
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><rect fill="%23f0f0f0" width="1200" height="600"/></svg>');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            text-align: center;
+            padding: 120px 20px;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-content h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .hero-content p {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #ff6f00;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            transition: background 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .cta-button:hover {
+            background: #e65100;
+        }
+
+        section {
+            padding: 80px 20px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #ff6f00;
+            text-align: center;
+        }
+
+        .about {
+            background: #f5f5f5;
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .about-text h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #ff6f00;
+        }
+
+        .about-text p {
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+
+        .schedule {
+            background: #f5f5f5;
+        }
+
+        /* weekly schedule grid styles */
+        .schedule-grid {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .schedule-grid th,
+        .schedule-grid td {
+            border: 1px solid #e0e0e0;
+            width: calc(100% / 7);
+            height: 100px;
+            text-align: center;
+            vertical-align: middle;
+            padding: 4px;
+            position: relative;
+        }
+        .schedule-grid td img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .schedule-grid td input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 4px;
+            box-sizing: border-box;
+        }
+        /* matchup display */
+        .matchup { display: flex; align-items: center; gap: 6px; justify-content: center; }
+        .team-logo { width: 30px; height: 30px; object-fit: contain; }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .schedule-table th {
+            background: #ff6f00;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .schedule-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .schedule-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .win {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .loss {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .teams {
+            background: #f5f5f5;
+        }
+
+        .teams-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .teams-table th {
+            background: #ff6f00;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .teams-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .teams-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .teams-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .users {
+            background: white;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .users-table th {
+            background: #ff6f00;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .users-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .users-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .users-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .coaches {
+            background: #f5f5f5;
+        }
+
+        .coaches-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .coaches-table th {
+            background: #ff6f00;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .coaches-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .coaches-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .coaches-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .registration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .registration-form {
+            max-width: 1000px;
+            margin: 0 auto 16px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 16px;
+        }
+
+        .registration-form label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .registration-form input,
+        .registration-form select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .payments {
+            background: #f5f5f5;
+        }
+
+        .payments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 16px;
+            border-top: 4px solid #ff6f00;
+        }
+
+        .payment-amount {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #e65100;
+            margin-top: 6px;
+        }
+
+        /* Documents / Forms styling */
+        .documents, .documents-public {
+            background: #ffffff;
+        }
+
+        .documents-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-top: 1rem;
+        }
+
+        .documents-table th,
+        .documents-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .doc-actions button {
+            background: #ff6f00;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .doc-actions button.secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        #signatureCanvas { touch-action: none; }
+
+        .sign-modal .login-content { max-width: 900px; }
+
+        .contact { 
+            background: #ff6f00;
+            color: white;
+            text-align: center;
+        }
+
+        .contact h2 {
+            color: white;
+        }
+
+        .contact-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .contact-item h3 {
+            color: #ff6f00;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            background: #e65100;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .login-modal {
+            display: flex;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-modal.hidden {
+            display: none;
+        }
+
+        .login-content {
+            background-color: white;
+            padding: 28px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh; /* keep modal within viewport */
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden; /* inner area will scroll */
+        }
+
+        /* Make the register/login area independently scrollable */
+        #memberForms {
+            overflow: auto;
+            max-height: calc(80vh - 160px); /* leave space for title/buttons */
+            padding-right: 6px; /* room for scrollbar */
+            -webkit-overflow-scrolling: touch;
+        }
+        /* visual (non-essential) scrollbar styling */
+        #memberForms::-webkit-scrollbar { width: 10px; height: 10px; }
+        #memberForms::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 6px; }
+
+        @media (max-width: 480px) {
+            .login-content { padding: 18px; max-width: 92vw; }
+            #memberForms { max-height: 55vh; }
+        }
+
+        .login-content h2 {
+            text-align: center;
+            color: #ff6f00;
+            margin-bottom: 20px;
+        }
+
+        .login-content form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .login-content input {
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .login-content button {
+            padding: 12px;
+            background: #ff6f00;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .login-content button:hover {
+            background: #e65100;
+        }
+
+        .admin-only {
+            display: none;
+        }
+
+        .admin-only.visible {
+            display: block;
+        }
+
+        .admin-header {
+            background: #ff6f00;
+            color: white;
+            padding: 10px 20px;
+            text-align: right;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .admin-header button {
+            background: white;
+            color: #ff6f00;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .admin-header button:hover {
+            background: #f0f0f0;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .hero-content h1 {
+                font-size: 2rem;
+            }
+
+            .about-content {
+                grid-template-columns: 1fr;
+            }
+
+            .schedule-table {
+                font-size: 0.9rem;
+            }
+
+            .schedule-table th,
+            .schedule-table td {
+                padding: 10px;
+            }
+        }
+
+        /* highlight editable areas when admin has editing enabled */
+        .admin-editable *:hover {
+            outline: 1px dashed #ff6f00;
+        }
+        .admin-editable ::selection {
+            background: rgba(255,111,0,0.3);
+        }
+        /* schedule edit highlight */
+        .schedule-edit-highlight {
+            background: #fff9c4; /* light yellow */
+        }
+    </style>
+</head>
+<body>
+    <div id="siteContent">
+    <!-- Login Modal -->
+    <div id="loginModal" class="login-modal hidden" style="display:none">
+        <div class="login-content">
+            <button id="closeLoginModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <h2>Admin Login</h2>
+            <form id="loginForm">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <p id="loginError" style="color: red; text-align: center; margin-top: 10px;"></p>
+        </div>
+    </div> 
+
+    <!-- Member Modal (Register / Login) -->
+    <div id="memberModal" class="login-modal hidden" style="display:none">
+        <div class="login-content">
+            <button id="closeMemberModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <h2>Member — Register / Login</h2>
+
+            <div id="memberForms">
+                <form id="memberRegisterForm" style="display:block;">
+                    <input type="text" id="regUsername" placeholder="Username" required>
+                    <input type="password" id="regPassword" placeholder="Password" required>
+                    <input type="password" id="regPasswordConfirm" placeholder="Confirm Password" required>
+                    <input type="text" id="regFirstName" placeholder="First name">
+                    <input type="text" id="regLastName" placeholder="Last name">
+                    <input type="email" id="regEmail" placeholder="Email">
+                    <input type="text" id="regTeam" placeholder="Team (optional)">
+
+                    <label style="margin-top:8px; display:block;">Signature (required)</label>
+                    <canvas id="regSignatureCanvas" width="600" height="80" style="border:1px solid #ddd; width:100%; height:80px; background:#fff; touch-action:none; margin-bottom:8px;"></canvas>
+                    <input id="regTypedSignature" type="text" placeholder="Type your full name (optional)" style="margin-bottom:8px; padding:8px; width:100%; box-sizing:border-box;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;"><button id="regClearSignatureBtn" type="button" class="cta-button">Clear Signature</button><span style="color:#777; font-size:0.95rem;">Signature is required to complete registration</span></div>
+
+                    <button type="submit">Create Account</button>
+                    <p style="text-align:center; margin-top:8px;">Already have an account? <a href="#" id="switchToMemberLogin">Login</a></p>
+                </form>
+
+                <form id="memberLoginForm" style="display:none;">
+                    <input type="text" id="memberLoginUsername" placeholder="Username" required>
+                    <input type="password" id="memberLoginPassword" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                    <p style="text-align:center; margin-top:8px;">New here? <a href="#" id="switchToMemberRegister">Register</a></p>
+                </form>
+            </div>
+
+            <p id="memberAuthError" style="color: red; text-align: center; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <!-- Document Sign Modal -->
+    <div id="signModal" class="login-modal hidden" style="display:none">
+        <div class="login-content sign-modal">
+            <h2>Sign Document</h2>
+            <div id="docPreviewArea" style="height:320px; overflow:auto; border:1px solid #eee; margin-bottom:12px; display:flex; align-items:center; justify-content:center;">
+                <iframe id="docPreviewFrame" style="width:100%; height:100%; border:0; display:none"></iframe>
+                <img id="docPreviewImg" style="max-width:100%; max-height:100%; display:none;" alt="Document preview">
+            </div>
+            <p style="margin:0 0 6px 0;">Draw your signature below (or type your full name):</p>
+            <canvas id="signatureCanvas" width="800" height="140" style="border:1px solid #ddd; width:100%; height:140px; background:#fff;"></canvas>
+            <input id="typedSignature" type="text" placeholder="Type your full name (optional)" style="margin-top:8px; padding:8px; width:100%; box-sizing:border-box;">
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <button id="clearSignatureBtn" class="cta-button" type="button">Clear</button>
+                <button id="saveSignatureBtn" class="cta-button" type="button">Save Signature</button>
+                <button id="closeSignModalBtn" class="cta-button" type="button">Cancel</button>
+            </div>
+            <p id="signMsg" style="color:green; text-align:center; margin-top:8px;"></p>
+        </div>
+    </div>
+
+    <!-- Admin Header (Hidden by default) -->
+    <div id="adminHeader" class="admin-header hidden" style="display: none;" data-no-admin-edit="true" contenteditable="false">
+        <span style="font-weight:bold; margin-right:12px;">Admin Editing Mode</span>
+        <span id="adminNameDisplay" style="font-weight:bold; margin-right:12px;"></span>
+        <button id="changeLogoBtn" class="cta-button small" style="margin-right:8px;">Change Logo</button>
+        <button id="changeWallpaperBtn" class="cta-button small" style="margin-right:8px;">Change Wallpaper</button>
+        <input id="logoUploadInput" type="file" accept="image/*" style="display:none;">
+        <input id="wallpaperUploadInput" type="file" accept="image/*" style="display:none;">
+        <button id="togglePageEditBtn" onclick="togglePageEdit()" class="cta-button small" style="margin-right:8px;">Disable Editing</button>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Member Header (Shown to logged-in members) -->
+    <div id="memberHeader" class="admin-header" style="display:none;" data-no-admin-edit="true" contenteditable="false">
+        <span id="memberNameDisplay" style="font-weight:700; margin-right:12px; color:white;"></span>
+        <button onclick="memberLogout()">Logout</button>
+    </div>
+
+    <!-- Header/Navigation -->
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <img src="assets/logo.jpg" alt="865 Elite logo" class="site-logo">
+                    <span>865 ELITE FLAG FOOTBALL</span>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#standings">League Standings</a></li>
+                    <li><a href="#league-schedule">League Schedule</a></li>
+                    <li><a href="#teams">Stats</a></li>
+                    <li><a href="#payments">Team/Free Agent Sign Up</a></li>
+                    <li class="login-menu">
+                        <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false">Login ▾</button>
+                        <div id="loginDropdown" class="login-dropdown hidden" style="display:none">
+                            <button id="loginDropdownAdmin" class="dropdown-item">Admin Login</button>
+                        </div>
+                    </li>
+                </ul> 
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <div>
+                <h1>865 ELITE FLAG FOOTBALL</h1>
+                <p>ADULT FLAG FOOTBALL</p>
+                <a href="#payments" class="cta-button">Join Our Team</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="container">
+            <h2>About Us</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <h3>Who We Are</h3>
+                    <p>865 ELITE FLAG FOOTBALL is a competitive flag football league dedicated to excellence, teamwork, and fun. Since our founding in 2025, we've been committed to providing an exciting flag football experience for our community.</p>
+                    <h3>Our Mission</h3>
+                    <p>To promote athletic excellence, build strong friendships, and experience the thrill of flag football competition. We believe in sportsmanship, dedication, and celebrating every victory together.</p>
+                </div>
+                <div>
+                    <h3 style="text-align: center; margin-bottom: 2rem;">Team Stats</h3>
+                    <ul style="list-style: none; font-size: 1.2rem;">
+                        <li style="margin-bottom: 1rem;"><strong>📅 Founded:</strong> 2025</li>
+                        <li style="margin-bottom: 1rem;"><strong>🏅 Guaranteed Season Games:</strong> 8</li>
+                        <li style="margin-bottom: 1rem;"><strong>📊 Player & Team Stats:</strong> Officially Recorded</li>
+                        <li style="margin-bottom: 1rem;"><strong>🏁 League Referees:</strong> Every Game</li>
+                        <li style="margin-bottom: 1rem;"><strong>🥇 Championship Trophies:</strong> Awarded</li>
+                        <li style="margin-bottom: 1rem;"><strong>⭐ League MVP:</strong> Celebrated</li>
+                        <li style="margin-bottom: 1rem;"><strong>🌟 Player of the Year:</strong> Celebrated</li>
+                        <li style="margin-bottom: 1rem;"><strong>💰 League Signup Fee:</strong> $500</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- League Standings Section -->
+    <section class="schedule" id="standings">
+        <div class="container">
+            <h2>League Standings</h2>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                        <th>Win %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>865 ELITE FLAG FOOTBALL</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>.000</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- League Schedule Section -->
+    <section class="schedule" id="league-schedule">
+        <div class="container">
+            <h2>League Schedule <button id="scheduleEditBtn" class="cta-button small" style="display:none; margin-left:10px;">Edit Schedule</button></h2>
+            <p style="text-align: center; margin-bottom: 2rem; font-size: 1.1rem;">Field&nbsp;1 matchups with times listed in the left column. Logos and names are shown in the format <em>logo name vs logo name</em>.</p>
+            <table class="schedule-table schedule-grid" id="scheduleTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Field 1</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTbody">
+                    <!-- rows generated by script -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Payments Section -->
+    <section class="payments" id="payments">
+        <div class="container">
+            <h2>Team/Free Agent Sign Up</h2>
+            <p style="text-align:center; margin-bottom:16px;">Choose your payment type and continue to secure checkout.</p>
+
+            <div class="payments-grid">
+                <div class="payment-card">
+                    <h3>Team Registration Fee</h3>
+                    <p class="payment-amount">$500</p>
+                    <p style="margin-top:8px;">For full team entry into the league season.</p>
+                </div>
+                <div class="payment-card">
+                    <h3>Free Agent Fee</h3>
+                    <p class="payment-amount">$50</p>
+                    <p style="margin-top:8px;">For individual free agent placement pool.</p>
+                </div>
+            </div>
+
+            <form id="paymentForm" class="registration-form" style="max-width:760px;">
+                <div class="registration-grid">
+                    <div>
+                        <label for="payName">Full Name</label>
+                        <input id="payName" type="text" required placeholder="Payer full name">
+                    </div>
+                    <div>
+                        <label for="payEmail">Email</label>
+                        <input id="payEmail" type="email" required placeholder="Email used for receipt">
+                    </div>
+                    <div>
+                        <label for="payType">Payment Type</label>
+                        <select id="payType" required>
+                            <option value="team">Team Registration ($500)</option>
+                            <option value="freeAgent">Free Agent ($50)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="payMethod">Method</label>
+                        <input id="payMethod" type="text" value="PayPal Checkout" readonly>
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center;">
+                    <button type="submit" class="cta-button">Continue To PayPal</button>
+                </div>
+                <p id="paymentMsg" style="text-align:center; margin-top:10px;"></p>
+            </form>
+        </div>
+    </section>
+
+    <!-- Admin Editable Sections -->
+    <div id="adminOnly" class="admin-only">
+        <!-- Teams by State Section -->
+    <section class="teams" id="teams">
+        <div class="container">
+            <h2>Teams by State</h2>
+            <table class="teams-table">
+                <thead>
+                    <tr>
+                        <th>Logo</th>
+                        <th>Team Name</th>
+                        <th>State</th>
+                        <th>City</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;">
+                                <img class="team-logo" src="" alt="" style="width:30px;height:30px;margin-right:4px;">
+                                <input type="file" accept="image/*" class="team-logo-input">
+                            </div>
+                        </td>
+                        <td><input type="text" value="865 ELITE FLAG FOOTBALL" placeholder="Team Name"></td>
+                        <td><input type="text" value="Tennessee" placeholder="State"></td>
+                        <td><input type="text" value="Stephenville" placeholder="City"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;">
+                                <img class="team-logo" src="" alt="" style="width:30px;height:30px;margin-right:4px;">
+                                <input type="file" accept="image/*" class="team-logo-input">
+                            </div>
+                        </td>
+                        <td><input type="text" value="" placeholder="Team Name"></td>
+                        <td><input type="text" value="" placeholder="State"></td>
+                        <td><input type="text" value="" placeholder="City"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;">
+                                <img class="team-logo" src="" alt="" style="width:30px;height:30px;margin-right:4px;">
+                                <input type="file" accept="image/*" class="team-logo-input">
+                            </div>
+                        </td>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="State"></td>
+                        <td><input type="text" placeholder="City"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;">
+                                <img class="team-logo" src="" alt="" style="width:30px;height:30px;margin-right:4px;">
+                                <input type="file" accept="image/*" class="team-logo-input">
+                            </div>
+                        </td>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="State"></td>
+                        <td><input type="text" placeholder="City"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;">
+                                <img class="team-logo" src="" alt="" style="width:30px;height:30px;margin-right:4px;">
+                                <input type="file" accept="image/*" class="team-logo-input">
+                            </div>
+                        </td>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="State"></td>
+                        <td><input type="text" placeholder="City"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- User Profiles Section -->
+    <section class="users" id="users">
+        <div class="container">
+            <h2>User Profiles</h2>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Email</th>
+                        <th>Team</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTbody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Coaches Section -->
+    <section class="coaches" id="coaches">
+        <div class="container">
+            <h2>Team Coaches</h2>
+            <table class="coaches-table">
+                <thead>
+                    <tr>
+                        <th>Team Name</th>
+                        <th>Head Coach</th>
+                        <th>Assistant Coach 1</th>
+                        <th>Assistant Coach 2</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" value="865 ELITE FLAG FOOTBALL" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="Head Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="Head Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="Head Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" placeholder="Team Name"></td>
+                        <td><input type="text" placeholder="Head Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                        <td><input type="text" placeholder="Assistant Coach Name"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Documents (admin-managed) -->
+    <section class="documents" id="documentsAdmin">
+        <div class="container">
+            <h2>Manage Documents</h2>
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+                <input id="docTitleInput" type="text" placeholder="Document title (optional)" style="flex:1; padding:8px;">
+                <input id="docUploadInput" type="file" accept=".pdf,image/*" style="padding:6px;">
+                <button id="docUploadBtn" class="cta-button" type="button">Upload Document</button>
+            </div>
+            <table class="teams-table documents-table">
+                <thead>
+                    <tr><th>Title</th><th>File</th><th>Uploaded</th><th>Signed</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="adminDocsTbody"></tbody>
+            </table>
+
+            <h2 style="margin-top:24px;">PayPal Checkout Links</h2>
+            <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-grid">
+                    <div>
+                        <label for="paypalTeamLink">Team Registration PayPal Link</label>
+                        <input id="paypalTeamLink" type="url" placeholder="https://www.paypal.com/checkoutnow?token=...">
+                    </div>
+                    <div>
+                        <label for="paypalFreeAgentLink">Free Agent PayPal Link</label>
+                        <input id="paypalFreeAgentLink" type="url" placeholder="https://www.paypal.com/checkoutnow?token=...">
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center;">
+                    <button id="savePayPalLinksBtn" type="button" class="cta-button">Save PayPal Links</button>
+                </div>
+                <p id="paypalSettingsMsg" style="text-align:center; margin-top:10px;"></p>
+            </div>
+
+            <h2 style="margin-top:24px;">Payment Approvals</h2>
+            <table class="teams-table documents-table">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="adminPaymentsTbody"></tbody>
+            </table>
+        </div>
+    </section>
+    </div>
+    <!-- End Admin Editable Sections -->
+
+    <!-- Public Documents -->
+    <section class="documents-public" id="documentsPublic">
+        <div class="container">
+            <h2>Required Forms & Waivers</h2>
+            <table class="teams-table documents-table">
+                <thead>
+                    <tr><th>Title</th><th>File</th><th>Uploaded</th><th>Action</th></tr>
+                </thead>
+                <tbody id="publicDocsTbody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Guest area (for temporary sessions) -->
+    <section id="guestArea" class="member-profile" style="display:none;">
+        <div class="container">
+            <h2>Guest Access</h2>
+            <p style="text-align:center; margin-bottom:1rem;">You're browsing as a guest. Create an account to save your profile and sign required forms.</p>
+            <div style="text-align:center;">
+                <button class="cta-button" id="guestRegisterBtn">Create Account</button>
+                <button class="cta-button" id="guestLogoutBtn" style="background:#777; margin-left:8px;">Leave Guest</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- My Profile (Members) -->
+    <section id="myProfile" class="member-profile" style="display:none;">
+        <div class="container">
+            <h2>My Profile</h2>
+            <form id="myProfileForm" style="max-width:600px; margin:0 auto;">
+                <label>Username (read-only)</label>
+                <input type="text" id="mpUsername" readonly style="margin-bottom:12px;">
+                <label>First name</label>
+                <input type="text" id="mpFirstName" style="margin-bottom:12px;">
+                <label>Last name</label>
+                <input type="text" id="mpLastName" style="margin-bottom:12px;">
+                <label>Email</label>
+                <input type="email" id="mpEmail" style="margin-bottom:12px;">
+                <label>Team</label>
+                <input type="text" id="mpTeam" style="margin-bottom:12px;">
+                <label>Change password (leave blank to keep)</label>
+                <input type="password" id="mpPassword" placeholder="New password" style="margin-bottom:12px;">
+                <div style="text-align:center; margin-top:8px;">
+                    <button type="submit" class="cta-button">Save Profile</button>
+                </div>
+                <p id="mpMsg" style="text-align:center; margin-top:10px; color:green"></p>
+            </form>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact" id="contact">
+        <div class="container">
+            <h2>Get In Touch</h2>
+            <div class="contact-info">
+                <div class="contact-item">
+                    <h3>📧 Email</h3>
+                    <p>865eliteflagfootball@gmail.com</p>
+                </div>
+                <div class="contact-item">
+                    <h3>🌐 Website</h3>
+                    <p><a href="https://865eliteflagfootball.com" style="color: inherit; text-decoration: none;">865eliteflagfootball.com</a></p>
+                </div>
+                <div class="contact-item">
+                    <h3>📍 Location</h3>
+                    <p>John Tarleton Park<br>Knoxville, Tennessee 37919</p>
+                </div>
+            </div>
+            <div style="margin-top: 3rem;">
+                <h3>Follow Us</h3>
+                <p style="margin-top: 1rem;">
+                    <a href="https://www.facebook.com/865EliteAdultFlagFootballLeague" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Facebook</a>
+                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Instagram</a>
+                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Twitter</a>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 865 ELITE FLAG FOOTBALL. All rights reserved.</p>
+    </footer>
+    </div>
+
+    <script>
+        // --- Admin credentials (unchanged) ---
+        const ADMIN_USERNAME = '123';
+        const ADMIN_PASSWORD = '123';
+        const PAGE_CONTENT_KEY = 'siteContentHTML_v1';
+        const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
+        const SITE_WALLPAPER_KEY = 'siteWallpaperDataUrl_v1';
+        const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
+        let PAYMENT_LINKS = {
+            team: '',
+            freeAgent: ''
+        };
+
+        function loadPaymentLinks() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
+                PAYMENT_LINKS = {
+                    team: saved.team || '',
+                    freeAgent: saved.freeAgent || ''
+                };
+            } catch (err) {
+                PAYMENT_LINKS = { team: '', freeAgent: '' };
+            }
+        }
+
+        function savePaymentLinks(links) {
+            PAYMENT_LINKS = {
+                team: (links.team || '').trim(),
+                freeAgent: (links.freeAgent || '').trim()
+            };
+            localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+        }
+
+        function bindPayPalSettingsControls() {
+            const saveBtn = document.getElementById('savePayPalLinksBtn');
+            const teamInput = document.getElementById('paypalTeamLink');
+            const freeInput = document.getElementById('paypalFreeAgentLink');
+            const msg = document.getElementById('paypalSettingsMsg');
+            if (!saveBtn || !teamInput || !freeInput || saveBtn.dataset.bound) return;
+            saveBtn.dataset.bound = 'true';
+            saveBtn.addEventListener('click', function() {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') {
+                    if (msg) {
+                        msg.style.color = '#e65100';
+                        msg.textContent = 'Admin login required to save PayPal links.';
+                    }
+                    return;
+                }
+                savePaymentLinks({
+                    team: teamInput.value,
+                    freeAgent: freeInput.value
+                });
+                if (msg) {
+                    msg.style.color = 'green';
+                    msg.textContent = 'PayPal links saved successfully.';
+                }
+                flushPersistSiteContent();
+            });
+        }
+
+        function renderPayPalSettings() {
+            loadPaymentLinks();
+            const teamInput = document.getElementById('paypalTeamLink');
+            const freeInput = document.getElementById('paypalFreeAgentLink');
+            if (teamInput) teamInput.value = PAYMENT_LINKS.team || '';
+            if (freeInput) freeInput.value = PAYMENT_LINKS.freeAgent || '';
+        }
+
+        function applySavedBranding() {
+            try {
+                const savedLogo = localStorage.getItem(SITE_LOGO_KEY);
+                const savedWallpaper = localStorage.getItem(SITE_WALLPAPER_KEY);
+                if (savedLogo) {
+                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
+                    const icon = document.querySelector('link[rel="icon"]');
+                    if (icon) {
+                        icon.href = savedLogo;
+                        icon.type = 'image/png';
+                    }
+                }
+                if (savedWallpaper) {
+                    document.body.style.backgroundImage = `url('${savedWallpaper}')`;
+                    document.body.style.backgroundSize = 'cover';
+                    document.body.style.backgroundPosition = 'center';
+                    document.body.style.backgroundAttachment = 'fixed';
+                    document.body.style.backgroundRepeat = 'no-repeat';
+                }
+            } catch (err) {
+                // Ignore branding restore errors.
+            }
+        }
+
+        function bindAdminBrandingControls() {
+            const changeLogoBtn = document.getElementById('changeLogoBtn');
+            const changeWallpaperBtn = document.getElementById('changeWallpaperBtn');
+            const logoUploadInput = document.getElementById('logoUploadInput');
+            const wallpaperUploadInput = document.getElementById('wallpaperUploadInput');
+
+            if (changeLogoBtn && logoUploadInput && !changeLogoBtn.dataset.bound) {
+                changeLogoBtn.dataset.bound = 'true';
+                changeLogoBtn.addEventListener('click', function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    logoUploadInput.click();
+                });
+            }
+            if (changeWallpaperBtn && wallpaperUploadInput && !changeWallpaperBtn.dataset.bound) {
+                changeWallpaperBtn.dataset.bound = 'true';
+                changeWallpaperBtn.addEventListener('click', function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    wallpaperUploadInput.click();
+                });
+            }
+
+            if (logoUploadInput && !logoUploadInput.dataset.bound) {
+                logoUploadInput.dataset.bound = 'true';
+                logoUploadInput.addEventListener('change', function() {
+                    const file = this.files && this.files[0];
+                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const dataUrl = e.target && e.target.result;
+                        if (!dataUrl) return;
+                        document.querySelectorAll('.site-logo').forEach(img => { img.src = dataUrl; });
+                        const icon = document.querySelector('link[rel="icon"]');
+                        if (icon) {
+                            icon.href = dataUrl;
+                            icon.type = file.type || 'image/png';
+                        }
+                        localStorage.setItem(SITE_LOGO_KEY, dataUrl);
+                        flushPersistSiteContent();
+                    };
+                    reader.readAsDataURL(file);
+                    this.value = '';
+                });
+            }
+
+            if (wallpaperUploadInput && !wallpaperUploadInput.dataset.bound) {
+                wallpaperUploadInput.dataset.bound = 'true';
+                wallpaperUploadInput.addEventListener('change', function() {
+                    const file = this.files && this.files[0];
+                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const dataUrl = e.target && e.target.result;
+                        if (!dataUrl) return;
+                        document.body.style.backgroundImage = `url('${dataUrl}')`;
+                        document.body.style.backgroundSize = 'cover';
+                        document.body.style.backgroundPosition = 'center';
+                        document.body.style.backgroundAttachment = 'fixed';
+                        document.body.style.backgroundRepeat = 'no-repeat';
+                        localStorage.setItem(SITE_WALLPAPER_KEY, dataUrl);
+                        flushPersistSiteContent();
+                    };
+                    reader.readAsDataURL(file);
+                    this.value = '';
+                });
+            }
+        }
+
+        function ensureAdminBrandingUI() {
+            const adminHeader = document.getElementById('adminHeader');
+            if (!adminHeader) return;
+
+            const toggleBtn = document.getElementById('togglePageEditBtn');
+
+            if (!document.getElementById('changeLogoBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeLogoBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Logo';
+                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
+                else adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('changeWallpaperBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeWallpaperBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Wallpaper';
+                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
+                else adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('logoUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'logoUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                adminHeader.appendChild(input);
+            }
+
+            if (!document.getElementById('wallpaperUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'wallpaperUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                adminHeader.appendChild(input);
+            }
+        }
+
+        function enforceNonEditableAdminUI() {
+            document.querySelectorAll('[data-no-admin-edit="true"]').forEach(el => {
+                el.setAttribute('contenteditable', 'false');
+            });
+        }
+
+        function restoreSiteContent() {
+            try {
+                const saved = localStorage.getItem(PAGE_CONTENT_KEY);
+                const container = document.getElementById('siteContent');
+                if (saved && container) container.innerHTML = saved;
+            } catch (err) {
+                // If localStorage is unavailable or corrupted, continue with default markup.
+            }
+        }
+
+        function persistSiteContent() {
+            try {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                const container = document.getElementById('siteContent');
+                if (!container) return;
+                localStorage.setItem(PAGE_CONTENT_KEY, container.innerHTML);
+            } catch (err) {
+                // Ignore storage write failures.
+            }
+        }
+
+        restoreSiteContent();
+        loadPaymentLinks();
+        applySavedBranding();
+        ensureAdminBrandingUI();
+        enforceNonEditableAdminUI();
+        bindAdminBrandingControls();
+        bindPayPalSettingsControls();
+        renderPayPalSettings();
+
+        // logo/image support removed — header shows text only.
+
+        // --- Members persistence (localStorage) ---
+        function loadMembers() {
+            try {
+                return JSON.parse(localStorage.getItem('members') || '[]');
+            } catch (err) {
+                return [];
+            }
+        }
+        function saveMembers(list) {
+            localStorage.setItem('members', JSON.stringify(list));
+            renderUsersTableForAdmin();
+        }
+
+        function loadPaymentRequests() {
+            try { return JSON.parse(localStorage.getItem('paymentRequests') || '[]'); }
+            catch (err) { return []; }
+        }
+        function savePaymentRequests(list) {
+            localStorage.setItem('paymentRequests', JSON.stringify(list));
+            renderAdminPaymentRequests();
+        }
+
+        function renderAdminPaymentRequests() {
+            const tbody = document.getElementById('adminPaymentsTbody');
+            if (!tbody) return;
+            const items = loadPaymentRequests();
+            tbody.innerHTML = '';
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                return;
+            }
+            items.forEach((p, idx) => {
+                const tr = document.createElement('tr');
+                const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
+                tr.innerHTML = `
+                    <td>${p.name || ''}</td>
+                    <td>${p.email || ''}</td>
+                    <td>${label}</td>
+                    <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
+                    <td>${submitted}</td>
+                    <td>
+                        <button data-action="approvePayment" data-idx="${idx}" class="cta-button small" style="margin-right:6px;">Approve</button>
+                        <button data-action="denyPayment" data-idx="${idx}" class="cta-button small" style="background:#777;">Deny</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const items = loadPaymentRequests();
+                    if (!items[idx]) return;
+                    items[idx].status = 'approved';
+                    items[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(items);
+                });
+            });
+
+            tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const items = loadPaymentRequests();
+                    if (!items[idx]) return;
+                    items[idx].status = 'denied';
+                    items[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(items);
+                });
+            });
+        }
+
+        // Simple password hashing (SHA-256) with fallback
+        async function hashPw(password) {
+            if (window.crypto && crypto.subtle) {
+                const enc = new TextEncoder();
+                const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            return password; // fallback (not secure)
+        }
+
+        // --- UI: show saved logo and check auth states on load ---
+        window.addEventListener('load', function() {
+            renderDocumentsList();
+            // admin
+            if (sessionStorage.getItem('adminLoggedIn') === 'true') showAdminView();
+            else {
+                document.getElementById('adminHeader').style.display = 'none';
+                document.getElementById('adminOnly').classList.remove('visible');
+                enablePageEdit(false);
+            }
+            applySavedBranding();
+            ensureAdminBrandingUI();
+            enforceNonEditableAdminUI();
+            bindAdminBrandingControls();
+            bindPayPalSettingsControls();
+            renderPayPalSettings();
+            // member
+            if (sessionStorage.getItem('memberLoggedIn') === 'true') showMemberView();
+            else {
+                document.getElementById('memberHeader').style.display = 'none';
+                document.getElementById('myProfile').style.display = 'none';
+                document.getElementById('guestArea').style.display = 'none';
+            }
+        });
+
+        // --- Admin login (existing) ---
+
+
+        // --- Logo upload handling (admin-only) ---
+
+
+        // --- Members: registration & login UI ---
+        function showMemberModal() {
+            document.getElementById('memberModal').style.display = 'flex';
+            document.getElementById('memberModal').classList.remove('hidden');
+            document.getElementById('memberAuthError').textContent = '';
+            // default to register view
+            document.getElementById('memberRegisterForm').style.display = 'block';
+            document.getElementById('memberLoginForm').style.display = 'none';
+            // clear registration signature area when opening
+            const rCanvas = document.getElementById('regSignatureCanvas');
+            if (rCanvas && rCanvas.getContext) { const rCtx = rCanvas.getContext('2d'); rCtx.clearRect(0,0,rCanvas.width,rCanvas.height); }
+            const rTyped = document.getElementById('regTypedSignature'); if (rTyped) rTyped.value = '';
+            // if currently browsing as guest, prefill username so conversion is seamless
+            try {
+                const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                const regInput = document.getElementById('regUsername');
+                if (isGuest && regInput) regInput.value = sessionStorage.getItem('memberUsername') || '';
+                else if (regInput) regInput.value = '';
+            } catch (err) { /* ignore in older browsers */ }
+        }
+        function hideMemberModal() {
+            document.getElementById('memberModal').style.display = 'none';
+            document.getElementById('memberModal').classList.add('hidden');
+        }
+
+        // Registration now uses on-page sections, so no nav modal hook here.
+
+        // Login menu (top-right): open/close + Guest/Admin actions
+        function showAdminLoginModal() {
+            const lm = document.getElementById('loginModal');
+            if (!lm) return;
+            lm.classList.remove('hidden');
+            lm.style.display = 'flex';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').textContent = '';
+        }
+        function toggleLoginDropdown(forceState) {
+            const dd = document.getElementById('loginDropdown');
+            const btn = document.getElementById('loginMenuBtn');
+            if (!dd || !btn) return;
+            const isOpen = !dd.classList.contains('hidden');
+            const shouldOpen = (typeof forceState === 'boolean') ? forceState : !isOpen;
+            if (shouldOpen) { dd.classList.remove('hidden'); dd.classList.add('visible'); dd.style.display = 'block'; btn.setAttribute('aria-expanded','true'); }
+            else { dd.classList.add('hidden'); dd.classList.remove('visible'); dd.style.display = 'none'; btn.setAttribute('aria-expanded','false'); }
+        }
+        document.getElementById('loginMenuBtn')?.addEventListener('click', function(e){ e.stopPropagation(); toggleLoginDropdown(); });
+        document.getElementById('loginDropdownAdmin')?.addEventListener('click', function(e){ e.preventDefault(); showAdminLoginModal(); toggleLoginDropdown(false); });
+        document.getElementById('closeLoginModal')?.addEventListener('click', function(){
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').style.display = 'none';
+        });
+        document.getElementById('closeMemberModal')?.addEventListener('click', function(){
+            hideMemberModal();
+        });
+        document.addEventListener('click', function(){ toggleLoginDropdown(false); });
+
+        document.getElementById('switchToMemberLogin').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='none'; document.getElementById('memberLoginForm').style.display='block'; });
+        document.getElementById('switchToMemberRegister').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='block'; document.getElementById('memberLoginForm').style.display='none'; });
+
+        document.getElementById('paymentForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('payName').value.trim();
+            const email = document.getElementById('payEmail').value.trim();
+            const type = document.getElementById('payType').value;
+            const link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
+            const msg = document.getElementById('paymentMsg');
+            loadPaymentLinks();
+
+            const requests = loadPaymentRequests();
+            requests.push({
+                name,
+                email,
+                type,
+                status: 'pending',
+                submittedAt: new Date().toISOString()
+            });
+            savePaymentRequests(requests);
+
+            if (!link || !/^https:\/\//i.test(link) || !/paypal\.com/i.test(link)) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Payment info submitted for admin approval. PayPal link is not configured yet.';
+                }
+                return;
+            }
+            if (msg) {
+                msg.style.color = 'green';
+                msg.textContent = 'Payment submitted. Redirecting to PayPal checkout... Approval is still required before registration.';
+            }
+            window.open(link, '_blank', 'noopener,noreferrer');
+        });
+
+        // Member register
+        document.getElementById('memberRegisterForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            document.getElementById('memberAuthError').textContent = '';
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regPasswordConfirm').value;
+            const firstName = document.getElementById('regFirstName').value.trim();
+            const lastName = document.getElementById('regLastName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const team = document.getElementById('regTeam').value.trim();
+
+            if (!username || !password) { document.getElementById('memberAuthError').textContent = 'Username and password required'; return; }
+            if (password !== confirm) { document.getElementById('memberAuthError').textContent = 'Passwords do not match'; return; }
+
+            // require a signature (drawn on canvas or typed)
+            const regCanvas = document.getElementById('regSignatureCanvas');
+            const regTyped = document.getElementById('regTypedSignature').value.trim();
+            const needSignature = isCanvasBlank(regCanvas) && !regTyped;
+            if (needSignature) { document.getElementById('memberAuthError').textContent = 'Please provide a signature to complete registration'; return; }
+
+            const members = loadMembers();
+            if (members.find(m => m.username.toLowerCase() === username.toLowerCase())) { document.getElementById('memberAuthError').textContent = 'Username already taken'; return; }
+
+            const pwHash = await hashPw(password);
+            const user = { username, passwordHash: pwHash, firstName, lastName, email, team };
+
+            // capture signature
+            let sigData = null;
+            if (!isCanvasBlank(regCanvas)) sigData = regCanvas.toDataURL();
+            else if (regTyped) { const tmp = document.createElement('canvas'); tmp.width = 600; tmp.height = 80; const tc = tmp.getContext('2d'); tc.fillStyle = '#000'; tc.font = '28px sans-serif'; tc.fillText(regTyped, 8, 50); sigData = tmp.toDataURL(); }
+            if (sigData) user.signedDocs = [{ docId: 'registration', signature: sigData, signedAt: new Date().toISOString(), title: 'Registration Signature' }];
+
+            // if the visitor was a guest, convert that session into this new persistent member
+            if (sessionStorage.getItem('memberIsGuest') === 'true') {
+                user.convertedFromGuest = true;
+                user.guestFrom = sessionStorage.getItem('memberUsername') || null;
+                user.convertedAt = new Date().toISOString();
+                // clear guest session marker
+                sessionStorage.removeItem('memberIsGuest');
+            }
+
+            members.push(user);
+            saveMembers(members);
+
+            // auto-login the new member (replace guest session)
+            sessionStorage.setItem('memberLoggedIn', 'true');
+            sessionStorage.setItem('memberUsername', username);
+            hideMemberModal();
+            showMemberView();
+        });
+
+        // Member login
+        document.getElementById('memberLoginForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            const username = document.getElementById('memberLoginUsername').value.trim();
+            const password = document.getElementById('memberLoginPassword').value;
+            const members = loadMembers();
+            const pwHash = await hashPw(password);
+            const user = members.find(m => m.username === username && m.passwordHash === pwHash);
+            if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
+            sessionStorage.setItem('memberLoggedIn', 'true');
+            sessionStorage.setItem('memberUsername', username);
+            hideMemberModal();
+            showMemberView();
+        });
+
+        // Member view / profile
+        function showMemberView() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) return;
+            const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+            document.getElementById('memberHeader').style.display = 'block';
+            document.getElementById('memberNameDisplay').textContent = isGuest ? (username + ' (Guest)') : username;
+            if (isGuest) {
+                document.getElementById('myProfile').style.display = 'none';
+                document.getElementById('guestArea').style.display = 'block';
+            } else {
+                document.getElementById('guestArea').style.display = 'none';
+                document.getElementById('myProfile').style.display = 'block';
+                renderMyProfile();
+            }
+        }
+        function memberLogout() {
+            sessionStorage.removeItem('memberLoggedIn');
+            sessionStorage.removeItem('memberUsername');
+            sessionStorage.removeItem('memberIsGuest');
+            document.getElementById('memberHeader').style.display = 'none';
+            document.getElementById('myProfile').style.display = 'none';
+            document.getElementById('guestArea').style.display = 'none';
+            renderSchedule && renderSchedule();
+        }
+
+        // Guest login disabled (admin/member login only).
+        // open registration WITHOUT logging the guest out — we'll convert the session on submit
+        document.getElementById('guestRegisterBtn')?.addEventListener('click', function(){
+            showMemberModal();
+            document.getElementById('memberRegisterForm').style.display = 'block';
+            document.getElementById('memberLoginForm').style.display = 'none';
+            const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+            if (isGuest) {
+                const guestName = sessionStorage.getItem('memberUsername') || '';
+                document.getElementById('regUsername').value = guestName;
+            } else {
+                document.getElementById('regUsername').value = '';
+            }
+        });
+        // preview team logo when file chosen
+        document.querySelectorAll('.team-logo-input').forEach(inp => {
+            inp.addEventListener('change', function() {
+                const file = this.files[0];
+                const container = this.parentElement;
+                const img = container ? container.querySelector('img.team-logo') : null;
+                if (file && img) {
+                    const reader = new FileReader();
+                    reader.onload = () => { img.src = reader.result; };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+        document.getElementById('guestLogoutBtn')?.addEventListener('click', memberLogout);
+
+        // Render profile for logged-in member
+        function renderMyProfile() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) return;
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            document.getElementById('mpUsername').value = user.username;
+            document.getElementById('mpFirstName').value = user.firstName || '';
+            document.getElementById('mpLastName').value = user.lastName || '';
+            document.getElementById('mpEmail').value = user.email || '';
+            document.getElementById('mpTeam').value = user.team || '';
+            document.getElementById('mpPassword').value = '';
+            document.getElementById('mpMsg').textContent = '';
+        }
+
+        // Save profile changes
+        document.getElementById('myProfileForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            const username = document.getElementById('mpUsername').value;
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            user.firstName = document.getElementById('mpFirstName').value.trim();
+            user.lastName = document.getElementById('mpLastName').value.trim();
+            user.email = document.getElementById('mpEmail').value.trim();
+            user.team = document.getElementById('mpTeam').value.trim();
+            const newPw = document.getElementById('mpPassword').value;
+            if (newPw) user.passwordHash = await hashPw(newPw);
+            saveMembers(members);
+            document.getElementById('mpMsg').textContent = 'Profile saved.';
+            setTimeout(()=> document.getElementById('mpMsg').textContent = '', 3000);
+        });
+
+        // --- Admin: render members inside Users table and allow inline edits/delete ---
+        function renderUsersTableForAdmin() {
+            const tbody = document.getElementById('usersTbody');
+            if (!tbody) return;
+            const members = loadMembers();
+            tbody.innerHTML = '';
+            if (members.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
+                return;
+            }
+            members.forEach((m, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input data-idx="${idx}" data-field="username" value="${m.username}" readonly></td>
+                    <td><input data-idx="${idx}" data-field="firstName" value="${m.firstName || ''}"></td>
+                    <td><input data-idx="${idx}" data-field="lastName" value="${m.lastName || ''}"></td>
+                    <td><input data-idx="${idx}" data-field="email" value="${m.email || ''}"></td>
+                    <td style="display:flex; gap:8px; align-items:center;"><input data-idx="${idx}" data-field="team" value="${m.team || ''}"><button data-action="delete" data-idx="${idx}" style="background:#e65100;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            // attach events
+            tbody.querySelectorAll('input[data-field]').forEach(inp => {
+                inp.addEventListener('input', function(e){
+                    const idx = Number(this.dataset.idx);
+                    const field = this.dataset.field;
+                    const members = loadMembers();
+                    members[idx][field] = this.value;
+                    saveMembers(members);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', function(){
+                    const idx = Number(this.dataset.idx);
+                    const members = loadMembers();
+                    members.splice(idx, 1);
+                    saveMembers(members);
+                });
+            });
+        }
+
+        // --- Member logout already defined above as memberLogout() ---
+
+        // --- Documents (admin upload + member signing) ---
+        function loadDocuments() {
+            try { return JSON.parse(localStorage.getItem('documents') || '[]'); } catch (err) { return []; }
+        }
+        function saveDocuments(list) {
+            localStorage.setItem('documents', JSON.stringify(list));
+            renderDocsAdmin();
+            renderDocumentsList();
+        }
+
+        function renderDocsAdmin() {
+            const tbody = document.getElementById('adminDocsTbody');
+            if (!tbody) return;
+            const docs = loadDocuments();
+            tbody.innerHTML = '';
+            if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No documents uploaded.</td></tr>'; return; }
+            docs.forEach((d, idx) => {
+                const tr = document.createElement('tr');
+                const uploaded = new Date(d.uploadedAt).toLocaleString();
+                const signedCount = loadMembers().filter(m => (m.signedDocs || []).some(s => s.docId === d.id)).length;
+                tr.innerHTML = `
+                    <td>${d.title || d.filename}</td>
+                    <td><a href="${d.dataUrl}" download="${d.filename}">Download</a></td>
+                    <td>${uploaded}</td>
+                    <td>${signedCount}</td>
+                    <td><button data-action="deleteDoc" data-idx="${idx}" class="doc-delete">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('button[data-action="deleteDoc"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const docs = loadDocuments();
+                    const docId = docs[idx].id;
+                    docs.splice(idx, 1);
+                    saveDocuments(docs);
+                    // remove signed records for removed doc
+                    const members = loadMembers();
+                    members.forEach(m => { m.signedDocs = (m.signedDocs || []).filter(s => s.docId !== docId); });
+                    saveMembers(members);
+                });
+            });
+        }
+
+        function renderDocumentsList() {
+            const tbody = document.getElementById('publicDocsTbody');
+            if (!tbody) return;
+            const docs = loadDocuments();
+            tbody.innerHTML = '';
+            if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#777; padding:20px;">No documents available.</td></tr>'; return; }
+            docs.forEach(d => {
+                const tr = document.createElement('tr');
+                const uploaded = new Date(d.uploadedAt).toLocaleDateString();
+                let actionHtml = `<a href="${d.dataUrl}" download="${d.filename}" class="doc-actions">Download</a>`;
+                let signed = false;
+                if (sessionStorage.getItem('memberLoggedIn') === 'true') {
+                    const username = sessionStorage.getItem('memberUsername');
+                    const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                    if (isGuest) {
+                        actionHtml += ` <button class="doc-actions secondary" data-action="loginToSign">Register to sign</button>`;
+                    } else {
+                        const m = loadMembers().find(u => u.username === username);
+                        signed = !!(m && (m.signedDocs || []).some(s => s.docId === d.id));
+                        if (signed) actionHtml += ' <span style="color:#4caf50; font-weight:bold;">Signed</span>';
+                        else actionHtml += ` <button class="doc-actions" data-docid="${d.id}" data-action="sign">Sign</button>`;
+                    }
+                } else {
+                    actionHtml += ` <button class="doc-actions secondary" data-docid="${d.id}" data-action="loginToSign">Login to sign</button>`;
+                }
+                tr.innerHTML = `<td>${d.title || d.filename}</td><td><a href="${d.dataUrl}" download="${d.filename}">${d.filename}</a></td><td>${uploaded}</td><td>${actionHtml}</td>`;
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('button[data-action="sign"]').forEach(btn => btn.addEventListener('click', e => openSignModal(e.currentTarget.dataset.docid)));
+            tbody.querySelectorAll('button[data-action="loginToSign"]').forEach(btn => btn.addEventListener('click', showMemberModal));
+        }
+
+        function openSignModal(docId) {
+            const docs = loadDocuments();
+            const doc = docs.find(d => d.id === docId);
+            if (!doc) return;
+            document.getElementById('signModal').style.display = 'flex';
+            document.getElementById('signModal').classList.remove('hidden');
+            const iframe = document.getElementById('docPreviewFrame');
+            const img = document.getElementById('docPreviewImg');
+            if (doc.mimeType && doc.mimeType.startsWith('image/')) { img.src = doc.dataUrl; img.style.display = 'block'; iframe.style.display = 'none'; }
+            else { iframe.src = doc.dataUrl; iframe.style.display = 'block'; img.style.display = 'none'; }
+            currentSigningDocId = docId;
+            clearSignature();
+            document.getElementById('signMsg').textContent = '';
+        }
+
+        function closeSignModal() {
+            document.getElementById('signModal').style.display = 'none';
+            currentSigningDocId = null;
+        }
+
+        // signature canvas helpers
+        let currentSigningDocId = null;
+        const sigCanvas = document.getElementById('signatureCanvas');
+        const sigCtx = sigCanvas.getContext('2d');
+        let drawing = false;
+        function clearSignature() { sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height); document.getElementById('typedSignature').value = ''; }
+        function isCanvasBlank(c) { const blank = document.createElement('canvas'); blank.width = c.width; blank.height = c.height; return c.toDataURL() === blank.toDataURL(); }
+
+        function setupSignatureCanvas() {
+            const rect = () => sigCanvas.getBoundingClientRect();
+            function getPos(e) {
+                const r = rect();
+                if (e.touches && e.touches.length) e = e.touches[0];
+                return { x: (e.clientX - r.left) * (sigCanvas.width / r.width), y: (e.clientY - r.top) * (sigCanvas.height / r.height) };
+            }
+            sigCanvas.addEventListener('pointerdown', (e) => { drawing = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); e.preventDefault(); });
+            sigCanvas.addEventListener('pointermove', (e) => { if (!drawing) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.strokeStyle = '#000'; sigCtx.lineWidth = 2; sigCtx.lineCap = 'round'; sigCtx.stroke(); });
+            ['pointerup','pointerleave'].forEach(evt => sigCanvas.addEventListener(evt, () => { drawing = false; }));
+        }
+        setupSignatureCanvas();
+
+        // registration-signature canvas (used during account creation)
+        const regCanvas = document.getElementById('regSignatureCanvas');
+        const regCtx = regCanvas ? regCanvas.getContext('2d') : null;
+        function setupRegSignatureCanvas() {
+            if (!regCanvas) return;
+            let regDrawing = false;
+            const rectR = () => regCanvas.getBoundingClientRect();
+            function getPosR(e) { const r = rectR(); if (e.touches && e.touches.length) e = e.touches[0]; return { x: (e.clientX - r.left) * (regCanvas.width / r.width), y: (e.clientY - r.top) * (regCanvas.height / r.height) }; }
+            regCanvas.addEventListener('pointerdown', (e) => { regDrawing = true; const p = getPosR(e); regCtx.beginPath(); regCtx.moveTo(p.x, p.y); e.preventDefault(); });
+            regCanvas.addEventListener('pointermove', (e) => { if (!regDrawing) return; const p = getPosR(e); regCtx.lineTo(p.x, p.y); regCtx.strokeStyle = '#000'; regCtx.lineWidth = 2; regCtx.lineCap = 'round'; regCtx.stroke(); });
+            ['pointerup','pointerleave'].forEach(evt => regCanvas.addEventListener(evt, () => { regDrawing = false; }));
+        }
+        setupRegSignatureCanvas();
+        document.getElementById('regClearSignatureBtn')?.addEventListener('click', function(){ if (regCtx) regCtx.clearRect(0,0,regCanvas.width, regCanvas.height); document.getElementById('regTypedSignature').value = ''; });
+
+        document.getElementById('clearSignatureBtn').addEventListener('click', clearSignature);
+        document.getElementById('closeSignModalBtn').addEventListener('click', closeSignModal);
+        document.getElementById('saveSignatureBtn').addEventListener('click', async function() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) { showMemberModal(); return; }
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            const typed = document.getElementById('typedSignature').value.trim();
+            let sigData = null;
+            if (!isCanvasBlank(sigCanvas)) sigData = sigCanvas.toDataURL();
+            else if (typed) {
+                const tmp = document.createElement('canvas'); tmp.width = 600; tmp.height = 80; const tc = tmp.getContext('2d'); tc.fillStyle = '#000'; tc.font = '28px sans-serif'; tc.fillText(typed, 8, 50); sigData = tmp.toDataURL();
+            } else { document.getElementById('signMsg').textContent = 'Please draw or type your name to sign.'; return; }
+            user.signedDocs = user.signedDocs || [];
+            user.signedDocs.push({ docId: currentSigningDocId, signature: sigData, signedAt: new Date().toISOString() });
+            saveMembers(members);
+            document.getElementById('signMsg').textContent = 'Document signed.';
+            setTimeout(() => { closeSignModal(); renderDocumentsList(); renderDocsAdmin(); }, 900);
+        });
+
+        // admin upload handlers
+        document.getElementById('docUploadBtn').addEventListener('click', () => document.getElementById('docUploadInput').click());
+        document.getElementById('docUploadInput').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if (!file) return; const title = document.getElementById('docTitleInput').value.trim() || file.name;
+            const reader = new FileReader(); reader.onload = function(ev) {
+                const docs = loadDocuments();
+                docs.push({ id: Date.now().toString(), title, filename: file.name, mimeType: file.type || '', dataUrl: ev.target.result, uploadedAt: new Date().toISOString() });
+                saveDocuments(docs);
+                e.target.value = ''; document.getElementById('docTitleInput').value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // render lists on load
+        renderDocsAdmin();
+        renderDocumentsList();
+        renderAdminPaymentRequests();
+
+        // --- Weekly schedule persistence & rendering ---
+        function defaultSchedule() {
+            const times = ['10am','11am','12pm','1pm','2pm','3pm'];
+            return times.map(t => ({ time: t, team1: {name:'', logo:''}, team2: {name:'', logo:''} }));
+        }
+        function loadSchedule() {
+            try { return JSON.parse(localStorage.getItem('weeklySchedule')) || defaultSchedule(); }
+            catch (e) { return defaultSchedule(); }
+        }
+        function saveSchedule(sch) {
+            localStorage.setItem('weeklySchedule', JSON.stringify(sch));
+            renderSchedule();
+        }
+        function renderSchedule() {
+            const tbody = document.getElementById('scheduleTbody');
+            if (!tbody) return;
+            const schedule = loadSchedule();
+            const isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            tbody.innerHTML = '';
+            // make sure edit button visibility matches admin state
+            const editBtn = document.getElementById('scheduleEditBtn');
+            if (editBtn) editBtn.style.display = isAdmin ? 'inline-block' : 'none';
+            schedule.forEach((row, rowIdx) => {
+                const tr = document.createElement('tr');
+                let cell = '';
+                if (isAdmin) {
+                    cell = `<td><div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+                        <div style="flex:1;min-width:40%;text-align:center;">
+                            ${row.team1.logo?`<img src="${row.team1.logo}" class="team-logo">`:''}
+                            <input type="file" data-row="${rowIdx}" data-team="1" data-field="logo" accept="image/*">
+                        </div>
+                        <input type="text" data-row="${rowIdx}" data-team="1" data-field="name" placeholder="Team 1 name" value="${row.team1.name}" style="flex:1;min-width:40%;">
+                        <span style="flex-basis:100%;text-align:center;">vs</span>
+                        <div style="flex:1;min-width:40%;text-align:center;">
+                            ${row.team2.logo?`<img src="${row.team2.logo}" class="team-logo">`:''}
+                            <input type="file" data-row="${rowIdx}" data-team="2" data-field="logo" accept="image/*">
+                        </div>
+                        <input type="text" data-row="${rowIdx}" data-team="2" data-field="name" placeholder="Team 2 name" value="${row.team2.name}" style="flex:1;min-width:40%;">
+                    </div></td>`;
+                } else {
+                    const t1 = row.team1;
+                    const t2 = row.team2;
+                    cell = `<td><div class="matchup">
+                        ${t1.logo?`<img src="${t1.logo}" class="team-logo" alt="">`:''}
+                        ${t1.name||''} vs
+                        ${t2.logo?`<img src="${t2.logo}" class="team-logo" alt="">`:''}
+                        ${t2.name||''}
+                    </div></td>`;
+                }
+                tr.innerHTML = `<td>${row.time}</td>` + cell;
+                tbody.appendChild(tr);
+            });
+            if (isAdmin) {
+                // handle file uploads separately
+                tbody.querySelectorAll('input[type="file"]').forEach(inp => {
+                    inp.addEventListener('change', function() {
+                        const r = Number(this.dataset.row);
+                        const t = Number(this.dataset.team);
+                        const file = this.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                const sch = loadSchedule();
+                                sch[r][`team${t}`].logo = reader.result;
+                                saveSchedule(sch);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                });
+                tbody.querySelectorAll('input[type="text"]').forEach(inp => {
+                    inp.addEventListener('input', function() {
+                        const r = Number(this.dataset.row);
+                        const t = Number(this.dataset.team);
+                        const f = this.dataset.field;
+                        const sch = loadSchedule();
+                        sch[r][`team${t}`][f] = this.value.trim();
+                        saveSchedule(sch);
+                    });
+                });
+            }
+        }
+        renderSchedule();
+
+        // schedule editing state & toggle handler
+        let scheduleEditing = false;
+        function toggleScheduleEdit() {
+            const isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            if (!isAdmin) {
+                alert('Admin login is required to edit the league schedule.');
+                return;
+            }
+            scheduleEditing = !scheduleEditing;
+            const btn = document.getElementById('scheduleEditBtn');
+            if (btn) btn.textContent = scheduleEditing ? 'Stop Editing' : 'Edit Schedule';
+            const inputs = document.querySelectorAll('#scheduleTbody input');
+            inputs.forEach(inp => {
+                if (scheduleEditing) {
+                    inp.classList.add('schedule-edit-highlight');
+                    inp.addEventListener('focus', removeHighlightOnFocus);
+                } else {
+                    inp.classList.remove('schedule-edit-highlight');
+                    inp.removeEventListener('focus', removeHighlightOnFocus);
+                }
+            });
+        }
+        function removeHighlightOnFocus(e) {
+            e.target.classList.remove('schedule-edit-highlight');
+        }
+        document.getElementById('scheduleEditBtn')?.addEventListener('click', toggleScheduleEdit);
+        
+        // page-wide edit state
+        let pageEditing = false;
+        let persistTimer = null;
+        function flushPersistSiteContent() {
+            if (persistTimer) {
+                clearTimeout(persistTimer);
+                persistTimer = null;
+            }
+            persistSiteContent();
+        }
+        function queuePersistSiteContent() {
+            if (!pageEditing) return;
+            if (persistTimer) clearTimeout(persistTimer);
+            persistTimer = setTimeout(persistSiteContent, 250);
+        }
+        document.addEventListener('input', queuePersistSiteContent, true);
+        document.addEventListener('change', queuePersistSiteContent, true);
+        window.addEventListener('beforeunload', flushPersistSiteContent);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') flushPersistSiteContent();
+        });
+
+        function enablePageEdit(enable) {
+            pageEditing = enable;
+            if (enable) {
+                document.body.setAttribute('contenteditable','true');
+                document.body.classList.add('admin-editable');
+                enforceNonEditableAdminUI();
+                const btn = document.getElementById('togglePageEditBtn');
+                if (btn) btn.textContent = 'Disable Editing';
+            } else {
+                document.body.removeAttribute('contenteditable');
+                document.body.classList.remove('admin-editable');
+                const btn = document.getElementById('togglePageEditBtn');
+                if (btn) btn.textContent = 'Enable Editing';
+                persistSiteContent();
+            }
+        }
+        function togglePageEdit() {
+            enablePageEdit(!pageEditing);
+        }
+
+        // --- end Documents functions ---
+
+        // Smooth scrolling for navigation links (retain existing behavior)
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                sessionStorage.setItem('adminUsername', username);
+                // show feedback inside modal
+                const msgEl = document.getElementById('loginError');
+                if (msgEl) {
+                    msgEl.style.color = 'green';
+                    msgEl.textContent = 'Successfully logged in as admin';
+                }
+                // delay hiding so message is visible briefly
+                setTimeout(() => {
+                    showAdminView();
+                }, 800);
+            } else {
+                const msgEl = document.getElementById('loginError');
+                if (msgEl) {
+                    msgEl.style.color = 'red';
+                    msgEl.textContent = 'Invalid username or password';
+                }
+            }
+        });
+
+        function showAdminView() {
+            // notify user explicitly
+            alert('Successfully logged in as admin');
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('adminHeader').style.display = 'block';
+            // display username if available
+            const adminNameEl = document.getElementById('adminNameDisplay');
+            const stored = sessionStorage.getItem('adminUsername');
+            if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+            document.getElementById('adminOnly').classList.add('visible');
+            // enable full-page editing
+            enablePageEdit(true);
+            // refresh admin tables
+            renderUsersTableForAdmin();
+            renderDocsAdmin && renderDocsAdmin();
+            renderSchedule && renderSchedule();
+            renderAdminPaymentRequests && renderAdminPaymentRequests();
+            renderPayPalSettings && renderPayPalSettings();
+            bindPayPalSettingsControls && bindPayPalSettingsControls();
+            // automatically enable schedule edit mode
+            if (!scheduleEditing) toggleScheduleEdit();
+            persistSiteContent();
+        }
+
+        function logout() {
+            flushPersistSiteContent();
+            sessionStorage.removeItem('adminLoggedIn');
+            sessionStorage.removeItem('adminUsername');
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('adminHeader').style.display = 'none';
+            document.getElementById('adminOnly').classList.remove('visible');
+            // disable editable mode
+            enablePageEdit(false);
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').textContent = '';
+            renderSchedule && renderSchedule();
+        }
+
+        // Logo upload handling (admin-only)
+    </script>
+</body>
+</html>
