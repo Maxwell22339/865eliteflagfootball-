@@ -21,6 +21,7 @@
         :root {
             --hero-photo: none;
             --nav-links-min-width: 620px;
+            --page-side-padding: clamp(16px, 2.5vw, 32px);
         }
 
         header {
@@ -36,9 +37,10 @@
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0 var(--page-side-padding);
         }
 
         nav {
@@ -1750,6 +1752,7 @@
         const PAGE_CONTENT_KEY = 'siteContentHTML_v3';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
+        const TOP_LAYOUT_ALLOWED_IDS = ['loginModal', 'memberModal', 'signModal', 'adminHeader', 'memberHeader'];
         const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
@@ -2356,12 +2359,49 @@
             });
         }
 
+        function normalizeTopOfPageLayout(container) {
+            if (!container) return false;
+
+            const header = Array.from(container.children).find(function(child) {
+                return child.tagName === 'HEADER';
+            });
+            if (!header) return false;
+
+            let changed = false;
+            let currentNode = container.firstChild;
+
+            while (currentNode && currentNode !== header) {
+                const nextNode = currentNode.nextSibling;
+
+                if (currentNode.nodeType === Node.TEXT_NODE) {
+                    currentNode.remove();
+                    changed = true;
+                } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                    const nodeId = currentNode.id || '';
+                    const hasTextContent = !!(currentNode.textContent || '').trim();
+                    const isAllowedUi = !!nodeId && TOP_LAYOUT_ALLOWED_IDS.includes(nodeId);
+
+                    if (!isAllowedUi && hasTextContent) {
+                        currentNode.remove();
+                        changed = true;
+                    }
+                }
+
+                currentNode = nextNode;
+            }
+
+            return changed;
+        }
+
         function restoreSiteContent() {
             try {
                 const saved = localStorage.getItem(PAGE_CONTENT_KEY);
                 const container = document.getElementById('siteContent');
                 if (saved && container) {
                     container.innerHTML = saved;
+                }
+                if (container && normalizeTopOfPageLayout(container)) {
+                    localStorage.setItem(PAGE_CONTENT_KEY, container.innerHTML);
                 }
             } catch (err) {
                 // If localStorage is unavailable or corrupted, continue with default markup.
@@ -2430,6 +2470,7 @@
                 if (!container) return;
                 // Clone and strip ALL admin artifacts before saving
                 const clone = container.cloneNode(true);
+                normalizeTopOfPageLayout(clone);
                 // Remove contenteditable attributes
                 clone.querySelectorAll('[contenteditable]').forEach(function(el) { el.removeAttribute('contenteditable'); });
                 // Clear dynamically-rendered admin content so non-admin visitors won't see inputs
@@ -4238,6 +4279,7 @@
         }
         function saveAllChanges() {
             if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            const layoutNormalized = normalizeTopOfPageLayout(document.getElementById('siteContent'));
             if (pageEditing) {
                 syncLeagueStandingsFromPublicTable();
                 syncLeagueScheduleFromPublicTable();
@@ -4247,6 +4289,9 @@
                 saveScheduleFromAdminForm();
             }
             persistSiteContent();
+            if (layoutNormalized) {
+                updateHeaderScrollState();
+            }
             // also save payment links currently in inputs
             var teamLink = document.getElementById('paypalTeamLink');
             var freeLink = document.getElementById('paypalFreeAgentLink');
