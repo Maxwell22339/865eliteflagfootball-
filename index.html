@@ -20,8 +20,6 @@
 
         :root {
             --hero-photo: none;
-            --nav-links-min-width: 620px;
-            --page-side-padding: clamp(16px, 2.5vw, 32px);
         }
 
         header {
@@ -37,24 +35,21 @@
         }
 
         .container {
-            width: 100%;
-            max-width: none;
-            margin: 0;
-            padding: 0 var(--page-side-padding);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
         }
 
         nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
             position: relative;
             transition: min-height 0.4s ease;
         }
 
         .logo {
-            font-size: 1.55rem;
+            font-size: 1.8rem;
             font-weight: bold;
             letter-spacing: 1px;
             display: flex;
@@ -65,11 +60,14 @@
             will-change: transform;
         }
 
-        
+        .logo span {
+            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, letter-spacing 0.35s ease, font-size 0.35s ease;
+            transform-origin: left center;
+        }
 
         .site-logo {
-            width: 84px;
-            height: 84px;
+            width: 100px;
+            height: 100px;
             object-fit: cover;
             border-radius: 50%;
             background: #fff;
@@ -83,11 +81,8 @@
         .nav-links {
             display: flex;
             list-style: none;
-            gap: 1rem 1.5rem;
+            gap: 2rem;
             align-items: center;
-            justify-content: flex-end;
-            flex: 1 1 var(--nav-links-min-width);
-            flex-wrap: wrap;
             transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
         }
 
@@ -129,7 +124,10 @@
             transform: scale(1);
         }
 
-        
+        header.scrolled .logo span {
+            transform: scale(0.9);
+            letter-spacing: 0.5px;
+        }
 
         .nav-links a {
             color: white;
@@ -197,7 +195,7 @@
             background-repeat: no-repeat, no-repeat, repeat, repeat;
             color: white;
             text-align: center;
-            padding: 140px 20px 120px;
+            padding: 120px 20px;
             min-height: 500px;
             display: flex;
             align-items: center;
@@ -207,7 +205,6 @@
 
         .hero-content h1 {
             font-size: 3.5rem;
-            line-height: 1.3;
             margin-bottom: 1rem;
             text-shadow: 3px 3px 8px rgba(0,0,0,0.6);
             text-transform: uppercase;
@@ -908,18 +905,6 @@
             background: #f0f0f0;
         }
 
-        @media (max-width: 1200px) {
-            nav {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .nav-links {
-                width: 100%;
-                justify-content: flex-start;
-            }
-        }
-
         @media (max-width: 768px) {
             .nav-links {
                 gap: 1rem;
@@ -967,7 +952,10 @@
                 height: 56px;
             }
 
-        
+            header.scrolled .logo span {
+                font-size: 1rem;
+                transform: scale(0.94);
+            }
         }
 
         /* highlight editable areas when admin has editing enabled */
@@ -977,8 +965,9 @@
         .admin-editable ::selection {
             background: rgba(255,111,0,0.3);
         }
-        /* Hide restricted/member-only sections until explicitly shown */
-        #documentsAdmin, #guestArea, #myProfile {
+        /* Page navigation — each section is its own page */
+        #about, #standings, #leagueSchedule, #player-stats, #season-recap, #payments,
+        #documentsPublic, #guestArea, #myProfile, #contact {
             display: none;
         }
         /* Admin nav items hidden by default, shown when admin is logged in */
@@ -1086,6 +1075,7 @@
             <nav>
                 <div class="logo">
                     <img src="assets/logo.jpg" alt="865 Elite logo" class="site-logo">
+                    <span>865 ELITE FLAG FOOTBALL</span>
                 </div>
                 <ul class="nav-links">
                     <li><a href="#home">Home</a></li>
@@ -1741,7 +1731,6 @@
         const PAGE_CONTENT_KEY = 'siteContentHTML_v3';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
-        const TOP_LAYOUT_ALLOWED_IDS = ['loginModal', 'memberModal', 'signModal', 'adminHeader', 'memberHeader'];
         const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
@@ -1760,8 +1749,6 @@
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
             'documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
-        const RESTRICTED_PAGE_IDS = ['documentsAdmin','guestArea','myProfile'];
-        const PUBLIC_PAGE_IDS = ALL_PAGE_IDS.filter(function(id){ return RESTRICTED_PAGE_IDS.indexOf(id) === -1; });
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -1792,44 +1779,21 @@
             return true;
         }
 
-        function revealPublicSections() {
-            PUBLIC_PAGE_IDS.forEach(function(pageId) {
-                var el = document.getElementById(pageId);
-                if (el) el.style.display = 'block';
-            });
-        }
-
-        function showPage(id, options) {
-            options = options || {};
+        function showPage(id) {
             if (id && id.startsWith('#')) id = id.substring(1);
-            if (!id) id = 'home';
-
-            var targetId = ALL_PAGE_IDS.indexOf(id) !== -1 ? id : 'home';
-            if (!canAccessPage(targetId)) {
-                targetId = 'home';
+            if (ALL_PAGE_IDS.indexOf(id) === -1 || !canAccessPage(id)) {
+                id = 'home';
             }
-
-            revealPublicSections();
-
-            RESTRICTED_PAGE_IDS.forEach(function(pageId) {
+            ALL_PAGE_IDS.forEach(function(pageId) {
                 var el = document.getElementById(pageId);
-                if (!el) return;
-                var shouldShow = pageId === targetId && canAccessPage(pageId);
-                el.style.display = shouldShow ? 'block' : 'none';
+                if (el) el.style.display = 'none';
             });
-
-            var target = document.getElementById(targetId);
+            var target = document.getElementById(id);
             if (target) {
-                var behavior = options.instant ? 'auto' : 'smooth';
-                if (typeof target.scrollIntoView === 'function') {
-                    target.scrollIntoView({ behavior: behavior, block: 'start' });
-                } else {
-                    window.scrollTo({ top: target.offsetTop || 0, behavior: behavior });
-                }
-                if (options.updateHash !== false) {
-                    if (history.pushState) history.pushState(null, '', '#' + targetId);
-                    else window.location.hash = targetId;
-                }
+                target.style.display = 'block';
+                window.scrollTo(0, 0);
+                if (history.pushState) history.pushState(null, '', '#' + id);
+                else window.location.hash = id;
                 updateHeaderScrollState();
             }
         }
@@ -2046,7 +2010,17 @@
 
         window.addEventListener('popstate', function() {
             var id = window.location.hash ? window.location.hash.substring(1) : 'home';
-            showPage(id, { updateHash: false, instant: true });
+            if (ALL_PAGE_IDS.indexOf(id) !== -1 && canAccessPage(id)) {
+                ALL_PAGE_IDS.forEach(function(pageId) {
+                    var el = document.getElementById(pageId);
+                    if (el) el.style.display = 'none';
+                });
+                var target = document.getElementById(id);
+                if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
+                updateHeaderScrollState();
+            } else {
+                showPage('home');
+            }
         });
 
         window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
@@ -2348,49 +2322,12 @@
             });
         }
 
-        function normalizeTopOfPageLayout(container) {
-            if (!container) return false;
-
-            const header = Array.from(container.children).find(function(child) {
-                return child.tagName === 'HEADER';
-            });
-            if (!header) return false;
-
-            let changed = false;
-            let currentNode = container.firstChild;
-
-            while (currentNode && currentNode !== header) {
-                const nextNode = currentNode.nextSibling;
-
-                if (currentNode.nodeType === Node.TEXT_NODE) {
-                    currentNode.remove();
-                    changed = true;
-                } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                    const nodeId = currentNode.id || '';
-                    const hasTextContent = !!(currentNode.textContent || '').trim();
-                    const isAllowedUi = !!nodeId && TOP_LAYOUT_ALLOWED_IDS.includes(nodeId);
-
-                    if (!isAllowedUi && hasTextContent) {
-                        currentNode.remove();
-                        changed = true;
-                    }
-                }
-
-                currentNode = nextNode;
-            }
-
-            return changed;
-        }
-
         function restoreSiteContent() {
             try {
                 const saved = localStorage.getItem(PAGE_CONTENT_KEY);
                 const container = document.getElementById('siteContent');
                 if (saved && container) {
                     container.innerHTML = saved;
-                }
-                if (container && normalizeTopOfPageLayout(container)) {
-                    localStorage.setItem(PAGE_CONTENT_KEY, container.innerHTML);
                 }
             } catch (err) {
                 // If localStorage is unavailable or corrupted, continue with default markup.
@@ -2459,7 +2396,6 @@
                 if (!container) return;
                 // Clone and strip ALL admin artifacts before saving
                 const clone = container.cloneNode(true);
-                normalizeTopOfPageLayout(clone);
                 // Remove contenteditable attributes
                 clone.querySelectorAll('[contenteditable]').forEach(function(el) { el.removeAttribute('contenteditable'); });
                 // Clear dynamically-rendered admin content so non-admin visitors won't see inputs
@@ -2512,8 +2448,9 @@
         // Show the correct page immediately after restoring content
         (function() {
             var h = window.location.hash ? window.location.hash.substring(1) : 'home';
-            var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && RESTRICTED_PAGE_IDS.indexOf(h) === -1 ? h : 'home';
-            showPage(validPage, { updateHash: false, instant: true });
+            var restricted = ['myProfile','guestArea','documentsAdmin'];
+            var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && restricted.indexOf(h) === -1 ? h : 'home';
+            showPage(validPage);
             updateHeaderScrollState();
         })();
 
@@ -4268,7 +4205,6 @@
         }
         function saveAllChanges() {
             if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
-            const layoutNormalized = normalizeTopOfPageLayout(document.getElementById('siteContent'));
             if (pageEditing) {
                 syncLeagueStandingsFromPublicTable();
                 syncLeagueScheduleFromPublicTable();
@@ -4278,9 +4214,6 @@
                 saveScheduleFromAdminForm();
             }
             persistSiteContent();
-            if (layoutNormalized) {
-                updateHeaderScrollState();
-            }
             // also save payment links currently in inputs
             var teamLink = document.getElementById('paypalTeamLink');
             var freeLink = document.getElementById('paypalFreeAgentLink');
@@ -4307,7 +4240,7 @@
         });
 
         function setAdminEditableText(enable) {
-            var editableSelector = 'header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
+            var editableSelector = 'header .logo span, header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
             var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, form';
 
             document.querySelectorAll(editableSelector).forEach(function(el) {
