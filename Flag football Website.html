@@ -2379,7 +2379,11 @@
                         changed = true;
                     }
                 } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                    if (TOP_LAYOUT_ALLOWED_IDS.indexOf(currentNode.id) === -1) {
+                    const nodeId = currentNode.id || '';
+                    const hasVisibleText = !!(currentNode.textContent || '').trim();
+                    const isAllowedUi = nodeId && TOP_LAYOUT_ALLOWED_IDS.indexOf(nodeId) !== -1;
+
+                    if (!isAllowedUi && hasVisibleText) {
                         currentNode.remove();
                         changed = true;
                     }
@@ -4277,7 +4281,7 @@
         }
         function saveAllChanges() {
             if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
-            normalizeTopOfPageLayout(document.getElementById('siteContent'));
+            const layoutNormalized = normalizeTopOfPageLayout(document.getElementById('siteContent'));
             if (pageEditing) {
                 syncLeagueStandingsFromPublicTable();
                 syncLeagueScheduleFromPublicTable();
@@ -4287,6 +4291,9 @@
                 saveScheduleFromAdminForm();
             }
             persistSiteContent();
+            if (layoutNormalized) {
+                updateHeaderScrollState();
+            }
             // also save payment links currently in inputs
             var teamLink = document.getElementById('paypalTeamLink');
             var freeLink = document.getElementById('paypalFreeAgentLink');
