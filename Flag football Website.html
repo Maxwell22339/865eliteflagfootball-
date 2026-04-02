@@ -2380,10 +2380,10 @@
                     }
                 } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
                     const nodeId = currentNode.id || '';
-                    const hasVisibleText = !!(currentNode.textContent || '').trim();
-                    const isAllowedUi = nodeId && TOP_LAYOUT_ALLOWED_IDS.indexOf(nodeId) !== -1;
+                    const hasTextContent = !!(currentNode.textContent || '').trim();
+                    const isAllowedUi = !!nodeId && TOP_LAYOUT_ALLOWED_IDS.includes(nodeId);
 
-                    if (!isAllowedUi && hasVisibleText) {
+                    if (!isAllowedUi && hasTextContent) {
                         currentNode.remove();
                         changed = true;
                     }
