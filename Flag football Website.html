@@ -2374,10 +2374,8 @@
                 const nextNode = currentNode.nextSibling;
 
                 if (currentNode.nodeType === Node.TEXT_NODE) {
-                    if (currentNode.textContent.trim()) {
-                        currentNode.remove();
-                        changed = true;
-                    }
+                    currentNode.remove();
+                    changed = true;
                 } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
                     const nodeId = currentNode.id || '';
                     const hasTextContent = !!(currentNode.textContent || '').trim();
