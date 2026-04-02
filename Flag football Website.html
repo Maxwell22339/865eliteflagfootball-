@@ -65,11 +65,7 @@
             will-change: transform;
         }
 
-        .logo span {
-            white-space: nowrap;
-            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, letter-spacing 0.35s ease, font-size 0.35s ease;
-            transform-origin: left center;
-        }
+        
 
         .site-logo {
             width: 84px;
@@ -133,10 +129,7 @@
             transform: scale(1);
         }
 
-        header.scrolled .logo span {
-            transform: scale(0.9);
-            letter-spacing: 0.5px;
-        }
+        
 
         .nav-links a {
             color: white;
@@ -974,10 +967,7 @@
                 height: 56px;
             }
 
-            header.scrolled .logo span {
-                font-size: 1rem;
-                transform: scale(0.94);
-            }
+        
         }
 
         /* highlight editable areas when admin has editing enabled */
@@ -1096,7 +1086,6 @@
             <nav>
                 <div class="logo">
                     <img src="assets/logo.jpg" alt="865 Elite logo" class="site-logo">
-                    <span>865 ELITE FLAG FOOTBALL</span>
                 </div>
                 <ul class="nav-links">
                     <li><a href="#home">Home</a></li>
@@ -4318,7 +4307,7 @@
         });
 
         function setAdminEditableText(enable) {
-            var editableSelector = 'header .logo span, header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
+            var editableSelector = 'header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
             var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, form';
 
             document.querySelectorAll(editableSelector).forEach(function(el) {
