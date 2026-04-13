@@ -9,6 +9,7 @@
     <!-- Redirect from github.io to custom domain to avoid shared-cookie issues -->
     <script>
         if (window.location.hostname.indexOf('github.io') !== -1) {
+            // Strip the repository name (first path segment) from GitHub Pages URLs
             window.location.replace('https://865eliteflagfootball.com' + window.location.pathname.replace(/^\/[^/]+/, '') + window.location.search + window.location.hash);
         }
     </script>
@@ -1762,7 +1763,11 @@
                 localStorage.setItem(key, value);
                 return true;
             } catch (e) {
-                alert('Storage is full. Please clear some data (old documents or images) to free up space.');
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    alert('Storage is full. Please clear some data (old documents or images) to free up space.');
+                } else {
+                    alert('Unable to save data to browser storage. You may be in private browsing mode.');
+                }
                 return false;
             }
         }
