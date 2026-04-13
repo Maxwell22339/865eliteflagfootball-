@@ -2,8 +2,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <link rel="canonical" href="https://865eliteflagfootball.com/">
     <title>865 ELITE FLAG FOOTBALL - 865eliteflagfootball.com</title>
     <link rel="icon" href="assets/logo.jpg" type="image/jpeg">
+    <!-- Redirect from github.io to custom domain to avoid shared-cookie issues -->
+    <script>
+        if (window.location.hostname.indexOf('github.io') !== -1) {
+            window.location.replace('https://865eliteflagfootball.com' + window.location.pathname.replace(/^\/[^/]+/, '') + window.location.search + window.location.hash);
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -1723,6 +1731,42 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script>
+        // --- Helper: compress image data URL to reduce localStorage usage ---
+        function compressImageDataUrl(dataUrl, maxWidth, maxHeight, quality) {
+            maxWidth = maxWidth || 800;
+            maxHeight = maxHeight || 800;
+            quality = quality || 0.7;
+            return new Promise(function(resolve) {
+                var img = new Image();
+                img.onload = function() {
+                    var w = img.width, h = img.height;
+                    if (w > maxWidth || h > maxHeight) {
+                        var ratio = Math.min(maxWidth / w, maxHeight / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    var canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = function() { resolve(dataUrl); };
+                img.src = dataUrl;
+            });
+        }
+
+        // --- Helper: safe localStorage setter with quota handling ---
+        function safeLocalStorageSet(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                alert('Storage is full. Please clear some data (old documents or images) to free up space.');
+                return false;
+            }
+        }
+
         // --- Admin credentials (unchanged) ---
         const ADMIN_ACCOUNTS = [
             { username: 'Ficken', password: 'IowaTenneessee' },
@@ -2231,14 +2275,16 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        document.querySelectorAll('.site-logo').forEach(img => { img.src = dataUrl; });
-                        const icon = document.querySelector('link[rel="icon"]');
-                        if (icon) {
-                            icon.href = dataUrl;
-                            icon.type = file.type || 'image/png';
-                        }
-                        localStorage.setItem(SITE_LOGO_KEY, dataUrl);
-                        flushPersistSiteContent();
+                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(compressed) {
+                            document.querySelectorAll('.site-logo').forEach(img => { img.src = compressed; });
+                            const icon = document.querySelector('link[rel="icon"]');
+                            if (icon) {
+                                icon.href = compressed;
+                                icon.type = 'image/jpeg';
+                            }
+                            safeLocalStorageSet(SITE_LOGO_KEY, compressed);
+                            flushPersistSiteContent();
+                        });
                     };
                     reader.readAsDataURL(file);
                     this.value = '';
@@ -2261,9 +2307,11 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        document.documentElement.style.setProperty('--hero-photo', 'url("' + dataUrl + '")');
-                        localStorage.setItem(HOME_HERO_BACKGROUND_KEY, dataUrl);
-                        flushPersistSiteContent();
+                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(compressed) {
+                            document.documentElement.style.setProperty('--hero-photo', 'url("' + compressed + '")');
+                            safeLocalStorageSet(HOME_HERO_BACKGROUND_KEY, compressed);
+                            flushPersistSiteContent();
+                        });
                     };
                     reader.readAsDataURL(file);
                     this.value = '';
@@ -2426,7 +2474,7 @@
                 if (seasonPanelClone) seasonPanelClone.style.display = 'none';
                 // Remove admin-only column headers from stats
                 clone.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
-                localStorage.setItem(PAGE_CONTENT_KEY, clone.innerHTML);
+                safeLocalStorageSet(PAGE_CONTENT_KEY, clone.innerHTML);
             } catch (err) {
                 // Ignore storage write failures.
             }
@@ -2465,7 +2513,7 @@
             }
         }
         function saveMembers(list) {
-            localStorage.setItem('members', JSON.stringify(list));
+            safeLocalStorageSet('members', JSON.stringify(list));
             renderUsersTableForAdmin();
         }
 
@@ -3042,7 +3090,7 @@
             try { return JSON.parse(localStorage.getItem('documents') || '[]'); } catch (err) { return []; }
         }
         function saveDocuments(list) {
-            localStorage.setItem('documents', JSON.stringify(list));
+            if (!safeLocalStorageSet('documents', JSON.stringify(list))) return;
             renderDocsAdmin();
             renderDocumentsList();
         }
