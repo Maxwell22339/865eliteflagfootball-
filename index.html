@@ -703,22 +703,48 @@
 
         .stat-sort-indicator {
             position: absolute;
-            right: 10px;
+            right: 8px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 0.95rem;
-            font-weight: 900;
-            color: rgba(255,255,255,0.75);
-            line-height: 1;
             pointer-events: none;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
-        .sortable-stat-header.sort-desc .stat-sort-indicator {
-            color: #ffffff;
+        .stat-sort-indicator::before,
+        .stat-sort-indicator::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
         }
 
-        .sortable-stat-header.sort-asc .stat-sort-indicator {
-            color: #ffffff;
+        .stat-sort-indicator::before {
+            border-bottom: 5px solid rgba(255,255,255,0.4);
+        }
+
+        .stat-sort-indicator::after {
+            border-top: 5px solid rgba(255,255,255,0.4);
+        }
+
+        .sortable-stat-header.sort-asc .stat-sort-indicator::before {
+            border-bottom-color: #ffffff;
+        }
+
+        .sortable-stat-header.sort-asc .stat-sort-indicator::after {
+            border-top-color: rgba(255,255,255,0.15);
+        }
+
+        .sortable-stat-header.sort-desc .stat-sort-indicator::before {
+            border-bottom-color: rgba(255,255,255,0.15);
+        }
+
+        .sortable-stat-header.sort-desc .stat-sort-indicator::after {
+            border-top-color: #ffffff;
         }
 
         .stats-filter-row {
@@ -1263,15 +1289,15 @@
                     <tr>
                         <th>Team</th>
                         <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>
-                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
+                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
                     </tr>
                 </thead>
                 <tbody id="offensiveStatsBody">
@@ -1301,12 +1327,12 @@
                     <tr>
                         <th>Team</th>
                         <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>
-                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
+                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
                     </tr>
                 </thead>
                 <tbody id="defensiveStatsBody">
@@ -1361,15 +1387,15 @@
                     <tr>
                         <th>Team</th>
                         <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>
-                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
+                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
                     </tr>
                 </thead>
                 <tbody id="recapOffensiveStatsBody">
@@ -1383,12 +1409,12 @@
                     <tr>
                         <th>Team</th>
                         <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>
-                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
-                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>
+                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
                     </tr>
                 </thead>
                 <tbody id="recapDefensiveStatsBody">
@@ -1949,15 +1975,15 @@
                                 '<tr>' +
                                     '<th>Team</th>' +
                                     '<th>Player Name</th>' +
-                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Passing TD<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>' +
-                                    '<th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
+                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                 '</tr>' +
                             '</thead>' +
                             '<tbody id="recapOffensiveStatsBody">' +
@@ -1970,12 +1996,12 @@
                                 '<tr>' +
                                     '<th>Team</th>' +
                                     '<th>Player Name</th>' +
-                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Tackles<span class="stat-sort-indicator" aria-hidden="true">↓</span></th>' +
-                                    '<th>Sacks<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Interceptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
-                                    '<th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>' +
+                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                 '</tr>' +
                             '</thead>' +
                             '<tbody id="recapDefensiveStatsBody">' +
@@ -2013,11 +2039,11 @@
                 }
                 var offensiveTableHead = document.querySelector('#offensiveStatsTable thead tr');
                 if (offensiveTableHead) {
-                    offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true">↓</span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>';
+                    offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
                 }
                 var defensiveTableHead = document.querySelector('#defensiveStatsTable thead tr');
                 if (defensiveTableHead) {
-                    defensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true">↓</span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>';
+                    defensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
                 }
                 if (statsContainer && !document.getElementById('seasonStatsAdminPanel')) {
                     statsContainer.insertAdjacentHTML('beforeend', buildSeasonStatsAdminPanelMarkup());
@@ -2030,7 +2056,7 @@
 
             var recapTableHead = document.querySelector('#recapOffensiveStatsTable thead tr');
             if (recapTableHead) {
-                recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true">↓</span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>';
+                recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
             }
             var recapLabelDisplay = document.getElementById('seasonRecapLabelDisplay');
             if (recapLabelDisplay && !document.getElementById('seasonRecapSortHint')) {
@@ -2038,7 +2064,7 @@
             }
             var recapDefensiveTableHead = document.querySelector('#recapDefensiveStatsTable thead tr');
             if (recapDefensiveTableHead) {
-                recapDefensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true">↓</span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true">↕</span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true">↕</span></th>';
+                recapDefensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
             }
 
             var recapEmptyState = document.querySelector('#recapOffensiveStatsBody tr td[colspan]');
@@ -4197,11 +4223,10 @@
                         indicator.setAttribute('aria-hidden', 'true');
                         header.appendChild(indicator);
                     }
-                    indicator.textContent = '↕';
+                    indicator.textContent = '';
 
                     if (statsSortState[config.type].column === index) {
                         header.classList.add(statsSortState[config.type].direction === 'asc' ? 'sort-asc' : 'sort-desc');
-                        indicator.textContent = statsSortState[config.type].direction === 'asc' ? '↑' : '↓';
                     }
 
                     if (header.dataset.sortBound === 'true') return;
