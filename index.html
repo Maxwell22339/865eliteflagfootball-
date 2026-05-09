@@ -1455,7 +1455,7 @@
                     </div>
                     <div id="teamNameWrap">
                         <label for="payTeamName">Team Name</label>
-                        <input id="payTeamName" type="text" placeholder="Team name" required>
+                        <input id="payTeamName" type="text" placeholder="Team name">
                     </div>
                     <div>
                         <label for="payType">Payment Type</label>
@@ -3085,7 +3085,7 @@
             if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Team registrations must provide the team name, team members, and years together as a team.';
+                    msg.textContent = 'Team registrations must provide the team name, team members, and years playing together.';
                 }
                 return;
             }
