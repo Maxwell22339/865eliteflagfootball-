@@ -1462,20 +1462,24 @@
                         </select>
                     </div>
                     <div id="freeAgentPositionWrap" style="display:none;">
-                        <label for="payPosition">What Position Do You Play?</label>
-                        <select id="payPosition">
-                            <option value="">Select position</option>
-                            <option value="QB">QB</option>
-                            <option value="RB">RB</option>
-                            <option value="WR">WR</option>
-                            <option value="TE">TE</option>
-                            <option value="C">C</option>
-                            <option value="OL">OL</option>
-                            <option value="DL">DL</option>
-                            <option value="LB">LB</option>
-                            <option value="DB">DB</option>
-                            <option value="S">S</option>
-                            <option value="ATH">ATH</option>
+                        <label for="payOffensivePosition">Offensive Position</label>
+                        <select id="payOffensivePosition">
+                            <option value="">Select offensive position</option>
+                            <option value="QB">QB (Quarterback)</option>
+                            <option value="RB">RB (Running Back)</option>
+                            <option value="WR">WR (Wide Receiver)</option>
+                            <option value="TE">TE (Tight End)</option>
+                            <option value="C">C (Center)</option>
+                            <option value="OL">OL (Offensive Line)</option>
+                        </select>
+                        <label for="payDefensivePosition" style="margin-top:10px; display:block;">Defensive Position</label>
+                        <select id="payDefensivePosition">
+                            <option value="">Select defensive position</option>
+                            <option value="DL">DL (Defensive Line)</option>
+                            <option value="LB">LB (Linebacker)</option>
+                            <option value="CB">CB (Cornerback)</option>
+                            <option value="S">S (Safety)</option>
+                            <option value="DB">DB (Defensive Back)</option>
                             <option value="Rusher">Rusher</option>
                         </select>
                     </div>
@@ -2158,7 +2162,7 @@
                         payer_email: details.email,
                         team_member_count: details.teamMembers || 'N/A',
                         team_years: details.teamYears || 'N/A',
-                        player_position: details.position || 'N/A',
+                        player_position: (details.offensivePosition ? 'Off: ' + details.offensivePosition : '') + (details.offensivePosition && details.defensivePosition ? ' / ' : '') + (details.defensivePosition ? 'Def: ' + details.defensivePosition : '') || 'N/A',
                         football_experience: details.experience || 'N/A',
                         paypal_link: details.paypalLink || 'Not configured',
                         submitted_at: details.submittedAt,
@@ -2562,9 +2566,10 @@
             const experienceWrap = document.getElementById('freeAgentExperienceWrap');
             const teamMembersInput = document.getElementById('payTeamMembers');
             const teamYearsInput = document.getElementById('payTeamYears');
-            const positionInput = document.getElementById('payPosition');
+            const offensivePositionInput = document.getElementById('payOffensivePosition');
+            const defensivePositionInput = document.getElementById('payDefensivePosition');
             const experienceInput = document.getElementById('payExperience');
-            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !positionWrap || !experienceWrap || !teamMembersInput || !teamYearsInput || !positionInput || !experienceInput) return;
+            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !positionWrap || !experienceWrap || !teamMembersInput || !teamYearsInput || !offensivePositionInput || !defensivePositionInput || !experienceInput) return;
 
             const isTeam = typeInput.value === 'team';
             const isFreeAgent = typeInput.value === 'freeAgent';
@@ -2574,7 +2579,6 @@
             experienceWrap.style.display = isFreeAgent ? 'block' : 'none';
             teamMembersInput.required = isTeam;
             teamYearsInput.required = isTeam;
-            positionInput.required = isFreeAgent;
             experienceInput.required = isFreeAgent;
 
             if (Number(teamMembersInput.value || '0') > 16) {
@@ -2587,7 +2591,8 @@
             }
 
             if (!isFreeAgent) {
-                positionInput.value = '';
+                offensivePositionInput.value = '';
+                defensivePositionInput.value = '';
                 experienceInput.value = '';
             }
         }
@@ -2605,7 +2610,7 @@
                 const tr = document.createElement('tr');
                 const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
                 const details = p.type === 'freeAgent'
-                    ? 'Position: ' + (p.position || 'N/A') + ' | Flag Football Experience: ' + (p.experience || 'N/A')
+                    ? 'Off. Position: ' + (p.offensivePosition || 'N/A') + ' | Def. Position: ' + (p.defensivePosition || (p.position || 'N/A')) + ' | Flag Football Experience: ' + (p.experience || 'N/A')
                     : 'Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
                 const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
                 tr.innerHTML = `
@@ -2790,7 +2795,9 @@
             const type = document.getElementById('payType').value;
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
-            const position = document.getElementById('payPosition').value.trim();
+            const position = document.getElementById('payPosition') ? document.getElementById('payPosition').value.trim() : '';
+            const offensivePosition = document.getElementById('payOffensivePosition') ? document.getElementById('payOffensivePosition').value.trim() : '';
+            const defensivePosition = document.getElementById('payDefensivePosition') ? document.getElementById('payDefensivePosition').value.trim() : '';
             const experience = document.getElementById('payExperience').value.trim();
             const link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
             const msg = document.getElementById('paymentMsg');
@@ -2813,10 +2820,10 @@
                 return;
             }
 
-            if (type === 'freeAgent' && (!position || !experience)) {
+            if (type === 'freeAgent' && ((!offensivePosition && !defensivePosition) || !experience)) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Free agents must provide their position and how long they have been playing flag football.';
+                    msg.textContent = 'Free agents must select at least one position (offensive or defensive) and how long they have been playing flag football.';
                 }
                 return;
             }
@@ -2830,7 +2837,8 @@
                 type,
                 teamMembers,
                 teamYears,
-                position,
+                offensivePosition,
+                defensivePosition,
                 experience,
                 status: 'pending',
                 submittedAt: submittedAt
@@ -2843,7 +2851,8 @@
                 type,
                 teamMembers,
                 teamYears,
-                position,
+                offensivePosition,
+                defensivePosition,
                 experience,
                 paypalLink: link,
                 submittedAt: submittedAt
