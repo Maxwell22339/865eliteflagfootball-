@@ -4011,22 +4011,9 @@
             recapDefensive: { column: 3, direction: 'desc' }
         };
 
-        function getDefaultStatsSortConfig(type) {
-            if (type === 'defensive' || type === 'recapDefensive') {
-                return { column: 3, direction: 'desc' };
-            }
-            return { column: 3, direction: 'desc' };
-        }
-
         function getStatsSortSelectValue(type, column) {
             var config = getStatsSortConfig(type);
             return config.column === column ? config.direction : '';
-        }
-
-        function normalizeStatsRow(row, cols) {
-            return cols.map(function(_, index) {
-                return row && row[index] !== undefined ? row[index] : '';
-            });
         }
 
         function handleStatsFilterInput(input) {
@@ -4092,18 +4079,6 @@
             ensureStatsFilterRow('defensiveStatsTable', defensiveCols, 'defensive');
             ensureStatsFilterRow('recapOffensiveStatsTable', offensiveCols, 'recapOffensive');
             ensureStatsFilterRow('recapDefensiveStatsTable', defensiveCols, 'recapDefensive');
-        }
-
-        function getDefaultSeasonLabel(offset) {
-            return String(new Date().getFullYear() + (offset || 0)) + ' Season';
-        }
-
-        function getNextSeasonLabel(label) {
-            var text = String(label || '').trim();
-            var match = text.match(/(19|20)\d{2}/);
-            if (!match) return getDefaultSeasonLabel(1);
-            var nextYear = String(Number(match[0]) + 1);
-            return text.replace(match[0], nextYear);
         }
 
         function loadSeasonLabel(key, fallback) {
@@ -4185,13 +4160,6 @@
             if (currentInput) currentInput.value = currentLabel;
         }
 
-        function formatArchiveUpdatedAt(value) {
-            if (!value) return 'Archive has not been updated yet.';
-            var date = new Date(value);
-            if (Number.isNaN(date.getTime())) return 'Archive has not been updated yet.';
-            return 'Last updated: ' + date.toLocaleString();
-        }
-
         function bindSeasonRecapSelect() {
             var select = document.getElementById('seasonRecapSelect');
             if (!select || select.dataset.bound === 'true') return;
@@ -4225,59 +4193,6 @@
             if (note) note.textContent = formatArchiveUpdatedAt(selectedArchive && selectedArchive.archivedAt);
         }
 
-        function getScheduleTeamInitials(name) {
-            var words = String(name || '').trim().split(/\s+/).filter(Boolean);
-            if (!words.length) return 'TBD';
-            return words.slice(0, 2).map(function(word) {
-                return word.charAt(0).toUpperCase();
-            }).join('');
-        }
-
-        function normalizeScheduleResultText(value) {
-            var text = String(value || '').trim();
-            if (!text || /^upcoming$/i.test(text)) return '0-0';
-            return text;
-        }
-
-        function parseLegacyMatchup(matchup) {
-            var text = String(matchup || '').trim();
-            if (!text) return { homeTeam: '', awayTeam: '' };
-            var parts = text.split(/\s+vs\.?\s+/i);
-            if (parts.length < 2) {
-                return { homeTeam: text, awayTeam: '' };
-            }
-            return {
-                homeTeam: (parts.shift() || '').trim(),
-                awayTeam: parts.join(' vs ').trim()
-            };
-        }
-
-        function normalizeLeagueScheduleRow(row) {
-            var source = row || {};
-            var legacyTeams = parseLegacyMatchup(source.matchup);
-            return {
-                week: String(source.week || '').trim(),
-                date: String(source.date || '').trim(),
-                time: String(source.time || '').trim(),
-                homeTeam: String(source.homeTeam || legacyTeams.homeTeam || '').trim(),
-                homeLogo: String(source.homeLogo || '').trim(),
-                awayTeam: String(source.awayTeam || legacyTeams.awayTeam || '').trim(),
-                awayLogo: String(source.awayLogo || '').trim(),
-                location: String(source.location || '').trim(),
-                status: normalizeScheduleResultText(source.status)
-            };
-        }
-
-        function getScheduleResultOutcome(text) {
-            var result = parseScheduleResultText(normalizeScheduleResultText(text));
-            var left = Number(result.leftScore);
-            var right = Number(result.rightScore);
-            if (!result.hasPair || Number.isNaN(left) || Number.isNaN(right) || left === right) {
-                return { home: '', away: '' };
-            }
-            return left > right ? { home: 'win', away: 'loss' } : { home: 'loss', away: 'win' };
-        }
-
         function renderScheduleTeamMarkup(name, logo, sideClass, outcome) {
             var teamName = name || 'TBD';
             var safeName = escapeHtml(teamName);
@@ -4305,33 +4220,6 @@
                 '<div class="schedule-versus">VS</div>' +
                 renderScheduleTeamMarkup(row.awayTeam, row.awayLogo, 'schedule-team-away', outcome.away) +
             '</div>';
-        }
-
-        function parseScheduleResultText(text) {
-            var value = normalizeScheduleResultText(text);
-            var match = value.match(/^(.+?)\s*-\s*(.+)$/);
-            if (!match) {
-                return {
-                    leftScore: value || '\u2014',
-                    rightScore: '\u2014',
-                    hasPair: false
-                };
-            }
-            return {
-                leftScore: match[1].trim() || '\u2014',
-                rightScore: match[2].trim() || '\u2014',
-                hasPair: true
-            };
-        }
-
-        function getScheduleAdminScoreParts(text) {
-            var parsed = parseScheduleResultText(text);
-            var left = String(parsed.leftScore || '0').trim();
-            var right = String(parsed.rightScore || '0').trim();
-            return {
-                left: /^\d+$/.test(left) ? left : '0',
-                right: /^\d+$/.test(right) ? right : '0'
-            };
         }
 
         function syncScheduleScoreInputs(input) {
@@ -4637,48 +4525,6 @@
             return statsSortState[type] || { column: 3, direction: 'desc' };
         }
 
-        function getStatsCellValue(row, column) {
-            if (!row || row[column] == null) return { type: 'text', value: '' };
-            const rawValue = String(row[column]).trim();
-            const numeric = Number(rawValue.replace(/[^0-9.-]/g, ''));
-            if (rawValue && !Number.isNaN(numeric) && /^-?[0-9]+(?:\.[0-9]+)?$/.test(rawValue.replace(/,/g, ''))) {
-                return { type: 'number', value: numeric };
-            }
-            return { type: 'text', value: rawValue.toLowerCase() };
-        }
-
-        function getSortedStatsRows(data, type) {
-            const config = getStatsSortConfig(type);
-            return data.map(function(row, originalIndex) {
-                if (row && row.row && row.originalIndex !== undefined) {
-                    return row;
-                }
-                return { row: row, originalIndex: originalIndex };
-            }).sort(function(left, right) {
-                const leftValue = getStatsCellValue(left.row, config.column);
-                const rightValue = getStatsCellValue(right.row, config.column);
-
-                if (!leftValue.value && !rightValue.value) {
-                    return left.originalIndex - right.originalIndex;
-                }
-                if (!leftValue.value) return 1;
-                if (!rightValue.value) return -1;
-
-                if (leftValue.type === 'number' && rightValue.type === 'number') {
-                    if (leftValue.value === rightValue.value) {
-                        return left.originalIndex - right.originalIndex;
-                    }
-                    return config.direction === 'asc' ? leftValue.value - rightValue.value : rightValue.value - leftValue.value;
-                }
-
-                const compareResult = String(leftValue.value).localeCompare(String(rightValue.value), undefined, { numeric: true, sensitivity: 'base' });
-                if (compareResult === 0) {
-                    return left.originalIndex - right.originalIndex;
-                }
-                return config.direction === 'asc' ? compareResult : -compareResult;
-            });
-        }
-
         function bindStatsHeaderSorting() {
             [
                 { type: 'offensive', tableId: 'offensiveStatsTable', sortableColumns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
@@ -4751,7 +4597,7 @@
             const isAdmin = !!allowEditing;
             const fallbackRows = useBlankFallback === false ? [] : [cols.map(function() { return ''; })];
             const data = Array.isArray(overrideData) ? overrideData : (loadPlayerStats(key) || fallbackRows);
-            const sortedRows = getSortedStatsRows(data, type);
+            const sortedRows = getSortedStatsRows(data, getStatsSortConfig(type));
             if (!data.length) {
                 tbody.innerHTML = '<tr><td colspan="' + cols.length + '" style="text-align:center; color:#aaa;">No stats recorded yet.</td></tr>';
                 return;

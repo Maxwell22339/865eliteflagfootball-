@@ -253,7 +253,7 @@ describe('parseScheduleResultText', () => {
         expect(result.rightScore).toBe('\u2014');
     });
 
-    test('normalises "upcoming" to 0-0 before parsing', () => {
+    test('normalizes "upcoming" to 0-0 before parsing', () => {
         expect(parseScheduleResultText('upcoming')).toEqual({
             leftScore: '0',
             rightScore: '0',
@@ -261,7 +261,7 @@ describe('parseScheduleResultText', () => {
         });
     });
 
-    test('normalises empty string to 0-0', () => {
+    test('normalizes empty string to 0-0', () => {
         expect(parseScheduleResultText('')).toEqual({
             leftScore: '0',
             rightScore: '0',
@@ -407,7 +407,7 @@ describe('normalizeLeagueScheduleRow', () => {
         expect(result.awayTeam).toBe('Delta');
     });
 
-    test('normalises "upcoming" status to 0-0', () => {
+    test('normalizes "upcoming" status to 0-0', () => {
         const result = normalizeLeagueScheduleRow({ status: 'upcoming' });
         expect(result.status).toBe('0-0');
     });
