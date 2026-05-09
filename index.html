@@ -996,7 +996,6 @@
     </style>
 </head>
 <body>
-    <div id="siteContent">
     <!-- Login Modal -->
     <div id="loginModal" class="login-modal hidden" style="display:none">
         <div class="login-content">
@@ -1084,6 +1083,7 @@
         </div>
     </div>
 
+    <div id="siteContent">
     <!-- Admin Header (Hidden by default) -->
     <div id="adminHeader" class="admin-header hidden" style="display: none;" data-no-admin-edit="true" contenteditable="false">
         <span style="font-weight:bold; margin-right:12px;">Admin Editing Mode</span>
@@ -2872,11 +2872,16 @@
             const lm = document.getElementById('loginModal');
             if (!lm) return;
             // Always start at step 1 (pick admin)
-            document.getElementById('adminPickStep').style.display = 'block';
-            document.getElementById('adminPasswordStep').style.display = 'none';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('loginError').textContent = '';
+            const pickStep = document.getElementById('adminPickStep');
+            const passStep = document.getElementById('adminPasswordStep');
+            const usernameEl = document.getElementById('username');
+            const passwordEl = document.getElementById('password');
+            const errorEl = document.getElementById('loginError');
+            if (pickStep) pickStep.style.display = 'block';
+            if (passStep) passStep.style.display = 'none';
+            if (usernameEl) usernameEl.value = '';
+            if (passwordEl) passwordEl.value = '';
+            if (errorEl) errorEl.textContent = '';
             lm.classList.remove('hidden');
             lm.style.display = 'flex';
         }
