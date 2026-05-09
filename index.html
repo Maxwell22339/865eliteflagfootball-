@@ -1616,6 +1616,12 @@
                 </div>
             </div>
 
+            <!-- Payment method info panel — shown when CashApp/Venmo links are configured -->
+            <div id="paymentMethodsInfo" style="display:none; max-width:700px; margin:0 auto 24px auto; background:#16213e; border:1px solid #2a2a4a; border-radius:8px; padding:18px 20px;">
+                <h3 style="color:#ff8f00; margin-bottom:12px; text-align:center; font-size:1.1rem; letter-spacing:1px; text-transform:uppercase;">Payment Methods</h3>
+                <div id="paymentMethodsList" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;"></div>
+            </div>
+
             <form id="paymentForm" class="registration-form signup-form">
                 <div class="registration-grid">
                     <div>
@@ -2027,7 +2033,7 @@
             { username: 'Ficken', password: 'IowaTenneessee' },
             { username: 'Maxwell22339', password: 'Daush+1115' }
         ];
-        const PAGE_CONTENT_KEY = 'siteContentHTML_v3';
+        const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
         const CTA_BUTTON_KEY = 'heroCtaButton_v1';
@@ -2353,6 +2359,36 @@
             }
         }
 
+        function renderPaymentMethodsInfo() {
+            loadPaymentLinks();
+            var panel = document.getElementById('paymentMethodsInfo');
+            var list = document.getElementById('paymentMethodsList');
+            if (!panel || !list) return;
+            list.innerHTML = '';
+            var hasItem = false;
+            if (PAYMENT_LINKS.cashApp) {
+                var aCA = document.createElement('a');
+                aCA.href = PAYMENT_LINKS.cashApp;
+                aCA.target = '_blank';
+                aCA.rel = 'noopener noreferrer';
+                aCA.textContent = '$ CashApp';
+                aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aCA);
+                hasItem = true;
+            }
+            if (PAYMENT_LINKS.venmo) {
+                var aV = document.createElement('a');
+                aV.href = PAYMENT_LINKS.venmo;
+                aV.target = '_blank';
+                aV.rel = 'noopener noreferrer';
+                aV.textContent = '@ Venmo';
+                aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aV);
+                hasItem = true;
+            }
+            panel.style.display = hasItem ? 'block' : 'none';
+        }
+
         function loadPaymentNotificationSettings() {
             try {
                 const saved = JSON.parse(localStorage.getItem(PAYMENT_NOTIFICATION_SETTINGS_KEY) || '{}');
@@ -2384,6 +2420,7 @@
                 venmo: (links.venmo || '').trim()
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+            renderPaymentMethodsInfo();
         }
 
         function savePaymentNotificationSettings(settings) {
@@ -2830,6 +2867,9 @@
                 if (seasonPanelClone) seasonPanelClone.style.display = 'none';
                 // Remove admin-only column headers from stats
                 clone.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
+                // Reset dynamic payment methods panel — re-rendered on load
+                var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
+                if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
                 safeLocalStorageSet(PAGE_CONTENT_KEY, clone.innerHTML);
             } catch (err) {
                 // Ignore storage write failures.
@@ -2841,6 +2881,7 @@
         ensureLeagueScheduleResultsUI();
         ensurePaymentSignupUI();
         loadPaymentLinks();
+        renderPaymentMethodsInfo();
         applySavedBranding();
         applySavedHeroBackground();
         applySavedCtaButton();
@@ -3222,6 +3263,7 @@
             bindPayPalSettingsControls();
             bindCtaButtonControls();
             renderPayPalSettings();
+            renderPaymentMethodsInfo();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                 const username = sessionStorage.getItem('memberUsername');
