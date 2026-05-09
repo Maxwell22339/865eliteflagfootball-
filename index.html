@@ -1641,6 +1641,7 @@
                     <div>
                         <label for="payMethod">Payment Method</label>
                         <select id="payMethod" required>
+                            <option value="" disabled selected>-- Select Payment Method --</option>
                             <option value="paypal">PayPal</option>
                             <option value="cashapp">CashApp</option>
                             <option value="venmo">Venmo</option>
@@ -3069,9 +3070,10 @@
 
         function updatePaymentMethodLink() {
             loadPaymentLinks();
-            const method = (document.getElementById('payMethod') || {}).value || 'paypal';
+            const method = (document.getElementById('payMethod') || {}).value || '';
             const linkWrap = document.getElementById('payMethodLinkWrap');
             const linkEl = document.getElementById('payMethodLink');
+            const infoEl = document.getElementById('payMethodInfo');
             const submitBtn = document.getElementById('paySubmitBtn');
             const usernameWrap = document.getElementById('paymentUsernameWrap');
             const usernameInput = document.getElementById('paymentUsername');
@@ -3085,13 +3087,17 @@
                 url = PAYMENT_LINKS.venmo || '';
                 label = 'Open Venmo Payment Link';
                 if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo';
-            } else {
+            } else if (method === 'paypal') {
                 if (submitBtn) submitBtn.textContent = 'Continue To PayPal';
+            } else {
+                if (submitBtn) submitBtn.textContent = 'Continue To Payment';
             }
             if (linkWrap && linkEl) {
                 if ((method === 'cashapp' || method === 'venmo') && url) {
+                    if (infoEl) infoEl.style.display = 'none';
                     linkEl.href = url;
                     linkEl.textContent = label;
+                    linkEl.style.display = 'inline';
                     linkWrap.style.display = 'block';
                 } else {
                     linkWrap.style.display = 'none';
@@ -3126,7 +3132,6 @@
                     : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
                 const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
                 const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
-                const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
                 tr.innerHTML = `
                     <td>${p.name || ''}</td>
                     <td>${p.email || ''}</td>
@@ -3346,7 +3351,7 @@
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
             const type = document.getElementById('payType').value;
-            const method = (document.getElementById('payMethod') || {}).value || 'paypal';
+            const method = (document.getElementById('payMethod') || {}).value || '';
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
             const teamName = document.getElementById('payTeamName').value.trim();
