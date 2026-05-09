@@ -1461,27 +1461,46 @@
                             <option value="16">16</option>
                         </select>
                     </div>
-                    <div id="freeAgentPositionWrap" style="display:none;">
-                        <label for="payPosition">What Position Do You Play?</label>
-                        <select id="payPosition">
-                            <option value="">Select position</option>
+                    <div id="freeAgentOffPosWrap" style="display:none;">
+                        <label for="payOffPosition">Offensive Position</label>
+                        <select id="payOffPosition">
+                            <option value="">Select offensive position</option>
                             <option value="QB">QB</option>
                             <option value="RB">RB</option>
                             <option value="WR">WR</option>
                             <option value="TE">TE</option>
                             <option value="C">C</option>
                             <option value="OL">OL</option>
+                            <option value="ATH">ATH (Athlete)</option>
+                        </select>
+                    </div>
+                    <div id="freeAgentDefPosWrap" style="display:none;">
+                        <label for="payDefPosition">Defensive Position</label>
+                        <select id="payDefPosition">
+                            <option value="">Select defensive position</option>
                             <option value="DL">DL</option>
                             <option value="LB">LB</option>
-                            <option value="DB">DB</option>
+                            <option value="CB">CB</option>
                             <option value="S">S</option>
-                            <option value="ATH">ATH</option>
+                            <option value="DB">DB</option>
                             <option value="Rusher">Rusher</option>
                         </select>
                     </div>
                     <div id="freeAgentExperienceWrap" style="display:none;">
                         <label for="payExperience">How Long Have You Been Playing Flag Football?</label>
                         <input id="payExperience" type="text" placeholder="Example: 4 years">
+                    </div>
+                    <div id="paymentMethodWrap" style="display:none;">
+                        <label for="paymentMethod">Payment Method</label>
+                        <select id="paymentMethod">
+                            <option value="">Select payment method</option>
+                            <option value="CashApp">CashApp</option>
+                            <option value="Venmo">Venmo</option>
+                        </select>
+                    </div>
+                    <div id="paymentUsernameWrap" style="display:none;">
+                        <label for="paymentUsername">CashApp / Venmo Username</label>
+                        <input id="paymentUsername" type="text" placeholder="e.g. $YourCashTag or @YourVenmo">
                     </div>
                 </div>
                 <div style="margin-top:12px; text-align:center;">
@@ -1635,7 +1654,7 @@
             <h2 style="margin-top:24px;">Payment Approvals</h2>
             <table class="teams-table documents-table">
                 <thead>
-                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Details</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Details</th><th>Payment</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="adminPaymentsTbody"></tbody>
             </table>
@@ -2158,8 +2177,10 @@
                         payer_email: details.email,
                         team_member_count: details.teamMembers || 'N/A',
                         team_years: details.teamYears || 'N/A',
-                        player_position: details.position || 'N/A',
+                        player_position: details.offPosition ? (details.offPosition + ' (Off) / ' + (details.defPosition || 'N/A') + ' (Def)') : (details.position || 'N/A'),
                         football_experience: details.experience || 'N/A',
+                        payment_method: details.paymentMethod || 'N/A',
+                        payment_username: details.paymentUsername || 'N/A',
                         paypal_link: details.paypalLink || 'Not configured',
                         submitted_at: details.submittedAt,
                         message: 'A new ' + (details.type === 'team' ? 'team registration' : 'free agent') + ' payment request was submitted.'
@@ -2558,37 +2579,56 @@
             const typeInput = document.getElementById('payType');
             const teamMembersWrap = document.getElementById('teamMemberCountWrap');
             const teamYearsWrap = document.getElementById('teamYearsWrap');
-            const positionWrap = document.getElementById('freeAgentPositionWrap');
+            const offPosWrap = document.getElementById('freeAgentOffPosWrap');
+            const defPosWrap = document.getElementById('freeAgentDefPosWrap');
             const experienceWrap = document.getElementById('freeAgentExperienceWrap');
+            const paymentMethodWrap = document.getElementById('paymentMethodWrap');
+            const paymentUsernameWrap = document.getElementById('paymentUsernameWrap');
             const teamMembersInput = document.getElementById('payTeamMembers');
             const teamYearsInput = document.getElementById('payTeamYears');
-            const positionInput = document.getElementById('payPosition');
+            const offPosInput = document.getElementById('payOffPosition');
+            const defPosInput = document.getElementById('payDefPosition');
             const experienceInput = document.getElementById('payExperience');
-            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !positionWrap || !experienceWrap || !teamMembersInput || !teamYearsInput || !positionInput || !experienceInput) return;
+            const paymentMethodInput = document.getElementById('paymentMethod');
+            const paymentUsernameInput = document.getElementById('paymentUsername');
+            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !offPosWrap || !defPosWrap || !experienceWrap || !paymentMethodWrap || !paymentUsernameWrap) return;
 
             const isTeam = typeInput.value === 'team';
             const isFreeAgent = typeInput.value === 'freeAgent';
+            const hasType = isTeam || isFreeAgent;
             teamMembersWrap.style.display = isTeam ? 'block' : 'none';
             teamYearsWrap.style.display = isTeam ? 'block' : 'none';
-            positionWrap.style.display = isFreeAgent ? 'block' : 'none';
+            offPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+            defPosWrap.style.display = isFreeAgent ? 'block' : 'none';
             experienceWrap.style.display = isFreeAgent ? 'block' : 'none';
-            teamMembersInput.required = isTeam;
-            teamYearsInput.required = isTeam;
-            positionInput.required = isFreeAgent;
-            experienceInput.required = isFreeAgent;
+            paymentMethodWrap.style.display = hasType ? 'block' : 'none';
+            paymentUsernameWrap.style.display = hasType ? 'block' : 'none';
+            if (teamMembersInput) teamMembersInput.required = isTeam;
+            if (teamYearsInput) teamYearsInput.required = isTeam;
+            if (offPosInput) offPosInput.required = isFreeAgent;
+            if (defPosInput) defPosInput.required = isFreeAgent;
+            if (experienceInput) experienceInput.required = isFreeAgent;
+            if (paymentMethodInput) paymentMethodInput.required = hasType;
+            if (paymentUsernameInput) paymentUsernameInput.required = hasType;
 
-            if (Number(teamMembersInput.value || '0') > 16) {
+            if (teamMembersInput && Number(teamMembersInput.value || '0') > 16) {
                 teamMembersInput.value = '16';
             }
 
             if (!isTeam) {
-                teamMembersInput.value = '';
-                teamYearsInput.value = '';
+                if (teamMembersInput) teamMembersInput.value = '';
+                if (teamYearsInput) teamYearsInput.value = '';
             }
 
             if (!isFreeAgent) {
-                positionInput.value = '';
-                experienceInput.value = '';
+                if (offPosInput) offPosInput.value = '';
+                if (defPosInput) defPosInput.value = '';
+                if (experienceInput) experienceInput.value = '';
+            }
+
+            if (!hasType) {
+                if (paymentMethodInput) paymentMethodInput.value = '';
+                if (paymentUsernameInput) paymentUsernameInput.value = '';
             }
         }
 
@@ -2598,21 +2638,26 @@
             const items = loadPaymentRequests();
             tbody.innerHTML = '';
             if (!items.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
                 return;
             }
             items.forEach((p, idx) => {
                 const tr = document.createElement('tr');
                 const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                const positionInfo = p.offPosition
+                    ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
+                    : (p.position ? 'Position: ' + p.position : '');
                 const details = p.type === 'freeAgent'
-                    ? 'Position: ' + (p.position || 'N/A') + ' | Flag Football Experience: ' + (p.experience || 'N/A')
+                    ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
                     : 'Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
+                const payInfo = (p.paymentMethod || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
                 const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
                 tr.innerHTML = `
                     <td>${p.name || ''}</td>
                     <td>${p.email || ''}</td>
                     <td>${label}</td>
                     <td>${details}</td>
+                    <td>${payInfo || 'N/A'}</td>
                     <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
                     <td>${submitted}</td>
                     <td>
@@ -2790,8 +2835,11 @@
             const type = document.getElementById('payType').value;
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
-            const position = document.getElementById('payPosition').value.trim();
+            const offPosition = document.getElementById('payOffPosition').value.trim();
+            const defPosition = document.getElementById('payDefPosition').value.trim();
             const experience = document.getElementById('payExperience').value.trim();
+            const paymentMethod = document.getElementById('paymentMethod').value.trim();
+            const paymentUsername = document.getElementById('paymentUsername').value.trim();
             const link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
             const msg = document.getElementById('paymentMsg');
             loadPaymentLinks();
@@ -2813,10 +2861,18 @@
                 return;
             }
 
-            if (type === 'freeAgent' && (!position || !experience)) {
+            if (type === 'freeAgent' && (!offPosition || !defPosition || !experience)) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Free agents must provide their position and how long they have been playing flag football.';
+                    msg.textContent = 'Free agents must provide their offensive position, defensive position, and flag football experience.';
+                }
+                return;
+            }
+
+            if (!paymentMethod || !paymentUsername) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Please select a payment method and enter your CashApp or Venmo username.';
                 }
                 return;
             }
@@ -2830,8 +2886,11 @@
                 type,
                 teamMembers,
                 teamYears,
-                position,
+                offPosition,
+                defPosition,
                 experience,
+                paymentMethod,
+                paymentUsername,
                 status: 'pending',
                 submittedAt: submittedAt
             });
@@ -2843,8 +2902,11 @@
                 type,
                 teamMembers,
                 teamYears,
-                position,
+                offPosition,
+                defPosition,
                 experience,
+                paymentMethod,
+                paymentUsername,
                 paypalLink: link,
                 submittedAt: submittedAt
             });
