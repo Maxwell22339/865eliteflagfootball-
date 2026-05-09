@@ -2932,8 +2932,8 @@
             ensurePaymentSignupUI();
             loadPaymentLinks();
             renderPaymentMethodsInfo();
-            applySavedBranding();
-            applySavedHeroBackground();
+            await applySavedBranding();
+            await applySavedHeroBackground();
             applySavedCtaButton();
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
@@ -3780,13 +3780,13 @@
             try {
                 var stored = await idbGet('documents');
                 if (!stored) return [];
-                return Array.isArray(stored) ? stored : JSON.parse(stored);
+                return Array.isArray(stored) ? stored : [];
             } catch (err) { return []; }
         }
         async function saveDocuments(list) {
             await idbSet('documents', list);
-            renderDocsAdmin();
-            renderDocumentsList();
+            await renderDocsAdmin();
+            await renderDocumentsList();
         }
 
         async function renderDocsAdmin() {
