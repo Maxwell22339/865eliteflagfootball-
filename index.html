@@ -2880,6 +2880,11 @@
             if (offPosInput) offPosInput.required = isFreeAgent;
             if (defPosInput) defPosInput.required = isFreeAgent;
             if (experienceInput) experienceInput.required = isFreeAgent;
+            if (isTeam) {
+                if (offPosInput) offPosInput.value = '';
+                if (defPosInput) defPosInput.value = '';
+                if (experienceInput) experienceInput.value = '';
+            }
 
             if (nameLabel && nameLabel.dataset) {
                 nameLabel.textContent = isTeam ? (nameLabel.dataset.teamLabel || nameLabel.textContent) : (nameLabel.dataset.freeLabel || nameLabel.textContent);
@@ -3189,9 +3194,9 @@
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
             const teamName = document.getElementById('payTeamName').value.trim();
-            const offPosition = document.getElementById('payOffPosition').value.trim();
-            const defPosition = document.getElementById('payDefPosition').value.trim();
-            const experience = document.getElementById('payExperience').value.trim();
+            const offPosition = type === 'team' ? '' : document.getElementById('payOffPosition').value.trim();
+            const defPosition = type === 'team' ? '' : document.getElementById('payDefPosition').value.trim();
+            const experience = type === 'team' ? '' : document.getElementById('payExperience').value.trim();
             const paymentUsername = document.getElementById('paymentUsername').value.trim();
             loadPaymentLinks();
             loadPaymentNotificationSettings();
