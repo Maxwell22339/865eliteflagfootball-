@@ -2177,7 +2177,7 @@
                         payer_email: details.email,
                         team_member_count: details.teamMembers || 'N/A',
                         team_years: details.teamYears || 'N/A',
-                        player_position: details.offPosition ? (details.offPosition + ' (Off) / ' + (details.defPosition || 'N/A') + ' (Def)') : (details.position || 'N/A'),
+                        player_position: details.offPosition ? ('Off: ' + details.offPosition + ' | Def: ' + (details.defPosition || 'N/A')) : (details.position || 'N/A'),
                         football_experience: details.experience || 'N/A',
                         payment_method: details.paymentMethod || 'N/A',
                         payment_username: details.paymentUsername || 'N/A',
