@@ -2735,13 +2735,13 @@
                 staleCoachingLabel.parentElement.remove();
             }
 
-            // Remove any stale single "position played" field from old versions
-            var stalePosLabel = Array.from(document.querySelectorAll('#paymentForm label')).find(function(label) {
-                return /position.?played/i.test(label.textContent || '');
+            // Remove any stale single position field from old versions (e.g. "Position Played", "What Position Do You Play?")
+            Array.from(document.querySelectorAll('#paymentForm label')).forEach(function(label) {
+                var text = label.textContent || '';
+                if (/position.?played|what position/i.test(text) && label.parentElement) {
+                    label.parentElement.remove();
+                }
             });
-            if (stalePosLabel && stalePosLabel.parentElement) {
-                stalePosLabel.parentElement.remove();
-            }
 
             // Ensure the positions row wrapper exists with both dropdowns side by side
             var regGrid = document.querySelector('#paymentForm .registration-grid');
