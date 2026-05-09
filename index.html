@@ -2028,6 +2028,54 @@
             }
         }
 
+        // --- IndexedDB helpers (for large binary items: images, documents, page HTML) ---
+        var _idbPromise = null;
+        function openIDB() {
+            if (_idbPromise) return _idbPromise;
+            _idbPromise = new Promise(function(resolve, reject) {
+                var req = indexedDB.open('eliteFF_db', 1);
+                req.onupgradeneeded = function(e) { e.target.result.createObjectStore('blobs'); };
+                req.onsuccess = function(e) { resolve(e.target.result); };
+                req.onerror = function(e) { _idbPromise = null; reject(e.target.error); };
+            });
+            return _idbPromise;
+        }
+        function idbGet(key) {
+            return openIDB().then(function(db) {
+                return new Promise(function(resolve) {
+                    var req = db.transaction('blobs', 'readonly').objectStore('blobs').get(key);
+                    req.onsuccess = function(e) { resolve(e.target.result); };
+                    req.onerror = function() { resolve(undefined); };
+                });
+            }).catch(function() { return undefined; });
+        }
+        function idbSet(key, value) {
+            return openIDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction('blobs', 'readwrite').objectStore('blobs').put(value, key);
+                    req.onsuccess = function() { resolve(true); };
+                    req.onerror = function(e) { reject(e.target.error); };
+                });
+            }).catch(function() { return false; });
+        }
+
+        // --- One-time migration: move large items from localStorage to IndexedDB ---
+        function migrateLocalStorageToIDB() {
+            if (localStorage.getItem('idb_migrated_v1')) return Promise.resolve();
+            var keys = [SITE_LOGO_KEY, HOME_HERO_BACKGROUND_KEY, PAGE_CONTENT_KEY, 'documents'];
+            var promises = keys.map(function(k) {
+                try {
+                    var val = localStorage.getItem(k);
+                    if (!val) return Promise.resolve();
+                    var parsed = k === 'documents' ? JSON.parse(val) : val;
+                    return idbSet(k, parsed).then(function() { localStorage.removeItem(k); });
+                } catch (e) { return Promise.resolve(); }
+            });
+            return Promise.all(promises).then(function() {
+                try { localStorage.setItem('idb_migrated_v1', '1'); } catch (e) {}
+            });
+        }
+
         // --- Admin credentials (unchanged) ---
         const ADMIN_ACCOUNTS = [
             { username: 'Ficken', password: 'IowaTenneessee' },
@@ -2538,9 +2586,9 @@
             if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
         }
 
-        function applySavedBranding() {
+        async function applySavedBranding() {
             try {
-                const savedLogo = localStorage.getItem(SITE_LOGO_KEY);
+                const savedLogo = await idbGet(SITE_LOGO_KEY);
                 if (savedLogo) {
                     document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
                     const icon = document.querySelector('link[rel="icon"]');
@@ -2554,9 +2602,9 @@
             }
         }
 
-        function applySavedHeroBackground() {
+        async function applySavedHeroBackground() {
             try {
-                const savedBackground = localStorage.getItem(HOME_HERO_BACKGROUND_KEY);
+                const savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
                 if (savedBackground) {
                     document.documentElement.style.setProperty('--hero-photo', 'url("' + savedBackground + '")');
                 } else {
@@ -2651,7 +2699,7 @@
                                 icon.href = compressed;
                                 icon.type = 'image/jpeg';
                             }
-                            safeLocalStorageSet(SITE_LOGO_KEY, compressed);
+                            idbSet(SITE_LOGO_KEY, compressed);
                             flushPersistSiteContent();
                         });
                     };
@@ -2678,7 +2726,7 @@
                         if (!dataUrl) return;
                         compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(compressed) {
                             document.documentElement.style.setProperty('--hero-photo', 'url("' + compressed + '")');
-                            safeLocalStorageSet(HOME_HERO_BACKGROUND_KEY, compressed);
+                            idbSet(HOME_HERO_BACKGROUND_KEY, compressed);
                             flushPersistSiteContent();
                         });
                     };
@@ -2763,15 +2811,15 @@
             }
         }
 
-        function restoreSiteContent() {
+        async function restoreSiteContent() {
             try {
-                const saved = localStorage.getItem(PAGE_CONTENT_KEY);
+                const saved = await idbGet(PAGE_CONTENT_KEY);
                 const container = document.getElementById('siteContent');
                 if (saved && container) {
                     container.innerHTML = saved;
                 }
             } catch (err) {
-                // If localStorage is unavailable or corrupted, continue with default markup.
+                // If storage is unavailable or corrupted, continue with default markup.
             }
             // Always run lockdown after restoring — cleans ALL admin artifacts
             lockdownForPublic();
@@ -2870,36 +2918,39 @@
                 // Reset dynamic payment methods panel — re-rendered on load
                 var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
                 if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
-                safeLocalStorageSet(PAGE_CONTENT_KEY, clone.innerHTML);
+                idbSet(PAGE_CONTENT_KEY, clone.innerHTML);
             } catch (err) {
                 // Ignore storage write failures.
             }
         }
 
-        restoreSiteContent();
-        ensureSeasonStatsAndRecapUI();
-        ensureLeagueScheduleResultsUI();
-        ensurePaymentSignupUI();
-        loadPaymentLinks();
-        renderPaymentMethodsInfo();
-        applySavedBranding();
-        applySavedHeroBackground();
-        applySavedCtaButton();
-        ensureAdminBrandingUI();
-        enforceNonEditableAdminUI();
-        ensureNavHamburger();
-        bindAdminBrandingControls();
-        bindPayPalSettingsControls();
-        bindCtaButtonControls();
-        renderPayPalSettings();
+        (async function() {
+            await migrateLocalStorageToIDB();
+            await restoreSiteContent();
+            ensureSeasonStatsAndRecapUI();
+            ensureLeagueScheduleResultsUI();
+            ensurePaymentSignupUI();
+            loadPaymentLinks();
+            renderPaymentMethodsInfo();
+            await applySavedBranding();
+            await applySavedHeroBackground();
+            applySavedCtaButton();
+            ensureAdminBrandingUI();
+            enforceNonEditableAdminUI();
+            ensureNavHamburger();
+            bindAdminBrandingControls();
+            bindPayPalSettingsControls();
+            bindCtaButtonControls();
+            renderPayPalSettings();
 
-        // Show the correct page immediately after restoring content
-        (function() {
-            var h = window.location.hash ? window.location.hash.substring(1) : 'home';
-            var restricted = ['myProfile','guestArea','documentsAdmin'];
-            var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && restricted.indexOf(h) === -1 ? h : 'home';
-            showPage(validPage);
-            updateHeaderScrollState();
+            // Show the correct page immediately after restoring content
+            (function() {
+                var h = window.location.hash ? window.location.hash.substring(1) : 'home';
+                var restricted = ['myProfile','guestArea','documentsAdmin'];
+                var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && restricted.indexOf(h) === -1 ? h : 'home';
+                showPage(validPage);
+                updateHeaderScrollState();
+            })();
         })();
 
         // logo/image support removed — header shows text only.
@@ -3725,19 +3776,23 @@
         // --- Member logout already defined above as memberLogout() ---
 
         // --- Documents (admin upload + member signing) ---
-        function loadDocuments() {
-            try { return JSON.parse(localStorage.getItem('documents') || '[]'); } catch (err) { return []; }
+        async function loadDocuments() {
+            try {
+                var stored = await idbGet('documents');
+                if (!stored) return [];
+                return Array.isArray(stored) ? stored : [];
+            } catch (err) { return []; }
         }
-        function saveDocuments(list) {
-            if (!safeLocalStorageSet('documents', JSON.stringify(list))) return;
-            renderDocsAdmin();
-            renderDocumentsList();
+        async function saveDocuments(list) {
+            await idbSet('documents', list);
+            await renderDocsAdmin();
+            await renderDocumentsList();
         }
 
-        function renderDocsAdmin() {
+        async function renderDocsAdmin() {
             const tbody = document.getElementById('adminDocsTbody');
             if (!tbody) return;
-            const docs = loadDocuments();
+            const docs = await loadDocuments();
             tbody.innerHTML = '';
             if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No documents uploaded.</td></tr>'; return; }
             docs.forEach((d, idx) => {
@@ -3754,12 +3809,12 @@
                 tbody.appendChild(tr);
             });
             tbody.querySelectorAll('button[data-action="deleteDoc"]').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     const idx = Number(this.dataset.idx);
-                    const docs = loadDocuments();
+                    const docs = await loadDocuments();
                     const docId = docs[idx].id;
                     docs.splice(idx, 1);
-                    saveDocuments(docs);
+                    await saveDocuments(docs);
                     // remove signed records for removed doc
                     const members = loadMembers();
                     members.forEach(m => { m.signedDocs = (m.signedDocs || []).filter(s => s.docId !== docId); });
@@ -3768,10 +3823,10 @@
             });
         }
 
-        function renderDocumentsList() {
+        async function renderDocumentsList() {
             const tbody = document.getElementById('publicDocsTbody');
             if (!tbody) return;
-            const docs = loadDocuments();
+            const docs = await loadDocuments();
             tbody.innerHTML = '';
             if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#777; padding:20px;">No documents available.</td></tr>'; return; }
             docs.forEach(d => {
@@ -3800,8 +3855,8 @@
             tbody.querySelectorAll('button[data-action="loginToSign"]').forEach(btn => btn.addEventListener('click', showMemberModal));
         }
 
-        function openSignModal(docId) {
-            const docs = loadDocuments();
+        async function openSignModal(docId) {
+            const docs = await loadDocuments();
             const doc = docs.find(d => d.id === docId);
             if (!doc) return;
             document.getElementById('signModal').style.display = 'flex';
@@ -3881,10 +3936,10 @@
         document.getElementById('docUploadBtn').addEventListener('click', () => document.getElementById('docUploadInput').click());
         document.getElementById('docUploadInput').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return; const title = document.getElementById('docTitleInput').value.trim() || file.name;
-            const reader = new FileReader(); reader.onload = function(ev) {
-                const docs = loadDocuments();
+            const reader = new FileReader(); reader.onload = async function(ev) {
+                const docs = await loadDocuments();
                 docs.push({ id: Date.now().toString(), title, filename: file.name, mimeType: file.type || '', dataUrl: ev.target.result, uploadedAt: new Date().toISOString() });
-                saveDocuments(docs);
+                await saveDocuments(docs);
                 e.target.value = ''; document.getElementById('docTitleInput').value = '';
             };
             reader.readAsDataURL(file);
