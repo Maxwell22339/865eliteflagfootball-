@@ -1259,7 +1259,7 @@
             <div>
                 <h1>865 ELITE FLAG FOOTBALL</h1>
                 <p>ADULT FLAG FOOTBALL</p>
-                <a href="#payments" class="cta-button">Join Our League</a>
+                <a id="heroCtaBtn" href="#payments" class="cta-button">Join Our League</a>
             </div>
         </div>
     </section>
@@ -1814,6 +1814,24 @@
                 <p id="paypalSettingsMsg" style="text-align:center; margin-top:10px;"></p>
             </div>
 
+            <h2 style="margin-top:24px;">Hero Button Editor</h2>
+            <div id="ctaButtonEditor" class="registration-form" style="max-width:600px;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label for="ctaBtnTextInput">Button Label</label>
+                        <input id="ctaBtnTextInput" type="text" placeholder="Join Our League" style="width:100%; padding:8px;">
+                    </div>
+                    <div>
+                        <label for="ctaBtnLinkInput">Button Link (URL or #section)</label>
+                        <input id="ctaBtnLinkInput" type="text" placeholder="#payments" style="width:100%; padding:8px;">
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center;">
+                    <button id="saveCtaBtnSettings" type="button" class="cta-button">Save Button</button>
+                </div>
+                <p id="ctaBtnMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
+            </div>
+
             <h2 style="margin-top:24px;">Payment Approvals</h2>
             <table class="teams-table documents-table">
                 <thead>
@@ -1961,6 +1979,7 @@
         const PAGE_CONTENT_KEY = 'siteContentHTML_v3';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
+        const CTA_BUTTON_KEY = 'heroCtaButton_v1';
         const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
@@ -2460,7 +2479,59 @@
             }
         }
 
-        function bindAdminBrandingControls() {
+        function applySavedCtaButton() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(CTA_BUTTON_KEY) || '{}');
+                var btn = document.getElementById('heroCtaBtn');
+                if (btn) {
+                    if (saved.text) btn.textContent = saved.text;
+                    if (saved.link) btn.setAttribute('href', saved.link);
+                }
+            } catch (err) {
+                // Ignore CTA button restore errors.
+            }
+        }
+
+            var saveBtn = document.getElementById('saveCtaBtnSettings');
+            if (!saveBtn) return;
+            saveBtn.onclick = function() {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                var textInput = document.getElementById('ctaBtnTextInput');
+                var linkInput = document.getElementById('ctaBtnLinkInput');
+                var msgEl = document.getElementById('ctaBtnMsg');
+                var newText = (textInput && textInput.value.trim()) || 'Join Our League';
+                var newLink = (linkInput && linkInput.value.trim()) || '#payments';
+                var btn = document.getElementById('heroCtaBtn');
+                if (btn) {
+                    btn.textContent = newText;
+                    btn.setAttribute('href', newLink);
+                }
+                try {
+                    localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
+                } catch (err) {
+                    // Ignore storage write failures.
+                }
+                if (msgEl) {
+                    msgEl.style.color = '#4caf50';
+                    msgEl.textContent = 'Button saved!';
+                    setTimeout(function() { msgEl.textContent = ''; }, 2000);
+                }
+                flushPersistSiteContent();
+            };
+        }
+
+        function populateCtaButtonEditor() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(CTA_BUTTON_KEY) || '{}');
+                var btn = document.getElementById('heroCtaBtn');
+                var textInput = document.getElementById('ctaBtnTextInput');
+                var linkInput = document.getElementById('ctaBtnLinkInput');
+                if (textInput) textInput.value = saved.text || (btn ? btn.textContent.trim() : 'Join Our League');
+                if (linkInput) linkInput.value = saved.link || (btn ? btn.getAttribute('href') : '#payments');
+            } catch (err) {
+                // Ignore editor populate errors.
+            }
+        }
             const changeLogoBtn = document.getElementById('changeLogoBtn');
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
@@ -2694,10 +2765,12 @@
         loadPaymentLinks();
         applySavedBranding();
         applySavedHeroBackground();
+        applySavedCtaButton();
         ensureAdminBrandingUI();
         enforceNonEditableAdminUI();
         bindAdminBrandingControls();
         bindPayPalSettingsControls();
+        bindCtaButtonControls();
         renderPayPalSettings();
 
         // Show the correct page immediately after restoring content
@@ -3045,6 +3118,8 @@
                 renderAdminPaymentRequests && renderAdminPaymentRequests();
                 renderPayPalSettings && renderPayPalSettings();
                 bindPayPalSettingsControls && bindPayPalSettingsControls();
+                populateCtaButtonEditor && populateCtaButtonEditor();
+                bindCtaButtonControls && bindCtaButtonControls();
                 // restore to hashed page or default to the admin dashboard
                 const h = window.location.hash ? window.location.hash.substring(1) : 'documentsAdmin';
                 showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
@@ -3055,12 +3130,14 @@
             }
             applySavedBranding();
             applySavedHeroBackground();
+            applySavedCtaButton();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
+            bindCtaButtonControls();
             renderPayPalSettings();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
@@ -4863,6 +4940,8 @@
             renderAdminPaymentRequests && renderAdminPaymentRequests();
             renderPayPalSettings && renderPayPalSettings();
             bindPayPalSettingsControls && bindPayPalSettingsControls();
+            populateCtaButtonEditor && populateCtaButtonEditor();
+            bindCtaButtonControls && bindCtaButtonControls();
             var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
             if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
             showPage('documentsAdmin');
