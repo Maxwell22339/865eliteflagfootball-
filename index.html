@@ -1372,7 +1372,9 @@
                 <button type="button" class="cta-button small" onclick="exportJsonData('standings')">📋 Export Standings JSON</button>
             </div>
         </div>
-    </section>data-no-admin-edit="true" contenteditable="false">
+    </section>
+
+    <section class="schedule" id="leagueSchedule" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>League Schedule</h2>
             <table class="schedule-table" id="leagueScheduleTable">
@@ -3999,8 +4001,8 @@
                 if (Array.isArray(results[2])) _jsonData.offensiveStats = results[2];
                 if (Array.isArray(results[3])) _jsonData.defensiveStats = results[3];
                 if (Array.isArray(results[4])) _jsonData.seasonArchives = results[4];
-                renderLeagueAdminTables && renderLeagueAdminTables();
-                renderAllStats && renderAllStats();
+                if (renderLeagueAdminTables) renderLeagueAdminTables();
+                if (renderAllStats) renderAllStats();
             });
         }
 
@@ -4742,32 +4744,62 @@
             instructions = 'Copy the text below and paste it into the file: ' + filename + '\nThen commit and push to GitHub for all visitors to see the updated data.';
             var modal = document.createElement('div');
             modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-            modal.innerHTML = '<div style="background:#1e1e2e;border:2px solid #ff6f00;border-radius:10px;padding:24px;max-width:700px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;">' +
-                '<h3 style="color:#ff6f00;margin:0;">Export: ' + filename + '</h3>' +
-                '<p style="color:#bbb;font-size:0.9rem;margin:0;">' + instructions + '</p>' +
-                '<textarea readonly style="flex:1;min-height:280px;font-family:monospace;font-size:0.8rem;background:#0d0d1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:10px;resize:vertical;">' + json.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</textarea>' +
-                '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
-                    '<button onclick="this.closest(\'div\').previousElementSibling&&this.closest(\'div\').previousElementSibling.select&&this.closest(\'div\').previousElementSibling.select();document.execCommand(\'copy\');this.textContent=\'Copied!\';var b=this;setTimeout(function(){b.textContent=\'Copy\'},2000);" class="cta-button small">Copy</button>' +
-                    '<button onclick="this.closest(\'.json-export-modal\').remove();" class="cta-button small">Close</button>' +
-                '</div>' +
-            '</div>';
             modal.className = 'json-export-modal';
-            modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
-            // Fix Copy button to target the textarea
-            var ta = modal.querySelector('textarea');
-            var copyBtn = modal.querySelectorAll('button')[0];
+
+            var inner = document.createElement('div');
+            inner.style.cssText = 'background:#1e1e2e;border:2px solid #ff6f00;border-radius:10px;padding:24px;max-width:700px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;';
+
+            var heading = document.createElement('h3');
+            heading.style.cssText = 'color:#ff6f00;margin:0;';
+            heading.textContent = 'Export: ' + filename;
+
+            var para = document.createElement('p');
+            para.style.cssText = 'color:#bbb;font-size:0.9rem;margin:0;';
+            para.textContent = instructions;
+
+            var ta = document.createElement('textarea');
+            ta.readOnly = true;
+            ta.style.cssText = 'flex:1;min-height:280px;font-family:monospace;font-size:0.8rem;background:#0d0d1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:10px;resize:vertical;';
+            ta.textContent = json;
+
+            var btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+
+            var copyBtn = document.createElement('button');
+            copyBtn.className = 'cta-button small';
+            copyBtn.textContent = 'Copy';
             copyBtn.onclick = function() {
-                ta.select();
-                try { document.execCommand('copy'); } catch(e) { navigator.clipboard && navigator.clipboard.writeText(ta.value); }
+                var text = ta.value;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).catch(function() {
+                        ta.select();
+                        document.execCommand('copy');
+                    });
+                } else {
+                    ta.select();
+                    document.execCommand('copy');
+                }
                 copyBtn.textContent = 'Copied!';
                 setTimeout(function() { copyBtn.textContent = 'Copy'; }, 2000);
             };
-            var closeBtn = modal.querySelectorAll('button')[1];
+
+            var closeBtn = document.createElement('button');
+            closeBtn.className = 'cta-button small';
+            closeBtn.textContent = 'Close';
             closeBtn.onclick = function() { modal.remove(); };
+
+            btnRow.appendChild(copyBtn);
+            btnRow.appendChild(closeBtn);
+            inner.appendChild(heading);
+            inner.appendChild(para);
+            inner.appendChild(ta);
+            inner.appendChild(btnRow);
+            modal.appendChild(inner);
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
             document.body.appendChild(modal);
         }
 
-
+        function getStatsSortConfig(type) {
             return statsSortState[type] || { column: 3, direction: 'desc' };
         }
 
