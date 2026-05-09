@@ -1460,7 +1460,7 @@
                     <div>
                         <label for="payType">Payment Type</label>
                         <select id="payType" required>
-                            <option value="team">Team Registration ($500)</option>
+                            <option value="team" selected>Team Registration ($500)</option>
                             <option value="freeAgent">Free Agent ($50)</option>
                         </select>
                         <p style="margin-top:6px; font-size:0.9rem; color:#bbb;">Choose team or free agent and the required signup boxes will appear right below.</p>
@@ -3085,7 +3085,7 @@
             if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Team registrations must provide the team name, team members, and years of experience as a flag football team.';
+                    msg.textContent = 'Team registrations must provide the team name, team members, and years as a team.';
                 }
                 return;
             }
