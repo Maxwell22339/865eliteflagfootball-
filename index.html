@@ -975,9 +975,14 @@
         }
         /* Page navigation — each section is its own page */
         #about, #standings, #leagueSchedule, #player-stats, #season-recap, #payments,
-        #documentsPublic, #guestArea, #myProfile, #contact {
+        #users, #documentsPublic, #guestArea, #myProfile, #contact {
             display: none;
         }
+
+        /* Status badge colours */
+        .status-pending  { color: #e65100; font-weight: 700; }
+        .status-approved { color: #2e7d32; font-weight: 700; }
+        .status-denied   { color: #999;    font-weight: 700; }
         /* Admin nav items hidden by default, shown when admin is logged in */
         .admin-nav-item { display: none; }
         .admin-nav-item.visible { display: list-item; }
@@ -1016,6 +1021,7 @@
                     <input type="text" id="regFirstName" placeholder="First name">
                     <input type="text" id="regLastName" placeholder="Last name">
                     <input type="email" id="regEmail" placeholder="Email">
+                    <input type="tel" id="regPhone" placeholder="Phone number">
                     <input type="text" id="regTeam" placeholder="Team (optional)">
 
                     <label style="margin-top:8px; display:block;">Signature (required)</label>
@@ -1094,6 +1100,7 @@
                     <li><a href="#season-recap">Season Recap</a></li>
                     <li><a href="#payments">Sign Up</a></li>
                     <li><a href="#documentsPublic">Documents</a></li>
+                    <li><a href="#users">Users</a></li>
                     <li><a href="#contact">Contact</a></li>
                     <li class="admin-nav-item" id="navAdmin"><a href="#documentsAdmin">Admin Dashboard</a></li>
                     <li class="member-nav-item" id="navProfile"><a href="#myProfile">My Profile</a></li>
@@ -1429,6 +1436,10 @@
                         <input id="payEmail" type="email" required placeholder="Email used for receipt">
                     </div>
                     <div>
+                        <label for="payPhone">Phone Number</label>
+                        <input id="payPhone" type="tel" placeholder="Best number to reach you">
+                    </div>
+                    <div>
                         <label for="payType">Payment Type</label>
                         <select id="payType" required>
                             <option value="team">Team Registration ($500)</option>
@@ -1489,6 +1500,52 @@
                 </div>
                 <p id="paymentMsg" style="text-align:center; margin-top:10px;"></p>
             </form>
+        </div>
+    </section>
+
+    <!-- Users / Registrations Page -->
+    <section id="users" style="background:#16213e;">
+        <div class="container">
+            <h2>League Registrations</h2>
+
+            <!-- Admin view: full contact info + approve/deny/delete actions -->
+            <div id="usersAdminView" style="display:none;">
+                <p style="text-align:center; color:#bbb; margin-bottom:16px;">All team and free agent registration submissions. Click <strong>Approve</strong> once payment is confirmed to accept the registrant into the league.</p>
+                <div style="overflow-x:auto;">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Type</th>
+                                <th>Details</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersPageAdminTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Public view: read-only limited info -->
+            <div id="usersPublicView">
+                <p style="text-align:center; color:#bbb; margin-bottom:16px;">Teams and free agents registered for the current season.</p>
+                <div style="overflow-x:auto;">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Registration Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersPagePublicTbody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1576,6 +1633,7 @@
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Email</th>
+                        <th>Phone</th>
                         <th>Team</th>
                     </tr>
                 </thead>
@@ -1682,6 +1740,8 @@
                 <input type="text" id="mpLastName" style="margin-bottom:12px;">
                 <label>Email</label>
                 <input type="email" id="mpEmail" style="margin-bottom:12px;">
+                <label>Phone</label>
+                <input type="tel" id="mpPhone" style="margin-bottom:12px;">
                 <label>Team</label>
                 <input type="text" id="mpTeam" style="margin-bottom:12px;">
                 <label>Change password (leave blank to keep)</label>
@@ -1796,7 +1856,7 @@
 
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
-            'documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
+            'users','documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -1843,6 +1903,7 @@
                 if (history.pushState) history.pushState(null, '', '#' + id);
                 else window.location.hash = id;
                 updateHeaderScrollState();
+                if (id === 'users') { renderUsersPage && renderUsersPage(); }
             }
         }
 
@@ -2551,6 +2612,7 @@
         function savePaymentRequests(list) {
             localStorage.setItem('paymentRequests', JSON.stringify(list));
             renderAdminPaymentRequests();
+            renderUsersPage && renderUsersPage();
         }
 
         function updatePaymentTypeFields() {
@@ -2646,6 +2708,110 @@
             });
         }
 
+        // --- Users Page rendering ---
+        function renderUsersPage() {
+            var adminView = document.getElementById('usersAdminView');
+            var publicView = document.getElementById('usersPublicView');
+            if (!adminView || !publicView) return;
+            var items = loadPaymentRequests();
+            if (isAdminLoggedIn()) {
+                adminView.style.display = 'block';
+                publicView.style.display = 'none';
+                renderUsersPageAdmin(items);
+            } else {
+                adminView.style.display = 'none';
+                publicView.style.display = 'block';
+                renderUsersPagePublic(items);
+            }
+        }
+
+        function renderUsersPageAdmin(items) {
+            var tbody = document.getElementById('usersPageAdminTbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No registrations yet.</td></tr>';
+                return;
+            }
+            items.forEach(function(p, idx) {
+                var tr = document.createElement('tr');
+                var label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                var details = p.type === 'freeAgent'
+                    ? 'Position: ' + (p.position || 'N/A') + '<br>Experience: ' + (p.experience || 'N/A')
+                    : 'Members: ' + (p.teamMembers || 'N/A') + '<br>Years: ' + (p.teamYears || 'N/A');
+                var submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
+                var statusClass = p.status === 'approved' ? 'status-approved' : (p.status === 'denied' ? 'status-denied' : 'status-pending');
+                var statusText = (p.status || 'pending').toUpperCase();
+                var approveBtn = p.status !== 'approved'
+                    ? '<button data-action="approveReg" data-idx="' + idx + '" class="cta-button small" style="margin:2px;">Approve</button>'
+                    : '';
+                var denyBtn = p.status !== 'denied'
+                    ? '<button data-action="denyReg" data-idx="' + idx + '" class="cta-button small" style="background:#777; margin:2px;">Deny</button>'
+                    : '';
+                var deleteBtn = '<button data-action="deleteReg" data-idx="' + idx + '" class="cta-button small" style="background:#e65100; margin:2px;">Delete</button>';
+                tr.innerHTML =
+                    '<td>' + (p.name || '') + '</td>' +
+                    '<td><a href="mailto:' + (p.email || '') + '" style="color:#ff6f00;">' + (p.email || '') + '</a></td>' +
+                    '<td>' + (p.phone || '') + '</td>' +
+                    '<td>' + label + '</td>' +
+                    '<td style="font-size:0.85rem;">' + details + '</td>' +
+                    '<td class="' + statusClass + '">' + statusText + '</td>' +
+                    '<td style="font-size:0.85rem; white-space:nowrap;">' + submitted + '</td>' +
+                    '<td style="white-space:nowrap;">' + approveBtn + denyBtn + deleteBtn + '</td>';
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('button[data-action="approveReg"]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = Number(this.dataset.idx);
+                    var reqs = loadPaymentRequests();
+                    if (!reqs[idx]) return;
+                    reqs[idx].status = 'approved';
+                    reqs[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(reqs);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="denyReg"]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = Number(this.dataset.idx);
+                    var reqs = loadPaymentRequests();
+                    if (!reqs[idx]) return;
+                    reqs[idx].status = 'denied';
+                    reqs[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(reqs);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="deleteReg"]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var idx = Number(this.dataset.idx);
+                    var reqs = loadPaymentRequests();
+                    reqs.splice(idx, 1);
+                    savePaymentRequests(reqs);
+                });
+            });
+        }
+
+        function renderUsersPagePublic(items) {
+            var tbody = document.getElementById('usersPagePublicTbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            var visible = items.filter(function(p) { return p.status !== 'denied'; });
+            if (!visible.length) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#777; padding:20px;">No registrations yet.</td></tr>';
+                return;
+            }
+            visible.forEach(function(p) {
+                var tr = document.createElement('tr');
+                var label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                var statusClass = p.status === 'approved' ? 'status-approved' : 'status-pending';
+                var statusText = (p.status || 'pending').toUpperCase();
+                tr.innerHTML =
+                    '<td>' + (p.name || '') + '</td>' +
+                    '<td>' + label + '</td>' +
+                    '<td class="' + statusClass + '">' + statusText + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
         // Simple password hashing (SHA-256) with fallback
         async function hashPw(password) {
             if (window.crypto && crypto.subtle) {
@@ -2674,6 +2840,7 @@
                 renderDocsAdmin && renderDocsAdmin();
                 renderAllStats && renderAllStats();
                 renderAdminPaymentRequests && renderAdminPaymentRequests();
+                renderUsersPage && renderUsersPage();
                 renderPayPalSettings && renderPayPalSettings();
                 bindPayPalSettingsControls && bindPayPalSettingsControls();
                 // restore to hashed page or default to the admin dashboard
@@ -2683,6 +2850,7 @@
                 // Non-admin: full lockdown — no editing visible anywhere
                 lockdownForPublic();
                 renderAllStats && renderAllStats();
+                renderUsersPage && renderUsersPage();
             }
             applySavedBranding();
             applySavedHeroBackground();
@@ -2787,6 +2955,7 @@
             e.preventDefault();
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
+            const phone = document.getElementById('payPhone')?.value.trim() || '';
             const type = document.getElementById('payType').value;
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
@@ -2827,6 +2996,7 @@
             requests.push({
                 name,
                 email,
+                phone,
                 type,
                 teamMembers,
                 teamYears,
@@ -2877,6 +3047,7 @@
             const firstName = document.getElementById('regFirstName').value.trim();
             const lastName = document.getElementById('regLastName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone')?.value.trim() || '';
             const team = document.getElementById('regTeam').value.trim();
 
             if (!username || !password) { document.getElementById('memberAuthError').textContent = 'Username and password required'; return; }
@@ -2892,7 +3063,7 @@
             if (members.find(m => m.username.toLowerCase() === username.toLowerCase())) { document.getElementById('memberAuthError').textContent = 'Username already taken'; return; }
 
             const pwHash = await hashPw(password);
-            const user = { username, passwordHash: pwHash, firstName, lastName, email, team };
+            const user = { username, passwordHash: pwHash, firstName, lastName, email, phone, team };
 
             // capture signature
             let sigData = null;
@@ -3023,6 +3194,7 @@
             document.getElementById('mpFirstName').value = user.firstName || '';
             document.getElementById('mpLastName').value = user.lastName || '';
             document.getElementById('mpEmail').value = user.email || '';
+            document.getElementById('mpPhone').value = user.phone || '';
             document.getElementById('mpTeam').value = user.team || '';
             document.getElementById('mpPassword').value = '';
             document.getElementById('mpMsg').textContent = '';
@@ -3038,6 +3210,7 @@
             user.firstName = document.getElementById('mpFirstName').value.trim();
             user.lastName = document.getElementById('mpLastName').value.trim();
             user.email = document.getElementById('mpEmail').value.trim();
+            user.phone = document.getElementById('mpPhone')?.value.trim() || '';
             user.team = document.getElementById('mpTeam').value.trim();
             const newPw = document.getElementById('mpPassword').value;
             if (newPw) user.passwordHash = await hashPw(newPw);
@@ -3053,7 +3226,7 @@
             const members = loadMembers();
             tbody.innerHTML = '';
             if (members.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
                 return;
             }
             members.forEach((m, idx) => {
@@ -3063,6 +3236,7 @@
                     <td><input data-idx="${idx}" data-field="firstName" value="${m.firstName || ''}"></td>
                     <td><input data-idx="${idx}" data-field="lastName" value="${m.lastName || ''}"></td>
                     <td><input data-idx="${idx}" data-field="email" value="${m.email || ''}"></td>
+                    <td><input data-idx="${idx}" data-field="phone" value="${m.phone || ''}"></td>
                     <td style="display:flex; gap:8px; align-items:center;"><input data-idx="${idx}" data-field="team" value="${m.team || ''}"><button data-action="delete" data-idx="${idx}" style="background:#e65100;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Delete</button></td>
                 `;
                 tbody.appendChild(tr);
@@ -4423,6 +4597,7 @@
             renderLeagueAdminTables && renderLeagueAdminTables();
             renderAllStats && renderAllStats();
             renderAdminPaymentRequests && renderAdminPaymentRequests();
+            renderUsersPage && renderUsersPage();
             renderPayPalSettings && renderPayPalSettings();
             bindPayPalSettingsControls && bindPayPalSettingsControls();
             var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
@@ -4442,6 +4617,7 @@
             renderLeagueAdminTables && renderLeagueAdminTables();
             // Re-render tables in public (non-admin) mode
             renderAllStats && renderAllStats();
+            renderUsersPage && renderUsersPage();
             // Clear login form
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
