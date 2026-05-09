@@ -105,7 +105,7 @@
             min-height: 0;
         }
 
-        header.scrolled .nav-links {
+        header.scrolled .nav-links:not(.nav-open) {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -1113,6 +1113,56 @@
         /* Member nav item hidden by default */
         .member-nav-item { display: none; }
         .member-nav-item.visible { display: list-item; }
+
+        /* ---- Hamburger / mobile nav ---- */
+        .nav-hamburger {
+            display: none;
+            background: transparent;
+            border: 2px solid #ff6f00;
+            color: #ff6f00;
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px 11px;
+            border-radius: 5px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .nav-hamburger:hover { background: rgba(255,111,0,0.15); }
+
+        /* Show hamburger when scrolled (desktop) */
+        header.scrolled .nav-hamburger {
+            display: block;
+            position: fixed;
+            top: 14px;
+            right: 20px;
+            z-index: 400;
+        }
+
+        /* Mobile: always show hamburger, hide nav row */
+        @media (max-width: 900px) {
+            .nav-hamburger { display: block; }
+            .nav-links { display: none; }
+        }
+
+        /* Open state: fullscreen overlay for both mobile and scrolled */
+        .nav-links.nav-open {
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 30, 0.97);
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            z-index: 350;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: none;
+        }
+        .nav-links.nav-open a { font-size: 1.2rem; padding: 0.4rem 1rem; }
+        /* Keep hamburger button above the overlay so it's always clickable */
+        .nav-hamburger { position: relative; z-index: 400; }
     </style>
 </head>
 <body>
@@ -2648,6 +2698,30 @@
             });
         }
 
+        function ensureNavHamburger() {
+            var nav = document.querySelector('header nav');
+            if (!nav) return;
+            var hamburger = document.getElementById('navHamburger');
+            if (!hamburger) {
+                hamburger = document.createElement('button');
+                hamburger.id = 'navHamburger';
+                hamburger.className = 'nav-hamburger';
+                hamburger.setAttribute('aria-label', 'Toggle navigation');
+                hamburger.textContent = '\u2630'; // ☰
+                nav.appendChild(hamburger);
+            }
+            if (!hamburger.dataset.navInit) {
+                hamburger.dataset.navInit = '1';
+                hamburger.addEventListener('click', function() {
+                    var navLinks = document.querySelector('header .nav-links');
+                    if (navLinks) {
+                        var isOpen = navLinks.classList.toggle('nav-open');
+                        hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
+                    }
+                });
+            }
+        }
+
         function restoreSiteContent() {
             try {
                 const saved = localStorage.getItem(PAGE_CONTENT_KEY);
@@ -2768,6 +2842,7 @@
         applySavedCtaButton();
         ensureAdminBrandingUI();
         enforceNonEditableAdminUI();
+        ensureNavHamburger();
         bindAdminBrandingControls();
         bindPayPalSettingsControls();
         bindCtaButtonControls();
@@ -3156,6 +3231,7 @@
             } else {
                 document.getElementById('memberHeader').style.display = 'none';
             }
+            ensureNavHamburger();
             updateHeaderScrollState();
         });
 
@@ -4881,6 +4957,11 @@
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
+                // Close mobile/scrolled nav overlay if open
+                var navLinks = document.querySelector('header .nav-links');
+                if (navLinks) navLinks.classList.remove('nav-open');
+                var hamburger = document.getElementById('navHamburger');
+                if (hamburger) hamburger.textContent = '\u2630';
                 const id = this.getAttribute('href').substring(1);
                 if (id) showPage(id);
             });
