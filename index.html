@@ -2106,7 +2106,8 @@
                     venmo: normalizedLinks.venmo
                 };
 
-                if (saved.team !== normalizedLinks.team || saved.freeAgent !== normalizedLinks.freeAgent) {
+                if (saved.team !== normalizedLinks.team || saved.freeAgent !== normalizedLinks.freeAgent ||
+                        saved.cashApp !== normalizedLinks.cashApp || saved.venmo !== normalizedLinks.venmo) {
                     localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
                 }
             } catch (err) {
@@ -2235,7 +2236,7 @@
                     msg.textContent = 'Payment settings saved successfully.';
                 }
                 flushPersistSiteContent();
-                updatePaymentMethodLink && updatePaymentMethodLink();
+                if (updatePaymentMethodLink) { updatePaymentMethodLink(); }
             });
         }
 
@@ -2655,6 +2656,7 @@
         }
 
 
+        function renderAdminPaymentRequests() {
             const tbody = document.getElementById('adminPaymentsTbody');
             if (!tbody) return;
             const items = loadPaymentRequests();
