@@ -1017,6 +1017,77 @@
             display: block;
         }
 
+        /* Registration submissions admin panel */
+        .reg-summary-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .reg-summary-counts {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .reg-count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+        .reg-count-badge.total  { background: #1e2a47; color: #c0cde8; border: 1px solid #2f3a5f; }
+        .reg-count-badge.pending { background: #ff6f00; color: #fff; border: 1px solid #e65100; }
+        .reg-count-badge.approved { background: #2e7d32; color: #fff; border: 1px solid #1b5e20; }
+        .reg-count-badge.denied  { background: #c62828; color: #fff; border: 1px solid #8e0000; }
+        .reg-filter-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .reg-filter-btn {
+            padding: 5px 14px;
+            border-radius: 999px;
+            border: 1px solid #2f3a5f;
+            background: #1e2a47;
+            color: #c0cde8;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .reg-filter-btn.active,
+        .reg-filter-btn:hover {
+            background: #ff6f00;
+            color: #fff;
+            border-color: #ff6f00;
+        }
+        .reg-actions-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            justify-content: flex-end;
+        }
+        /* Pending badge on nav admin link */
+        .admin-pending-badge {
+            display: inline-block;
+            background: #ff6f00;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 1px 7px;
+            margin-left: 5px;
+            vertical-align: middle;
+            line-height: 1.5;
+        }
+
         .admin-header {
             background: linear-gradient(135deg, #0f0f23, #16213e);
             color: white;
@@ -1290,7 +1361,7 @@
                     <li><a href="#payments">Sign Up</a></li>
                     <li><a href="#documentsPublic">Documents</a></li>
                     <li><a href="#contact">Contact</a></li>
-                    <li class="admin-nav-item" id="navAdmin"><a href="#documentsAdmin">Admin Dashboard</a></li>
+                    <li class="admin-nav-item" id="navAdmin"><a href="#documentsAdmin">Admin Dashboard<span id="adminPendingBadge" class="admin-pending-badge" style="display:none;"></span></a></li>
                     <li class="member-nav-item" id="navProfile"><a href="#myProfile">My Profile</a></li>
                     <li class="login-menu">
                         <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false">Login ▾</button>
@@ -1730,6 +1801,32 @@
         <div class="container">
             <h2>Admin Dashboard</h2>
 
+            <!-- ===== Registration Submissions (top of dashboard) ===== -->
+            <h2 style="margin-top:24px; color:#ff8f00; border-bottom:2px solid #ff6f00; padding-bottom:8px;">📋 Registration Submissions</h2>
+            <div class="reg-summary-bar">
+                <div class="reg-summary-counts" id="regSummaryCounts">
+                    <span class="reg-count-badge total">Total: <span id="regCountTotal">0</span></span>
+                    <span class="reg-count-badge pending">Pending: <span id="regCountPending">0</span></span>
+                    <span class="reg-count-badge approved">Approved: <span id="regCountApproved">0</span></span>
+                    <span class="reg-count-badge denied">Denied: <span id="regCountDenied">0</span></span>
+                </div>
+                <div class="reg-filter-bar" id="regFilterBar">
+                    <button class="reg-filter-btn active" data-filter="all">All</button>
+                    <button class="reg-filter-btn" data-filter="pending">Pending</button>
+                    <button class="reg-filter-btn" data-filter="approved">Approved</button>
+                    <button class="reg-filter-btn" data-filter="denied">Denied</button>
+                </div>
+            </div>
+            <div class="reg-actions-bar">
+                <button id="exportRegCsvBtn" type="button" class="cta-button small">⬇ Export CSV</button>
+            </div>
+            <table class="teams-table documents-table" style="margin-bottom:32px;">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Details</th><th>Payment</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="adminPaymentsTbody"></tbody>
+            </table>
+
             <h2 style="margin-top:24px;">Payment Method Links</h2>
             <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
                 <div class="registration-grid">
@@ -1888,14 +1985,6 @@
                 </div>
                 <p id="ctaBtnMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
             </div>
-
-            <h2 style="margin-top:24px;">Payment Approvals</h2>
-            <table class="teams-table documents-table">
-                <thead>
-                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Details</th><th>Payment</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
-                </thead>
-                <tbody id="adminPaymentsTbody"></tbody>
-            </table>
         </div>
     </section>
     </div>
@@ -3204,61 +3293,109 @@
         }
 
 
+        var _regActiveFilter = 'all';
+
+        function updateAdminPendingBadge(items) {
+            const badge = document.getElementById('adminPendingBadge');
+            if (!badge) return;
+            const pending = items.filter(function(p) { return (p.status || 'pending') === 'pending'; }).length;
+            if (pending > 0) {
+                badge.textContent = pending;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
         function renderAdminPaymentRequests() {
             const tbody = document.getElementById('adminPaymentsTbody');
             if (!tbody) return;
-            const items = loadPaymentRequests();
+            const allItems = loadPaymentRequests();
+
+            // Update summary counts
+            const total = allItems.length;
+            const pending = allItems.filter(function(p) { return (p.status || 'pending') === 'pending'; }).length;
+            const approved = allItems.filter(function(p) { return p.status === 'approved'; }).length;
+            const denied = allItems.filter(function(p) { return p.status === 'denied'; }).length;
+            const setCount = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+            setCount('regCountTotal', total);
+            setCount('regCountPending', pending);
+            setCount('regCountApproved', approved);
+            setCount('regCountDenied', denied);
+            updateAdminPendingBadge(allItems);
+
+            // Filter
+            const items = _regActiveFilter === 'all' ? allItems : allItems.filter(function(p) { return (p.status || 'pending') === _regActiveFilter; });
+
             tbody.innerHTML = '';
             if (!items.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                var msg = _regActiveFilter === 'all' ? 'No registration submissions yet.' : 'No ' + _regActiveFilter + ' submissions.';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">' + msg + '</td></tr>';
                 return;
             }
-            items.forEach((p, idx) => {
-                const tr = document.createElement('tr');
-                const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
-                const positionInfo = p.offPosition
+            items.forEach(function(p, filteredIdx) {
+                // Find actual index in allItems for actions
+                var actualIdx = allItems.indexOf(p);
+                var tr = document.createElement('tr');
+                var label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                var positionInfo = p.offPosition
                     ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
                     : (p.position ? 'Position: ' + p.position : '');
-                const details = p.type === 'freeAgent'
+                var details = p.type === 'freeAgent'
                     ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
-                    : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
-                const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
-                const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
-                tr.innerHTML = `
-                    <td>${p.name || ''}</td>
-                    <td>${p.email || ''}</td>
-                    <td>${label}</td>
-                    <td>${details}</td>
-                    <td>${payInfo || 'N/A'}</td>
-                    <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
-                    <td>${submitted}</td>
-                    <td>
-                        <button data-action="approvePayment" data-idx="${idx}" class="cta-button small" style="margin-right:6px;">Approve</button>
-                        <button data-action="denyPayment" data-idx="${idx}" class="cta-button small" style="background:#777;">Deny</button>
-                    </td>
-                `;
+                    : 'Team Name: ' + (p.teamName || 'N/A') + ' | Members: ' + (p.teamMembers || 'N/A') + ' | Years Together: ' + (p.teamYears || 'N/A');
+                var methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
+                var payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
+                var submittedStr = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
+                var status = p.status || 'pending';
+                var statusColorMap = { approved: '#4caf50', denied: '#e57373', pending: '#ff8f00' };
+                var statusColor = statusColorMap[status] || '#ff8f00';
+                tr.setAttribute('data-status', status);
+                tr.innerHTML =
+                    '<td>' + escapeHtml(p.name || '') + '</td>' +
+                    '<td>' + escapeHtml(p.email || '') + '</td>' +
+                    '<td>' + escapeHtml(label) + '</td>' +
+                    '<td style="font-size:0.85rem;">' + escapeHtml(details) + '</td>' +
+                    '<td>' + escapeHtml(payInfo || 'N/A') + '</td>' +
+                    '<td style="font-weight:700; color:' + statusColor + '; text-transform:capitalize;">' + escapeHtml(status) + '</td>' +
+                    '<td style="font-size:0.82rem; white-space:nowrap;">' + escapeHtml(submittedStr) + '</td>' +
+                    '<td style="white-space:nowrap;">' +
+                        (status !== 'approved' ? '<button data-action="approvePayment" data-idx="' + actualIdx + '" class="cta-button small" style="margin-right:4px; margin-bottom:4px;">✔ Approve</button>' : '') +
+                        (status !== 'denied' ? '<button data-action="denyPayment" data-idx="' + actualIdx + '" class="cta-button small" style="background:#777; margin-right:4px; margin-bottom:4px;">✖ Deny</button>' : '') +
+                        '<button data-action="deletePayment" data-idx="' + actualIdx + '" class="cta-button small" style="background:#c62828; margin-bottom:4px;">🗑</button>' +
+                    '</td>';
                 tbody.appendChild(tr);
             });
 
-            tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(btn => {
+            tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    const idx = Number(this.dataset.idx);
-                    const items = loadPaymentRequests();
-                    if (!items[idx]) return;
-                    items[idx].status = 'approved';
-                    items[idx].reviewedAt = new Date().toISOString();
-                    savePaymentRequests(items);
+                    var idx = Number(this.dataset.idx);
+                    var list = loadPaymentRequests();
+                    if (!list[idx]) return;
+                    list[idx].status = 'approved';
+                    list[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(list);
                 });
             });
 
-            tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(btn => {
+            tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    const idx = Number(this.dataset.idx);
-                    const items = loadPaymentRequests();
-                    if (!items[idx]) return;
-                    items[idx].status = 'denied';
-                    items[idx].reviewedAt = new Date().toISOString();
-                    savePaymentRequests(items);
+                    var idx = Number(this.dataset.idx);
+                    var list = loadPaymentRequests();
+                    if (!list[idx]) return;
+                    list[idx].status = 'denied';
+                    list[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(list);
+                });
+            });
+
+            tbody.querySelectorAll('button[data-action="deletePayment"]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    if (!confirm('Delete this registration submission? This cannot be undone.')) return;
+                    var idx = Number(this.dataset.idx);
+                    var list = loadPaymentRequests();
+                    list.splice(idx, 1);
+                    savePaymentRequests(list);
                 });
             });
         }
@@ -3271,6 +3408,67 @@
                 return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
             }
             return password; // fallback (not secure)
+        }
+
+        function bindRegFilterControls() {
+            var filterBar = document.getElementById('regFilterBar');
+            if (!filterBar) return;
+            filterBar.querySelectorAll('.reg-filter-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    filterBar.querySelectorAll('.reg-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    _regActiveFilter = btn.getAttribute('data-filter') || 'all';
+                    renderAdminPaymentRequests();
+                });
+            });
+            var exportBtn = document.getElementById('exportRegCsvBtn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function() {
+                    var items = loadPaymentRequests();
+                    if (!items.length) { alert('No registration submissions to export.'); return; }
+                    var header = ['Name','Email','Type','Team Name','Team Members','Years Together','Off Position','Def Position','Experience','Payment Method','Payment Username','Status','Submitted'];
+                    // Sanitize a cell value to prevent CSV formula injection
+                    var sanitizeCsvCell = function(v) {
+                        var s = String(v);
+                        if (/^[=+\-@\t\r]/.test(s)) { s = "'" + s; }
+                        return '"' + s.replace(/"/g, '""') + '"';
+                    };
+                    var rows = items.map(function(p) {
+                        return [
+                            p.name || '',
+                            p.email || '',
+                            p.type === 'team' ? 'Team Registration' : 'Free Agent',
+                            p.teamName || '',
+                            p.teamMembers || '',
+                            p.teamYears || '',
+                            p.offPosition || '',
+                            p.defPosition || '',
+                            p.experience || '',
+                            p.method || '',
+                            p.paymentUsername || '',
+                            p.status || 'pending',
+                            p.submittedAt ? new Date(p.submittedAt).toLocaleString() : ''
+                        ].map(sanitizeCsvCell).join(',');
+                    });
+                    var csv = header.join(',') + '\n' + rows.join('\n');
+                    var blob = new Blob([csv], { type: 'text/csv' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    var now = new Date();
+                    var ts = now.getFullYear() + '' +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') + '_' +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+                    a.download = '865elite_registrations_' + ts + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            }
         }
 
         // --- UI: show saved logo and check auth states on load ---
@@ -3291,6 +3489,7 @@
                 renderDocsAdmin && renderDocsAdmin();
                 renderAllStats && renderAllStats();
                 renderAdminPaymentRequests && renderAdminPaymentRequests();
+                bindRegFilterControls && bindRegFilterControls();
                 renderPayPalSettings && renderPayPalSettings();
                 bindPayPalSettingsControls && bindPayPalSettingsControls();
                 populateCtaButtonEditor && populateCtaButtonEditor();
