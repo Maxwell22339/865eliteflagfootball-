@@ -1446,17 +1446,21 @@
             <form id="paymentForm" class="registration-form" style="max-width:760px;">
                 <div class="registration-grid">
                     <div>
-                        <label for="payName">Full Name</label>
-                        <input id="payName" type="text" required placeholder="Payer full name">
+                        <label for="payName" id="payNameLabel" data-team-label="Team Registration Name" data-free-label="Free Agent Name">Team Registration Name</label>
+                        <input id="payName" type="text" required placeholder="Team registration contact name" data-team-placeholder="Team registration contact name" data-free-placeholder="Free agent full name">
                     </div>
                     <div>
-                        <label for="payEmail">Email</label>
-                        <input id="payEmail" type="email" required placeholder="Email used for receipt">
+                        <label for="payEmail" id="payEmailLabel" data-team-label="Email Associated With the Team" data-free-label="Free Agent Email">Email Associated With the Team</label>
+                        <input id="payEmail" type="email" required placeholder="Email associated with the team" data-team-placeholder="Email associated with the team" data-free-placeholder="Free agent signup email">
+                    </div>
+                    <div id="teamNameWrap">
+                        <label for="payTeamName">Team Name</label>
+                        <input id="payTeamName" type="text" placeholder="Team name">
                     </div>
                     <div>
                         <label for="payType">Payment Type</label>
                         <select id="payType" required>
-                            <option value="team">Team Registration ($500)</option>
+                            <option value="team" selected>Team Registration ($500)</option>
                             <option value="freeAgent">Free Agent ($50)</option>
                         </select>
                         <p style="margin-top:6px; font-size:0.9rem; color:#bbb;">Choose team or free agent and the required signup boxes will appear right below.</p>
@@ -2220,6 +2224,7 @@
                         registration_type: details.type === 'team' ? 'Team Registration' : 'Free Agent',
                         payer_name: details.name,
                         payer_email: details.email,
+                        team_name: details.teamName || 'N/A',
                         team_member_count: details.teamMembers || 'N/A',
                         team_years: details.teamYears || 'N/A',
                         player_position: details.offPosition ? ('Off: ' + details.offPosition + ' | Def: ' + (details.defPosition || 'N/A')) : (details.position || 'N/A'),
@@ -2716,21 +2721,28 @@
             const typeInput = document.getElementById('payType');
             const teamMembersWrap = document.getElementById('teamMemberCountWrap');
             const teamYearsWrap = document.getElementById('teamYearsWrap');
+            const teamNameWrap = document.getElementById('teamNameWrap');
             const positionsRow = document.getElementById('freeAgentPositionsRow');
             const offPosWrap = document.getElementById('freeAgentOffPosWrap');
             const defPosWrap = document.getElementById('freeAgentDefPosWrap');
             const experienceWrap = document.getElementById('freeAgentExperienceWrap');
             const teamMembersInput = document.getElementById('payTeamMembers');
             const teamYearsInput = document.getElementById('payTeamYears');
+            const teamNameInput = document.getElementById('payTeamName');
             const offPosInput = document.getElementById('payOffPosition');
             const defPosInput = document.getElementById('payDefPosition');
             const experienceInput = document.getElementById('payExperience');
+            const nameLabel = document.getElementById('payNameLabel');
+            const emailLabel = document.getElementById('payEmailLabel');
+            const nameInput = document.getElementById('payName');
+            const emailInput = document.getElementById('payEmail');
             if (!typeInput || !teamMembersWrap || !teamYearsWrap || !experienceWrap) return;
 
             const isTeam = typeInput.value === 'team';
             const isFreeAgent = typeInput.value === 'freeAgent';
             teamMembersWrap.style.display = isTeam ? 'block' : 'none';
             teamYearsWrap.style.display = isTeam ? 'block' : 'none';
+            if (teamNameWrap) teamNameWrap.style.display = isTeam ? 'block' : 'none';
             // Toggle the positions row wrapper (preferred) or fall back to individual wrappers
             if (positionsRow) {
                 positionsRow.style.display = isFreeAgent ? 'block' : 'none';
@@ -2741,9 +2753,23 @@
             experienceWrap.style.display = isFreeAgent ? 'block' : 'none';
             if (teamMembersInput) teamMembersInput.required = isTeam;
             if (teamYearsInput) teamYearsInput.required = isTeam;
+            if (teamNameInput) teamNameInput.required = isTeam;
             if (offPosInput) offPosInput.required = isFreeAgent;
             if (defPosInput) defPosInput.required = isFreeAgent;
             if (experienceInput) experienceInput.required = isFreeAgent;
+
+            if (nameLabel && nameLabel.dataset) {
+                nameLabel.textContent = isTeam ? (nameLabel.dataset.teamLabel || nameLabel.textContent) : (nameLabel.dataset.freeLabel || nameLabel.textContent);
+            }
+            if (emailLabel && emailLabel.dataset) {
+                emailLabel.textContent = isTeam ? (emailLabel.dataset.teamLabel || emailLabel.textContent) : (emailLabel.dataset.freeLabel || emailLabel.textContent);
+            }
+            if (nameInput && nameInput.dataset) {
+                nameInput.placeholder = isTeam ? (nameInput.dataset.teamPlaceholder || nameInput.placeholder) : (nameInput.dataset.freePlaceholder || nameInput.placeholder);
+            }
+            if (emailInput && emailInput.dataset) {
+                emailInput.placeholder = isTeam ? (emailInput.dataset.teamPlaceholder || emailInput.placeholder) : (emailInput.dataset.freePlaceholder || emailInput.placeholder);
+            }
 
             if (teamMembersInput && Number(teamMembersInput.value || '0') > 16) {
                 teamMembersInput.value = '16';
@@ -2752,6 +2778,7 @@
             if (!isTeam) {
                 if (teamMembersInput) teamMembersInput.value = '';
                 if (teamYearsInput) teamYearsInput.value = '';
+                if (teamNameInput) teamNameInput.value = '';
             }
 
             if (!isFreeAgent) {
@@ -2817,7 +2844,7 @@
                     : (p.position ? 'Position: ' + p.position : '');
                 const details = p.type === 'freeAgent'
                     ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
-                    : 'Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
+                    : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
                 const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
                 const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
                 const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '';
@@ -3038,6 +3065,7 @@
             const method = (document.getElementById('payMethod') || {}).value || 'paypal';
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
+            const teamName = document.getElementById('payTeamName').value.trim();
             const offPosition = document.getElementById('payOffPosition').value.trim();
             const defPosition = document.getElementById('payDefPosition').value.trim();
             const experience = document.getElementById('payExperience').value.trim();
@@ -3054,10 +3082,10 @@
             }
             const msg = document.getElementById('paymentMsg');
 
-            if (type === 'team' && (!teamMembers || !teamYears)) {
+            if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Team registrations must provide team members and years as a flag football team.';
+                    msg.textContent = 'Team registrations must provide the team name, team members, and years playing together.';
                 }
                 return;
             }
@@ -3094,6 +3122,7 @@
                 email,
                 type,
                 method,
+                teamName,
                 teamMembers,
                 teamYears,
                 offPosition,
@@ -3109,6 +3138,7 @@
                 name,
                 email,
                 type,
+                teamName,
                 teamMembers,
                 teamYears,
                 offPosition,
