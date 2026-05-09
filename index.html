@@ -1067,6 +1067,7 @@
         <input id="logoUploadInput" type="file" accept="image/*" style="display:none;">
         <button id="togglePageEditBtn" onclick="togglePageEdit()" class="cta-button small" style="margin-right:8px;">Disable Editing</button>
         <button id="saveChangesBtn" onclick="saveAllChanges()" style="background:#4caf50; color:white; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:8px;">💾 Save Changes</button>
+        <button id="exportSiteBtn" onclick="exportSiteToFile()" style="background:#1565c0; color:white; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:8px;" title="Download index.html with all current data embedded. Replace the file in your GitHub repository to publish changes." aria-label="Export site data to index.html file for GitHub Pages deployment">📥 Export Site</button>
         <span id="saveMsg" style="color:#fff; margin-right:8px; font-size:0.9rem;"></span>
         <button onclick="logout()">Logout</button>
     </div>
@@ -4278,6 +4279,101 @@
             var msg = document.getElementById('saveMsg');
             if (msg) { msg.textContent = '✓ All changes saved!'; setTimeout(function(){ msg.textContent = ''; }, 3000); }
         }
+        async function exportSiteToFile() {
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+
+            // First, flush all current data to localStorage so nothing is missed
+            saveAllChanges();
+
+            const exportTimestamp = Date.now();
+
+            // Keys that represent public site content (no user accounts or private payment data)
+            const dataKeys = [
+                PAGE_CONTENT_KEY,
+                SITE_LOGO_KEY,
+                HOME_HERO_BACKGROUND_KEY,
+                PAYMENT_LINKS_KEY,
+                PAYMENT_NOTIFICATION_SETTINGS_KEY,
+                LEAGUE_STANDINGS_KEY,
+                LEAGUE_SCHEDULE_KEY,
+                OFFENSIVE_STATS_KEY,
+                DEFENSIVE_STATS_KEY,
+                CURRENT_SEASON_LABEL_KEY,
+                SEASON_ARCHIVES_KEY,
+                SELECTED_SEASON_ARCHIVE_KEY,
+                'documents'
+            ];
+
+            var data = {};
+            dataKeys.forEach(function(key) {
+                var val = localStorage.getItem(key);
+                if (val !== null) data[key] = val;
+            });
+
+            // Build a bootstrap <script> that pre-loads data into localStorage on page load.
+            // It uses a timestamp so a newer export always wins over an older one.
+            // Escape </script sequences so the embedded JSON cannot break out of the script block.
+            var dataJson = JSON.stringify(data).replace(/<\/script/gi, '<\\/script');
+            var bootstrapBlock =
+                '<script id="site-data-bootstrap">\n' +
+                '(function(){\n' +
+                '    var T=' + exportTimestamp + ';\n' +
+                '    if(Number(localStorage.getItem("siteBootstrapTimestamp")||"0")<T){\n' +
+                '        var d=' + dataJson + ';\n' +
+                '        for(var k in d){try{localStorage.setItem(k,d[k]);}catch(e){}}\n' +
+                '        localStorage.setItem("siteBootstrapTimestamp",String(T));\n' +
+                '    }\n' +
+                '})();\n' +
+                '<\/script>\n';
+
+            var btn = document.getElementById('exportSiteBtn');
+            var msg = document.getElementById('saveMsg');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Exporting…'; }
+
+            try {
+                // Fetch the live source HTML (bypassing cache to get the clean template)
+                var resp = await fetch('index.html', { cache: 'no-store' });
+                if (!resp.ok) throw new Error('Could not fetch index.html (status ' + resp.status + ')');
+                var html = await resp.text();
+
+                // Remove any previously injected bootstrap block
+                html = html.replace(/<script id="site-data-bootstrap">[\s\S]*?<\/script>\n?/g, '');
+
+                // Inject bootstrap block just before the EmailJS CDN script tag
+                var insertionMarker = '<script src="https://cdn.jsdelivr.net/npm/@emailjs';
+                if (html.indexOf(insertionMarker) === -1) {
+                    // Fallback: inject just before the closing </body>
+                    html = html.replace('</body>', bootstrapBlock + '</body>');
+                } else {
+                    html = html.replace(insertionMarker, bootstrapBlock + insertionMarker);
+                }
+
+                // Trigger download
+                var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'index.html';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+
+                if (msg) {
+                    msg.style.color = '#7effa3';
+                    msg.textContent = '✓ Exported! Replace index.html in GitHub to publish.';
+                    setTimeout(function() { msg.textContent = ''; msg.style.color = '#fff'; }, 7000);
+                }
+            } catch (err) {
+                if (msg) {
+                    msg.style.color = '#ff8a65';
+                    msg.textContent = 'Export failed: ' + err.message;
+                    setTimeout(function() { msg.textContent = ''; msg.style.color = '#fff'; }, 5000);
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '📥 Export Site'; }
+            }
+        }
+
         document.addEventListener('input', queuePersistSiteContent, true);
         document.addEventListener('change', queuePersistSiteContent, true);
         window.addEventListener('beforeunload', function(e) {
