@@ -1437,8 +1437,15 @@
                         <p style="margin-top:6px; font-size:0.9rem; color:#bbb;">Choose team or free agent and the required signup boxes will appear right below.</p>
                     </div>
                     <div>
-                        <label for="payMethod">Method</label>
-                        <input id="payMethod" type="text" value="PayPal Checkout" readonly>
+                        <label for="payMethod">Payment Method</label>
+                        <select id="payMethod" required>
+                            <option value="paypal">PayPal</option>
+                            <option value="cashapp">CashApp</option>
+                            <option value="venmo">Venmo</option>
+                        </select>
+                        <div id="payMethodLinkWrap" style="display:none; margin-top:8px;">
+                            <a id="payMethodLink" href="#" target="_blank" rel="noopener noreferrer" style="color:#ff8f00; font-weight:600; word-break:break-all;">Open Payment Link</a>
+                        </div>
                     </div>
                     <div id="teamYearsWrap">
                         <label for="payTeamYears">How Many Years As A Team?</label>
@@ -1485,7 +1492,7 @@
                     </div>
                 </div>
                 <div style="margin-top:12px; text-align:center;">
-                    <button type="submit" class="cta-button">Continue To PayPal</button>
+                    <button type="submit" id="paySubmitBtn" class="cta-button">Continue To PayPal</button>
                 </div>
                 <p id="paymentMsg" style="text-align:center; margin-top:10px;"></p>
             </form>
@@ -1595,7 +1602,7 @@
                 <tbody id="adminDocsTbody"></tbody>
             </table>
 
-            <h2 style="margin-top:24px;">PayPal Checkout Links</h2>
+            <h2 style="margin-top:24px;">Payment Method Links</h2>
             <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
                 <div class="registration-grid">
                     <div>
@@ -1605,6 +1612,14 @@
                     <div>
                         <label for="paypalFreeAgentLink">Free Agent PayPal Link</label>
                         <input id="paypalFreeAgentLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
+                    </div>
+                    <div>
+                        <label for="cashAppLink">CashApp Link</label>
+                        <input id="cashAppLink" type="url" placeholder="https://cash.app/$YourCashTag">
+                    </div>
+                    <div>
+                        <label for="venmoLink">Venmo Link</label>
+                        <input id="venmoLink" type="url" placeholder="https://venmo.com/u/YourVenmoHandle">
                     </div>
                 </div>
                 <div style="margin-top:12px;">
@@ -1785,7 +1800,9 @@
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
-            freeAgent: DEFAULT_PAYPAL_URL
+            freeAgent: DEFAULT_PAYPAL_URL,
+            cashApp: '',
+            venmo: ''
         };
         let PAYMENT_NOTIFICATION_SETTINGS = {
             adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
@@ -2078,18 +2095,22 @@
                 const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
                 const normalizedLinks = {
                     team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
-                    freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim()
+                    freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
+                    cashApp: (saved.cashApp || '').trim(),
+                    venmo: (saved.venmo || '').trim()
                 };
                 PAYMENT_LINKS = {
                     team: normalizedLinks.team,
-                    freeAgent: normalizedLinks.freeAgent
+                    freeAgent: normalizedLinks.freeAgent,
+                    cashApp: normalizedLinks.cashApp,
+                    venmo: normalizedLinks.venmo
                 };
 
                 if (saved.team !== normalizedLinks.team || saved.freeAgent !== normalizedLinks.freeAgent) {
                     localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
                 }
             } catch (err) {
-                PAYMENT_LINKS = { team: DEFAULT_PAYPAL_URL, freeAgent: DEFAULT_PAYPAL_URL };
+                PAYMENT_LINKS = { team: DEFAULT_PAYPAL_URL, freeAgent: DEFAULT_PAYPAL_URL, cashApp: '', venmo: '' };
                 localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             }
         }
@@ -2120,7 +2141,9 @@
         function savePaymentLinks(links) {
             PAYMENT_LINKS = {
                 team: (links.team || DEFAULT_PAYPAL_URL).trim(),
-                freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim()
+                freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
+                cashApp: (links.cashApp || '').trim(),
+                venmo: (links.venmo || '').trim()
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
         }
@@ -2178,6 +2201,8 @@
             const saveBtn = document.getElementById('savePayPalLinksBtn');
             const teamInput = document.getElementById('paypalTeamLink');
             const freeInput = document.getElementById('paypalFreeAgentLink');
+            const cashAppInput = document.getElementById('cashAppLink');
+            const venmoInput = document.getElementById('venmoLink');
             const adminEmailInput = document.getElementById('adminNotificationEmail');
             const publicKeyInput = document.getElementById('emailjsPublicKey');
             const serviceIdInput = document.getElementById('emailjsServiceId');
@@ -2195,7 +2220,9 @@
                 }
                 savePaymentLinks({
                     team: teamInput.value,
-                    freeAgent: freeInput.value
+                    freeAgent: freeInput.value,
+                    cashApp: cashAppInput ? cashAppInput.value : '',
+                    venmo: venmoInput ? venmoInput.value : ''
                 });
                 savePaymentNotificationSettings({
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
@@ -2208,6 +2235,7 @@
                     msg.textContent = 'Payment settings saved successfully.';
                 }
                 flushPersistSiteContent();
+                updatePaymentMethodLink && updatePaymentMethodLink();
             });
         }
 
@@ -2216,12 +2244,16 @@
             loadPaymentNotificationSettings();
             const teamInput = document.getElementById('paypalTeamLink');
             const freeInput = document.getElementById('paypalFreeAgentLink');
+            const cashAppInput = document.getElementById('cashAppLink');
+            const venmoInput = document.getElementById('venmoLink');
             const adminEmailInput = document.getElementById('adminNotificationEmail');
             const publicKeyInput = document.getElementById('emailjsPublicKey');
             const serviceIdInput = document.getElementById('emailjsServiceId');
             const templateIdInput = document.getElementById('emailjsTemplateId');
             if (teamInput) teamInput.value = PAYMENT_LINKS.team || '';
             if (freeInput) freeInput.value = PAYMENT_LINKS.freeAgent || '';
+            if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
+            if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
             if (adminEmailInput) adminEmailInput.value = DEFAULT_ADMIN_NOTIFICATION_EMAIL;
             if (publicKeyInput) publicKeyInput.value = PAYMENT_NOTIFICATION_SETTINGS.publicKey || '';
             if (serviceIdInput) serviceIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.serviceId || '';
@@ -2592,7 +2624,37 @@
             }
         }
 
-        function renderAdminPaymentRequests() {
+        function updatePaymentMethodLink() {
+            loadPaymentLinks();
+            const method = (document.getElementById('payMethod') || {}).value || 'paypal';
+            const linkWrap = document.getElementById('payMethodLinkWrap');
+            const linkEl = document.getElementById('payMethodLink');
+            const submitBtn = document.getElementById('paySubmitBtn');
+            let url = '';
+            let label = '';
+            if (method === 'cashapp') {
+                url = PAYMENT_LINKS.cashApp || '';
+                label = 'Open CashApp Payment Link';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp';
+            } else if (method === 'venmo') {
+                url = PAYMENT_LINKS.venmo || '';
+                label = 'Open Venmo Payment Link';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo';
+            } else {
+                if (submitBtn) submitBtn.textContent = 'Continue To PayPal';
+            }
+            if (linkWrap && linkEl) {
+                if ((method === 'cashapp' || method === 'venmo') && url) {
+                    linkEl.href = url;
+                    linkEl.textContent = label;
+                    linkWrap.style.display = 'block';
+                } else {
+                    linkWrap.style.display = 'none';
+                }
+            }
+        }
+
+
             const tbody = document.getElementById('adminPaymentsTbody');
             if (!tbody) return;
             const items = loadPaymentRequests();
@@ -2782,20 +2844,30 @@
         document.getElementById('switchToMemberRegister').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='block'; document.getElementById('memberLoginForm').style.display='none'; });
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
+        document.getElementById('payMethod')?.addEventListener('change', updatePaymentMethodLink);
+        updatePaymentMethodLink();
 
         document.getElementById('paymentForm')?.addEventListener('submit', async function(e) {
             e.preventDefault();
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
             const type = document.getElementById('payType').value;
+            const method = (document.getElementById('payMethod') || {}).value || 'paypal';
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
             const position = document.getElementById('payPosition').value.trim();
             const experience = document.getElementById('payExperience').value.trim();
-            const link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
-            const msg = document.getElementById('paymentMsg');
             loadPaymentLinks();
             loadPaymentNotificationSettings();
+            let link = '';
+            if (method === 'cashapp') {
+                link = PAYMENT_LINKS.cashApp || '';
+            } else if (method === 'venmo') {
+                link = PAYMENT_LINKS.venmo || '';
+            } else {
+                link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
+            }
+            const msg = document.getElementById('paymentMsg');
 
             if (type === 'team' && (!teamMembers || !teamYears)) {
                 if (msg) {
@@ -2828,6 +2900,7 @@
                 name,
                 email,
                 type,
+                method,
                 teamMembers,
                 teamYears,
                 position,
@@ -2849,20 +2922,23 @@
                 submittedAt: submittedAt
             });
 
-            if (!link || !/^https:\/\//i.test(link) || !/paypal\.(com|me)/i.test(link)) {
+            const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
+            const methodLabel = methodLabels[method] || 'Payment';
+
+            if (!link || !/^https:\/\//i.test(link)) {
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = notificationResult.sent
-                        ? 'Payment info submitted and admin was notified. PayPal link is not configured yet.'
-                        : 'Payment info submitted for admin approval. PayPal link is not configured yet.';
+                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.'
+                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.';
                 }
                 return;
             }
             if (msg) {
                 msg.style.color = 'green';
                 msg.textContent = notificationResult.sent
-                    ? 'Payment submitted. Admin was notified and you are being redirected to PayPal checkout.'
-                    : 'Payment submitted. Redirecting to PayPal checkout... Approval is still required before registration.';
+                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.'
+                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
             }
             window.open(link, '_blank', 'noopener,noreferrer');
         });
@@ -4269,8 +4345,15 @@
             // also save payment links currently in inputs
             var teamLink = document.getElementById('paypalTeamLink');
             var freeLink = document.getElementById('paypalFreeAgentLink');
+            var cashAppLinkEl = document.getElementById('cashAppLink');
+            var venmoLinkEl = document.getElementById('venmoLink');
             if (teamLink && freeLink) {
-                savePaymentLinks({ team: teamLink.value, freeAgent: freeLink.value });
+                savePaymentLinks({
+                    team: teamLink.value,
+                    freeAgent: freeLink.value,
+                    cashApp: cashAppLinkEl ? cashAppLinkEl.value : '',
+                    venmo: venmoLinkEl ? venmoLinkEl.value : ''
+                });
             }
             unsavedChanges = false;
             var btn = document.getElementById('saveChangesBtn');
