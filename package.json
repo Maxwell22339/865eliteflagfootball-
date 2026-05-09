@@ -1,0 +1,19 @@
+{
+  "name": "865eliteflagfootball",
+  "version": "1.0.0",
+  "description": "865 Elite Flag Football website",
+  "private": true,
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "js/utils.js"
+    ]
+  }
+}
