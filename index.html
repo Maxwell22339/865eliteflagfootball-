@@ -1987,6 +1987,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="js/utils.js"></script>
     <script>
         // --- Helper: compress image data URL to reduce localStorage usage ---
         function compressImageDataUrl(dataUrl, maxWidth, maxHeight, quality) {
@@ -4222,29 +4223,6 @@
             }).join('');
             if (selectedArchive) select.value = selectedArchive.id;
             if (note) note.textContent = formatArchiveUpdatedAt(selectedArchive && selectedArchive.archivedAt);
-        }
-
-        function escapeHtml(value) {
-            return String(value == null ? '' : value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function cloneRows(rows) {
-            return rows.map(function(row) {
-                return Object.assign({}, row);
-            });
-        }
-
-        function blankLeagueRow(fields) {
-            var row = {};
-            fields.forEach(function(field) {
-                row[field.key] = '';
-            });
-            return row;
         }
 
         function getScheduleTeamInitials(name) {
