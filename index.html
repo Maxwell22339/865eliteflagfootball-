@@ -1724,6 +1724,51 @@
         <div class="container">
             <h2>Admin Dashboard</h2>
 
+            <h2 style="margin-top:24px;">Payment Method Links</h2>
+            <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-grid">
+                    <div>
+                        <label for="paypalTeamLink">Team Registration PayPal Link</label>
+                        <input id="paypalTeamLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
+                    </div>
+                    <div>
+                        <label for="paypalFreeAgentLink">Free Agent PayPal Link</label>
+                        <input id="paypalFreeAgentLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
+                    </div>
+                    <div>
+                        <label for="cashAppLink">CashApp Link</label>
+                        <input id="cashAppLink" type="url" placeholder="https://cash.app/$YourCashTag">
+                    </div>
+                    <div>
+                        <label for="venmoLink">Venmo Link</label>
+                        <input id="venmoLink" type="url" placeholder="https://venmo.com/u/YourVenmoHandle">
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label for="adminNotificationEmail">Signup Notification Email</label>
+                    <input id="adminNotificationEmail" type="email" value="865eliteflagfootball@gmail.com" placeholder="865eliteflagfootball@gmail.com" readonly>
+                </div>
+                <div class="registration-grid" style="margin-top:12px;">
+                    <div>
+                        <label for="emailjsPublicKey">EmailJS Public Key</label>
+                        <input id="emailjsPublicKey" type="text" placeholder="Public key from EmailJS">
+                    </div>
+                    <div>
+                        <label for="emailjsServiceId">EmailJS Service ID</label>
+                        <input id="emailjsServiceId" type="text" placeholder="service_xxxxxxx">
+                    </div>
+                    <div>
+                        <label for="emailjsTemplateId">EmailJS Template ID</label>
+                        <input id="emailjsTemplateId" type="text" placeholder="template_xxxxxxx">
+                    </div>
+                </div>
+                <p style="text-align:center; margin-top:10px; color:#bbb;">Admin-only: signup notifications will be emailed to the address above when EmailJS is configured.</p>
+                <div style="margin-top:12px; text-align:center;">
+                    <button id="savePayPalLinksBtn" type="button" class="cta-button">Save Payment Settings</button>
+                </div>
+                <p id="paypalSettingsMsg" style="text-align:center; margin-top:10px;"></p>
+            </div>
+
             <h3 style="color:#ff6f00; margin-top:1rem; margin-bottom:0.75rem; text-align:center;">Teams by State</h3>
             <table class="teams-table">
                 <thead>
@@ -1819,51 +1864,6 @@
                 </thead>
                 <tbody id="adminDocsTbody"></tbody>
             </table>
-
-            <h2 style="margin-top:24px;">Payment Method Links</h2>
-            <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
-                <div class="registration-grid">
-                    <div>
-                        <label for="paypalTeamLink">Team Registration PayPal Link</label>
-                        <input id="paypalTeamLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
-                    </div>
-                    <div>
-                        <label for="paypalFreeAgentLink">Free Agent PayPal Link</label>
-                        <input id="paypalFreeAgentLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
-                    </div>
-                    <div>
-                        <label for="cashAppLink">CashApp Link</label>
-                        <input id="cashAppLink" type="url" placeholder="https://cash.app/$YourCashTag">
-                    </div>
-                    <div>
-                        <label for="venmoLink">Venmo Link</label>
-                        <input id="venmoLink" type="url" placeholder="https://venmo.com/u/YourVenmoHandle">
-                    </div>
-                </div>
-                <div style="margin-top:12px;">
-                    <label for="adminNotificationEmail">Signup Notification Email</label>
-                    <input id="adminNotificationEmail" type="email" value="865eliteflagfootball@gmail.com" placeholder="865eliteflagfootball@gmail.com" readonly>
-                </div>
-                <div class="registration-grid" style="margin-top:12px;">
-                    <div>
-                        <label for="emailjsPublicKey">EmailJS Public Key</label>
-                        <input id="emailjsPublicKey" type="text" placeholder="Public key from EmailJS">
-                    </div>
-                    <div>
-                        <label for="emailjsServiceId">EmailJS Service ID</label>
-                        <input id="emailjsServiceId" type="text" placeholder="service_xxxxxxx">
-                    </div>
-                    <div>
-                        <label for="emailjsTemplateId">EmailJS Template ID</label>
-                        <input id="emailjsTemplateId" type="text" placeholder="template_xxxxxxx">
-                    </div>
-                </div>
-                <p style="text-align:center; margin-top:10px; color:#bbb;">Admin-only: signup notifications will be emailed to the address above when EmailJS is configured.</p>
-                <div style="margin-top:12px; text-align:center;">
-                    <button id="savePayPalLinksBtn" type="button" class="cta-button">Save Payment Settings</button>
-                </div>
-                <p id="paypalSettingsMsg" style="text-align:center; margin-top:10px;"></p>
-            </div>
 
             <h2 style="margin-top:24px;">Hero Button Editor</h2>
             <div id="ctaButtonEditor" class="registration-form" style="max-width:600px;" data-no-admin-edit="true" contenteditable="false">
