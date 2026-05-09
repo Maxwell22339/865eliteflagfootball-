@@ -1368,10 +1368,11 @@
                     </tr>
                 </tbody>
             </table>
+            <div id="standingsExportBtn" data-no-admin-edit="true" contenteditable="false" style="text-align:center; margin-top:10px; display:none;">
+                <button type="button" class="cta-button small" onclick="exportJsonData('standings')">📋 Export Standings JSON</button>
+            </div>
         </div>
-    </section>
-
-    <section class="schedule" id="leagueSchedule" data-no-admin-edit="true" contenteditable="false">
+    </section>data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>League Schedule</h2>
             <table class="schedule-table" id="leagueScheduleTable">
@@ -1439,6 +1440,7 @@
                 <div style="text-align:center; margin:12px 0;">
                     <button type="button" class="cta-button small" onclick="addLeagueAdminRow('schedule')">+ Add Schedule Row</button>
                     <button type="button" class="cta-button small" style="margin-left:8px;" onclick="saveScheduleFromAdminForm()">Save Schedule</button>
+                    <button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData('schedule')">📋 Export Schedule JSON</button>
                 </div>
                 <p id="leagueScheduleAdminMsg" style="text-align:center; margin-top:8px;"></p>
             </div>
@@ -1533,6 +1535,9 @@
                     <div style="margin-top:12px; text-align:center;">
                         <button type="button" class="cta-button small" onclick="saveCurrentSeasonLabel()">Save Season Label</button>
                         <button type="button" class="cta-button small" style="margin-left:8px;" onclick="archiveCurrentSeasonToRecap()">Archive Current Season To Recap</button>
+                        <button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData('offensive')">📋 Export Offensive Stats JSON</button>
+                        <button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData('defensive')">📋 Export Defensive Stats JSON</button>
+                        <button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData('archives')">📋 Export Archives JSON</button>
                     </div>
                     <p id="seasonStatsAdminMsg" style="text-align:center; margin-top:10px;"></p>
                 </div>
@@ -2206,6 +2211,9 @@
                         '<div style="margin-top:12px; text-align:center;">' +
                             '<button type="button" class="cta-button small" onclick="saveCurrentSeasonLabel()">Save Season Label</button>' +
                             '<button type="button" class="cta-button small" style="margin-left:8px;" onclick="archiveCurrentSeasonToRecap()">Archive Current Season To Recap</button>' +
+                            '<button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData(\'offensive\')">📋 Export Offensive Stats JSON</button>' +
+                            '<button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData(\'defensive\')">📋 Export Defensive Stats JSON</button>' +
+                            '<button type="button" class="cta-button small" style="margin-left:8px;" onclick="exportJsonData(\'archives\')">📋 Export Archives JSON</button>' +
                         '</div>' +
                         '<p id="seasonStatsAdminMsg" style="text-align:center; margin-top:10px;"></p>' +
                     '</div>' +
@@ -2856,6 +2864,8 @@
             if (offBtn) offBtn.style.display = 'none';
             var defBtn = document.getElementById('defensiveStatsAdminBtns');
             if (defBtn) defBtn.style.display = 'none';
+            var standingsExportBtn = document.getElementById('standingsExportBtn');
+            if (standingsExportBtn) standingsExportBtn.style.display = 'none';
 
             // 7. Remove admin-only "Remove" column headers from stats tables
             document.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
@@ -2913,6 +2923,8 @@
                 if (defBtnC) defBtnC.style.display = 'none';
                 var seasonPanelClone = clone.querySelector('#seasonStatsAdminPanel');
                 if (seasonPanelClone) seasonPanelClone.style.display = 'none';
+                var standingsExportBtnClone = clone.querySelector('#standingsExportBtn');
+                if (standingsExportBtnClone) standingsExportBtnClone.style.display = 'none';
                 // Remove admin-only column headers from stats
                 clone.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
                 // Reset dynamic payment methods panel — re-rendered on load
@@ -3961,6 +3973,37 @@
         const RECAP_SEASON_LABEL_KEY = 'recapSeasonLabel_v1';
         const SEASON_ARCHIVES_KEY = 'seasonArchives_v1';
         const SELECTED_SEASON_ARCHIVE_KEY = 'selectedSeasonArchive_v1';
+
+        // --- JSON file data (fetched from data/ folder at page startup) ---
+        // These serve as the shared source of truth for all visitors.
+        // Admins edit data via the UI (saved to localStorage), then export and
+        // commit the JSON files so all visitors see the updated data.
+        var _jsonData = {
+            standings: null,
+            schedule: null,
+            offensiveStats: null,
+            defensiveStats: null,
+            seasonArchives: null
+        };
+
+        function initFromJsonFiles() {
+            Promise.all([
+                fetch('data/standings.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }),
+                fetch('data/schedule.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }),
+                fetch('data/offensive-stats.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }),
+                fetch('data/defensive-stats.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }),
+                fetch('data/season-archives.json').then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
+            ]).then(function(results) {
+                if (Array.isArray(results[0])) _jsonData.standings = results[0];
+                if (Array.isArray(results[1])) _jsonData.schedule = results[1];
+                if (Array.isArray(results[2])) _jsonData.offensiveStats = results[2];
+                if (Array.isArray(results[3])) _jsonData.defensiveStats = results[3];
+                if (Array.isArray(results[4])) _jsonData.seasonArchives = results[4];
+                renderLeagueAdminTables && renderLeagueAdminTables();
+                renderAllStats && renderAllStats();
+            });
+        }
+
         const leagueStandingsFields = [
             { key: 'team', placeholder: 'Team name' },
             { key: 'wins', placeholder: '0' },
@@ -4119,10 +4162,12 @@
 
         function loadSeasonArchives() {
             try {
-                var parsed = JSON.parse(localStorage.getItem(SEASON_ARCHIVES_KEY) || '[]');
-                return Array.isArray(parsed) ? parsed : [];
+                var raw = localStorage.getItem(SEASON_ARCHIVES_KEY);
+                if (raw === null) return _jsonData.seasonArchives || [];
+                var parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : (_jsonData.seasonArchives || []);
             } catch (err) {
-                return [];
+                return _jsonData.seasonArchives || [];
             }
         }
 
@@ -4385,14 +4430,14 @@
             '</div>';
         }
 
-        function loadLeagueCollection(key, defaults) {
+        function loadLeagueCollection(key, defaults, jsonFallback) {
             try {
                 const raw = localStorage.getItem(key);
-                if (raw === null) return cloneRows(defaults);
+                if (raw === null) return jsonFallback ? cloneRows(jsonFallback) : cloneRows(defaults);
                 const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : cloneRows(defaults);
+                return Array.isArray(parsed) ? parsed : (jsonFallback ? cloneRows(jsonFallback) : cloneRows(defaults));
             } catch (e) {
-                return cloneRows(defaults);
+                return jsonFallback ? cloneRows(jsonFallback) : cloneRows(defaults);
             }
         }
 
@@ -4401,7 +4446,7 @@
         }
 
         function loadLeagueStandings() {
-            return loadLeagueCollection(LEAGUE_STANDINGS_KEY, defaultLeagueStandings);
+            return loadLeagueCollection(LEAGUE_STANDINGS_KEY, defaultLeagueStandings, _jsonData.standings);
         }
 
         function saveLeagueStandings(rows) {
@@ -4409,7 +4454,7 @@
         }
 
         function loadLeagueSchedule() {
-            return loadLeagueCollection(LEAGUE_SCHEDULE_KEY, defaultLeagueSchedule).map(normalizeLeagueScheduleRow);
+            return loadLeagueCollection(LEAGUE_SCHEDULE_KEY, defaultLeagueSchedule, _jsonData.schedule).map(normalizeLeagueScheduleRow);
         }
 
         function saveLeagueSchedule(rows) {
@@ -4576,6 +4621,8 @@
             renderLeagueStandingsPublic();
             renderLeagueSchedulePublic();
             renderLeagueScheduleAdminTable(loadLeagueSchedule());
+            var standingsExportBtn = document.getElementById('standingsExportBtn');
+            if (standingsExportBtn) standingsExportBtn.style.display = isAdminLoggedIn() ? 'block' : 'none';
         }
 
         function collectLeagueAdminRows(bodyId, fields) {
@@ -4649,13 +4696,78 @@
         }
 
         function loadPlayerStats(key) {
-            try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
+            try {
+                var raw = localStorage.getItem(key);
+                if (raw !== null) {
+                    var parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : null;
+                }
+                // Fall back to JSON file data when localStorage has no entry
+                if (key === OFFENSIVE_STATS_KEY) return _jsonData.offensiveStats || null;
+                if (key === DEFENSIVE_STATS_KEY) return _jsonData.defensiveStats || null;
+                return null;
+            } catch(e) {
+                if (key === OFFENSIVE_STATS_KEY) return _jsonData.offensiveStats || null;
+                if (key === DEFENSIVE_STATS_KEY) return _jsonData.defensiveStats || null;
+                return null;
+            }
         }
         function savePlayerStats(key, data) {
             localStorage.setItem(key, JSON.stringify(data));
         }
 
-        function getStatsSortConfig(type) {
+        // --- Export JSON helpers (admin only) ---
+        // Admins edit data via the UI, then use these to get the JSON to commit to the repo.
+        function exportJsonData(type) {
+            if (!isAdminLoggedIn()) return;
+            var json, filename, instructions;
+            if (type === 'standings') {
+                json = JSON.stringify(loadLeagueStandings(), null, 2);
+                filename = 'data/standings.json';
+            } else if (type === 'schedule') {
+                json = JSON.stringify(loadLeagueSchedule(), null, 2);
+                filename = 'data/schedule.json';
+            } else if (type === 'offensive') {
+                json = JSON.stringify(loadPlayerStats(OFFENSIVE_STATS_KEY) || [], null, 2);
+                filename = 'data/offensive-stats.json';
+            } else if (type === 'defensive') {
+                json = JSON.stringify(loadPlayerStats(DEFENSIVE_STATS_KEY) || [], null, 2);
+                filename = 'data/defensive-stats.json';
+            } else if (type === 'archives') {
+                json = JSON.stringify(loadSeasonArchives(), null, 2);
+                filename = 'data/season-archives.json';
+            } else {
+                return;
+            }
+            instructions = 'Copy the text below and paste it into the file: ' + filename + '\nThen commit and push to GitHub for all visitors to see the updated data.';
+            var modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+            modal.innerHTML = '<div style="background:#1e1e2e;border:2px solid #ff6f00;border-radius:10px;padding:24px;max-width:700px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;">' +
+                '<h3 style="color:#ff6f00;margin:0;">Export: ' + filename + '</h3>' +
+                '<p style="color:#bbb;font-size:0.9rem;margin:0;">' + instructions + '</p>' +
+                '<textarea readonly style="flex:1;min-height:280px;font-family:monospace;font-size:0.8rem;background:#0d0d1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:10px;resize:vertical;">' + json.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</textarea>' +
+                '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+                    '<button onclick="this.closest(\'div\').previousElementSibling&&this.closest(\'div\').previousElementSibling.select&&this.closest(\'div\').previousElementSibling.select();document.execCommand(\'copy\');this.textContent=\'Copied!\';var b=this;setTimeout(function(){b.textContent=\'Copy\'},2000);" class="cta-button small">Copy</button>' +
+                    '<button onclick="this.closest(\'.json-export-modal\').remove();" class="cta-button small">Close</button>' +
+                '</div>' +
+            '</div>';
+            modal.className = 'json-export-modal';
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+            // Fix Copy button to target the textarea
+            var ta = modal.querySelector('textarea');
+            var copyBtn = modal.querySelectorAll('button')[0];
+            copyBtn.onclick = function() {
+                ta.select();
+                try { document.execCommand('copy'); } catch(e) { navigator.clipboard && navigator.clipboard.writeText(ta.value); }
+                copyBtn.textContent = 'Copied!';
+                setTimeout(function() { copyBtn.textContent = 'Copy'; }, 2000);
+            };
+            var closeBtn = modal.querySelectorAll('button')[1];
+            closeBtn.onclick = function() { modal.remove(); };
+            document.body.appendChild(modal);
+        }
+
+
             return statsSortState[type] || { column: 3, direction: 'desc' };
         }
 
@@ -4921,6 +5033,8 @@
         renderLeagueAdminTables();
         ensureLeagueScheduleResultsUI();
         renderAllStats();
+        // Fetch data from JSON files and re-render (overwrites defaults with committed data)
+        initFromJsonFiles();
 
         // page-wide edit state
         let pageEditing = false;
