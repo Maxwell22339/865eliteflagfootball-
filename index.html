@@ -2487,10 +2487,11 @@
                     if (saved.text) btn.textContent = saved.text;
                     if (saved.link) btn.setAttribute('href', saved.link);
                 }
-            } catch (err) {}
+            } catch (err) {
+                // Ignore CTA button restore errors.
+            }
         }
 
-        function bindCtaButtonControls() {
             var saveBtn = document.getElementById('saveCtaBtnSettings');
             if (!saveBtn) return;
             saveBtn.onclick = function() {
@@ -2507,7 +2508,9 @@
                 }
                 try {
                     localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
-                } catch (err) {}
+                } catch (err) {
+                    // Ignore storage write failures.
+                }
                 if (msgEl) {
                     msgEl.style.color = '#4caf50';
                     msgEl.textContent = 'Button saved!';
@@ -2525,10 +2528,10 @@
                 var linkInput = document.getElementById('ctaBtnLinkInput');
                 if (textInput) textInput.value = saved.text || (btn ? btn.textContent.trim() : 'Join Our League');
                 if (linkInput) linkInput.value = saved.link || (btn ? btn.getAttribute('href') : '#payments');
-            } catch (err) {}
+            } catch (err) {
+                // Ignore editor populate errors.
+            }
         }
-
-        function bindAdminBrandingControls() {
             const changeLogoBtn = document.getElementById('changeLogoBtn');
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
@@ -3128,6 +3131,7 @@
             applySavedBranding();
             applySavedHeroBackground();
             applySavedCtaButton();
+            ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
