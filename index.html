@@ -1493,30 +1493,34 @@
                             <option value="16">16</option>
                         </select>
                     </div>
-                    <div id="freeAgentOffPosWrap" style="display:none;">
-                        <label for="payOffPosition">Offensive Position</label>
-                        <select id="payOffPosition">
-                            <option value="">Select offensive position</option>
-                            <option value="QB">QB</option>
-                            <option value="RB">RB</option>
-                            <option value="WR">WR</option>
-                            <option value="TE">TE</option>
-                            <option value="C">C</option>
-                            <option value="OL">OL</option>
-                            <option value="ATH">ATH (Athlete)</option>
-                        </select>
-                    </div>
-                    <div id="freeAgentDefPosWrap" style="display:none;">
-                        <label for="payDefPosition">Defensive Position</label>
-                        <select id="payDefPosition">
-                            <option value="">Select defensive position</option>
-                            <option value="DL">DL</option>
-                            <option value="LB">LB</option>
-                            <option value="CB">CB</option>
-                            <option value="S">S</option>
-                            <option value="DB">DB</option>
-                            <option value="Rusher">Rusher</option>
-                        </select>
+                    <div id="freeAgentPositionsRow" style="display: none; grid-column: 1 / -1;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div id="freeAgentOffPosWrap">
+                                <label for="payOffPosition">Offensive Position</label>
+                                <select id="payOffPosition">
+                                    <option value="">Select offensive position</option>
+                                    <option value="QB">QB</option>
+                                    <option value="RB">RB</option>
+                                    <option value="WR">WR</option>
+                                    <option value="TE">TE</option>
+                                    <option value="C">C</option>
+                                    <option value="OL">OL</option>
+                                    <option value="ATH">ATH (Athlete)</option>
+                                </select>
+                            </div>
+                            <div id="freeAgentDefPosWrap">
+                                <label for="payDefPosition">Defensive Position</label>
+                                <select id="payDefPosition">
+                                    <option value="">Select defensive position</option>
+                                    <option value="DL">DL</option>
+                                    <option value="LB">LB</option>
+                                    <option value="CB">CB</option>
+                                    <option value="S">S</option>
+                                    <option value="DB">DB</option>
+                                    <option value="Rusher">Rusher</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div id="freeAgentExperienceWrap" style="display:none;">
                         <label for="payExperience">How Long Have You Been Playing Flag Football?</label>
@@ -2603,6 +2607,89 @@
                 staleCoachingLabel.parentElement.remove();
             }
 
+            // Remove any stale single "position played" field from old versions
+            var stalePosLabel = Array.from(document.querySelectorAll('#paymentForm label')).find(function(label) {
+                return /position.?played/i.test(label.textContent || '');
+            });
+            if (stalePosLabel && stalePosLabel.parentElement) {
+                stalePosLabel.parentElement.remove();
+            }
+
+            // Ensure the positions row wrapper exists with both dropdowns side by side
+            var regGrid = document.querySelector('#paymentForm .registration-grid');
+            if (regGrid) {
+                var posRow = document.getElementById('freeAgentPositionsRow');
+                var offPosWrap = document.getElementById('freeAgentOffPosWrap');
+                var defPosWrap = document.getElementById('freeAgentDefPosWrap');
+
+                // If posRow is missing, create it
+                if (!posRow) {
+                    posRow = document.createElement('div');
+                    posRow.id = 'freeAgentPositionsRow';
+                    posRow.style.cssText = 'display: none; grid-column: 1 / -1;';
+                    var innerGrid = document.createElement('div');
+                    innerGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;';
+                    posRow.appendChild(innerGrid);
+                    var expWrap = document.getElementById('freeAgentExperienceWrap');
+                    if (expWrap && expWrap.parentElement === regGrid) {
+                        regGrid.insertBefore(posRow, expWrap);
+                    } else {
+                        regGrid.appendChild(posRow);
+                    }
+                }
+
+                var innerGrid = posRow.querySelector('div');
+                if (!innerGrid) {
+                    innerGrid = document.createElement('div');
+                    innerGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;';
+                    posRow.appendChild(innerGrid);
+                }
+
+                // Move/create offensive position wrap inside posRow inner grid
+                if (!offPosWrap) {
+                    offPosWrap = document.createElement('div');
+                    offPosWrap.id = 'freeAgentOffPosWrap';
+                    offPosWrap.innerHTML =
+                        '<label for="payOffPosition">Offensive Position</label>' +
+                        '<select id="payOffPosition">' +
+                            '<option value="">Select offensive position</option>' +
+                            '<option value="QB">QB</option>' +
+                            '<option value="RB">RB</option>' +
+                            '<option value="WR">WR</option>' +
+                            '<option value="TE">TE</option>' +
+                            '<option value="C">C</option>' +
+                            '<option value="OL">OL</option>' +
+                            '<option value="ATH">ATH (Athlete)</option>' +
+                        '</select>';
+                    innerGrid.insertBefore(offPosWrap, innerGrid.firstChild);
+                } else if (offPosWrap.parentElement !== innerGrid) {
+                    // It exists but outside the posRow — move it inside
+                    offPosWrap.style.display = '';
+                    innerGrid.insertBefore(offPosWrap, innerGrid.firstChild);
+                }
+
+                // Move/create defensive position wrap inside posRow inner grid
+                if (!defPosWrap) {
+                    defPosWrap = document.createElement('div');
+                    defPosWrap.id = 'freeAgentDefPosWrap';
+                    defPosWrap.innerHTML =
+                        '<label for="payDefPosition">Defensive Position</label>' +
+                        '<select id="payDefPosition">' +
+                            '<option value="">Select defensive position</option>' +
+                            '<option value="DL">DL</option>' +
+                            '<option value="LB">LB</option>' +
+                            '<option value="CB">CB</option>' +
+                            '<option value="S">S</option>' +
+                            '<option value="DB">DB</option>' +
+                            '<option value="Rusher">Rusher</option>' +
+                        '</select>';
+                    innerGrid.appendChild(defPosWrap);
+                } else if (defPosWrap.parentElement !== innerGrid) {
+                    defPosWrap.style.display = '';
+                    innerGrid.appendChild(defPosWrap);
+                }
+            }
+
             var teamMembersInput = document.getElementById('payTeamMembers');
             if (teamMembersInput && teamMembersInput.tagName === 'SELECT') {
                 Array.from(teamMembersInput.options).forEach(function(option) {
@@ -2629,6 +2716,7 @@
             const typeInput = document.getElementById('payType');
             const teamMembersWrap = document.getElementById('teamMemberCountWrap');
             const teamYearsWrap = document.getElementById('teamYearsWrap');
+            const positionsRow = document.getElementById('freeAgentPositionsRow');
             const offPosWrap = document.getElementById('freeAgentOffPosWrap');
             const defPosWrap = document.getElementById('freeAgentDefPosWrap');
             const experienceWrap = document.getElementById('freeAgentExperienceWrap');
@@ -2637,14 +2725,19 @@
             const offPosInput = document.getElementById('payOffPosition');
             const defPosInput = document.getElementById('payDefPosition');
             const experienceInput = document.getElementById('payExperience');
-            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !offPosWrap || !defPosWrap || !experienceWrap) return;
+            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !experienceWrap) return;
 
             const isTeam = typeInput.value === 'team';
             const isFreeAgent = typeInput.value === 'freeAgent';
             teamMembersWrap.style.display = isTeam ? 'block' : 'none';
             teamYearsWrap.style.display = isTeam ? 'block' : 'none';
-            offPosWrap.style.display = isFreeAgent ? 'block' : 'none';
-            defPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+            // Toggle the positions row wrapper (preferred) or fall back to individual wrappers
+            if (positionsRow) {
+                positionsRow.style.display = isFreeAgent ? 'block' : 'none';
+            } else {
+                if (offPosWrap) offPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+                if (defPosWrap) defPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+            }
             experienceWrap.style.display = isFreeAgent ? 'block' : 'none';
             if (teamMembersInput) teamMembersInput.required = isTeam;
             if (teamYearsInput) teamYearsInput.required = isTeam;
