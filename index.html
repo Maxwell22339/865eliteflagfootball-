@@ -2364,19 +2364,29 @@
             var panel = document.getElementById('paymentMethodsInfo');
             var list = document.getElementById('paymentMethodsList');
             if (!panel || !list) return;
-            var items = [];
+            list.innerHTML = '';
+            var hasItem = false;
             if (PAYMENT_LINKS.cashApp) {
-                items.push('<a href="' + PAYMENT_LINKS.cashApp + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;">&#36; CashApp</a>');
+                var aCA = document.createElement('a');
+                aCA.href = PAYMENT_LINKS.cashApp;
+                aCA.target = '_blank';
+                aCA.rel = 'noopener noreferrer';
+                aCA.textContent = '$ CashApp';
+                aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aCA);
+                hasItem = true;
             }
             if (PAYMENT_LINKS.venmo) {
-                items.push('<a href="' + PAYMENT_LINKS.venmo + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;">&#64; Venmo</a>');
+                var aV = document.createElement('a');
+                aV.href = PAYMENT_LINKS.venmo;
+                aV.target = '_blank';
+                aV.rel = 'noopener noreferrer';
+                aV.textContent = '@ Venmo';
+                aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aV);
+                hasItem = true;
             }
-            if (items.length > 0) {
-                list.innerHTML = items.join('');
-                panel.style.display = 'block';
-            } else {
-                panel.style.display = 'none';
-            }
+            panel.style.display = hasItem ? 'block' : 'none';
         }
 
         function loadPaymentNotificationSettings() {
@@ -3253,7 +3263,7 @@
             bindPayPalSettingsControls();
             bindCtaButtonControls();
             renderPayPalSettings();
-            renderPaymentMethodsInfo && renderPaymentMethodsInfo();
+            renderPaymentMethodsInfo();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                 const username = sessionStorage.getItem('memberUsername');
