@@ -1257,14 +1257,6 @@
             z-index: 400;
         }
 
-        /* Keep the Login button visible and fixed when header is scrolled (desktop) */
-        header.scrolled .login-menu {
-            position: fixed;
-            top: 14px;
-            right: 70px;
-            z-index: 401;
-        }
-
         /* Mobile: always show hamburger, hide nav row */
         @media (max-width: 900px) {
             .nav-hamburger { 
@@ -1272,17 +1264,27 @@
             }
             .nav-links { display: none; }
         }
-        
+
         /* Improve hamburger position on mobile */
         @media (max-width: 768px) {
             header.scrolled .nav-hamburger {
                 top: 10px;
                 right: 12px;
             }
-            header.scrolled .login-menu {
-                top: 10px;
-                right: 62px;
-            }
+        }
+
+        /* Login button inside the hamburger overlay — center the dropdown */
+        .nav-links.nav-open .login-menu {
+            position: relative;
+        }
+        .nav-links.nav-open .login-dropdown {
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%) translateY(-6px) scale(0.98);
+            transform-origin: top center;
+        }
+        .nav-links.nav-open .login-dropdown.visible {
+            transform: translateX(-50%) translateY(0) scale(1);
         }
 
         /* Open state: fullscreen overlay for both mobile and scrolled */
@@ -1423,6 +1425,15 @@ a:focus, button:focus, input:focus, textarea:focus, select:focus {
 /* Smooth scroll */
 html {
     scroll-behavior: smooth;
+}
+
+/* Smooth page-section fade-in transition */
+@keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.page-fade-in {
+    animation: pageFadeIn 0.3s ease-out;
 }
 
 /* Active navigation highlighting */

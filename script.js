@@ -157,7 +157,11 @@
             var target = document.getElementById(id);
             if (target) {
                 target.style.display = 'block';
-                window.scrollTo(0, 0);
+                // Trigger fade-in animation
+                target.classList.remove('page-fade-in');
+                void target.offsetWidth; // force reflow
+                target.classList.add('page-fade-in');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (history.pushState) history.pushState(null, '', '#' + id);
                 else window.location.hash = id;
                 updateHeaderScrollState();
@@ -1520,6 +1524,11 @@
                 e.stopPropagation();
                 if (e.target.closest('#loginDropdownAdmin')) {
                     e.preventDefault();
+                    // Close nav overlay if open (hamburger menu)
+                    var navLinks = document.querySelector('header .nav-links');
+                    if (navLinks) navLinks.classList.remove('nav-open');
+                    var hamburger = document.getElementById('navHamburger');
+                    if (hamburger) hamburger.textContent = '\u2630';
                     showAdminLoginModal();
                     toggleLoginDropdown(false);
                 }
@@ -3978,6 +3987,13 @@
             try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(list)); } catch (e) {}
         }
 
+        function updateGalleryNavVisibility(hasImages) {
+            var navItem = document.getElementById('navGallery');
+            if (!navItem) return;
+            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            navItem.style.display = (hasImages || isAdmin) ? '' : 'none';
+        }
+
         function renderGallery() {
             var grid = document.getElementById('galleryGrid');
             var emptyEl = document.getElementById('galleryEmpty');
@@ -3985,6 +4001,7 @@
             var meta = loadGalleryMeta();
             if (!meta.length) {
                 grid.innerHTML = '<p class="gallery-empty" id="galleryEmpty">No photos yet — check back soon!</p>';
+                updateGalleryNavVisibility(false);
                 return;
             }
             var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -4034,6 +4051,9 @@
                 });
                 if (!grid.children.length) {
                     grid.innerHTML = '<p class="gallery-empty">No photos yet — check back soon!</p>';
+                    updateGalleryNavVisibility(false);
+                } else {
+                    updateGalleryNavVisibility(true);
                 }
             });
         }
