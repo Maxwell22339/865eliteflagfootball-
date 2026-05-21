@@ -29,6 +29,8 @@
     
     <title>865 ELITE FLAG FOOTBALL - Premier Youth Flag Football League in Knoxville, TN</title>
     <link rel="icon" href="assets/logo.jpg" type="image/jpeg">
+    <link rel="apple-touch-icon" href="assets/logo.jpg">
+    <meta name="theme-color" content="#0f0f23">
     
     <!-- Structured Data (Schema.org) -->
     <script type="application/ld+json">
@@ -46,7 +48,9 @@
             "addressRegion": "TN",
             "addressCountry": "US"
         },
-        "sameAs": []
+        "sameAs": [
+            "https://www.facebook.com/865EliteAdultFlagFootballLeague"
+        ]
     }
     </script>
     
@@ -175,7 +179,7 @@
         <div class="container">
             <nav role="navigation" aria-label="Main navigation">
                 <a href="#home" class="logo" aria-label="865 Elite Flag Football home">
-                    <img src="assets/logo.jpg" alt="865 Elite Flag Football logo" class="site-logo">
+                    <img src="assets/logo.jpg" alt="865 Elite Flag Football logo" class="site-logo" loading="lazy">
                     <span>865 ELITE FLAG FOOTBALL</span>
                 </a>
                 <ul class="nav-links" role="menubar">
@@ -183,13 +187,19 @@
                     <li role="none"><a href="#about" role="menuitem">About</a></li>
                     <li role="none"><a href="#standings" role="menuitem">League Standings</a></li>
                     <li role="none"><a href="#leagueSchedule" role="menuitem">League Schedule</a></li>
+                    <li role="none"><a href="#playoff" role="menuitem">Playoff Bracket</a></li>
                     <li role="none"><a href="#player-stats" role="menuitem">Season Stats</a></li>
                     <li role="none"><a href="#season-recap" role="menuitem">Season Recap</a></li>
+                    <li role="none"><a href="#gallery" role="menuitem">Gallery</a></li>
                     <li role="none"><a href="#payments" role="menuitem">Sign Up</a></li>
                     <li role="none"><a href="#documentsPublic" role="menuitem">Documents</a></li>
+                    <li role="none"><a href="#faq" role="menuitem">FAQ</a></li>
                     <li role="none"><a href="#contact" role="menuitem">Contact</a></li>
                     <li role="none" class="admin-nav-item" id="navAdmin"><a href="#documentsAdmin" role="menuitem">Admin Dashboard</a></li>
                     <li role="none" class="member-nav-item" id="navProfile"><a href="#myProfile" role="menuitem">My Profile</a></li>
+                    <li role="none" class="dark-mode-toggle-item">
+                        <button id="darkModeToggle" class="dark-mode-btn" aria-label="Toggle light mode" title="Toggle light/dark mode">🌙</button>
+                    </li>
                     <li role="none" class="login-menu">
                         <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
                         <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
@@ -209,6 +219,28 @@
                 <h1>865 ELITE FLAG FOOTBALL</h1>
                 <p>ADULT FLAG FOOTBALL</p>
                 <a id="heroCtaBtn" href="#payments" class="cta-button">Join Our League</a>
+
+                <!-- Countdown Timer -->
+                <div id="countdownTimer" class="countdown-timer" aria-live="polite">
+                    <div class="countdown-label" id="countdownLabel">Next Game</div>
+                    <div class="countdown-display">
+                        <div class="countdown-unit"><span id="cdDays">--</span><small>Days</small></div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-unit"><span id="cdHours">--</span><small>Hours</small></div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-unit"><span id="cdMins">--</span><small>Min</small></div>
+                        <div class="countdown-sep">:</div>
+                        <div class="countdown-unit"><span id="cdSecs">--</span><small>Sec</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Results Widget -->
+        <div id="latestResultsWidget" class="latest-results-widget" aria-label="Latest game results">
+            <div class="latest-results-header">🏈 Latest Results</div>
+            <div id="latestResultsBody" class="latest-results-body">
+                <p class="latest-results-empty">No results yet — season coming soon!</p>
             </div>
         </div>
     </section>
@@ -273,6 +305,29 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </section>
+
+    <!-- Playoff Bracket Section -->
+    <section class="schedule" id="playoff" data-no-admin-edit="true" contenteditable="false">
+        <div class="container">
+            <h2>Playoff Bracket</h2>
+            <p style="text-align:center; color:#bbb; margin-bottom:2rem;">Follow the playoff action as teams battle for the championship!</p>
+            <div id="playoffBracketDisplay" class="playoff-bracket">
+                <p class="playoff-empty" id="playoffEmpty">Playoff bracket will be posted when the season begins.</p>
+            </div>
+            <!-- Admin panel -->
+            <div id="playoffAdminPanel" class="admin-only" style="margin-top:2rem;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-form" style="max-width:960px;">
+                    <h3 style="color:#ff6f00; margin-bottom:12px; text-align:center;">Manage Playoff Bracket</h3>
+                    <div id="playoffRoundsEditor"></div>
+                    <div style="text-align:center; margin-top:12px;">
+                        <button type="button" class="cta-button small" onclick="addPlayoffRound()">+ Add Round</button>
+                        <button type="button" class="cta-button small" style="margin-left:8px;" onclick="savePlayoffBracket()">💾 Save Bracket</button>
+                    </div>
+                    <p id="playoffAdminMsg" style="text-align:center; margin-top:8px;"></p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -496,6 +551,33 @@
                     <tr><td colspan="7" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>
                 </tbody>
             </table>
+        </div>
+    </section>
+
+    <!-- Photo Gallery Section -->
+    <section class="gallery-section" id="gallery">
+        <div class="container">
+            <h2>Photo Gallery</h2>
+            <p style="text-align:center; color:#bbb; margin-bottom:2rem;">Game highlights, team photos, and action shots from 865 Elite Flag Football.</p>
+            <div id="galleryGrid" class="gallery-grid">
+                <p class="gallery-empty" id="galleryEmpty">No photos yet — check back soon!</p>
+            </div>
+            <!-- Admin panel -->
+            <div id="galleryAdminPanel" class="admin-only" style="margin-top:2rem;" data-no-admin-edit="true" contenteditable="false">
+                <h3 style="color:#ff6f00; margin-bottom:12px; text-align:center;">Manage Gallery</h3>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; background:#16213e; padding:16px; border-radius:8px; border:1px solid #2a2a4a;">
+                    <input id="galleryUploadInput" type="file" accept="image/*" multiple style="flex:1; min-width:180px; padding:8px;">
+                    <input id="galleryCaption" type="text" placeholder="Caption (optional)" style="flex:2; min-width:160px; padding:8px; border:1px solid #2a2a4a; border-radius:4px; background:#0f0f23; color:#e0e0e0;">
+                    <button id="galleryUploadBtn" class="cta-button small" type="button">📷 Upload</button>
+                </div>
+                <p id="galleryUploadMsg" style="text-align:center; margin-top:4px;"></p>
+            </div>
+            <!-- Lightbox -->
+            <div id="galleryLightbox" class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" style="display:none;">
+                <button id="galleryLightboxClose" class="gallery-lightbox-close" aria-label="Close photo viewer">&times;</button>
+                <img id="galleryLightboxImg" src="" alt="" class="gallery-lightbox-img">
+                <p id="galleryLightboxCaption" class="gallery-lightbox-caption"></p>
+            </div>
         </div>
     </section>
 
@@ -794,6 +876,25 @@
                 <p id="ctaBtnMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
             </div>
 
+            <h2 style="margin-top:24px;">Countdown Timer Settings</h2>
+            <div id="countdownEditor" class="registration-form" style="max-width:600px; margin-top:12px;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label for="countdownDateInput">Next Game / Event Date &amp; Time</label>
+                        <input id="countdownDateInput" type="datetime-local" style="width:100%; padding:8px;">
+                    </div>
+                    <div>
+                        <label for="countdownLabelInput">Timer Label</label>
+                        <input id="countdownLabelInput" type="text" placeholder="Next Game" style="width:100%; padding:8px;">
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                    <button id="saveCountdownSettings" type="button" class="cta-button small">Save Timer</button>
+                    <button id="clearCountdownSettings" type="button" class="cta-button small" style="background:#555;">Clear Timer</button>
+                </div>
+                <p id="countdownAdminMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
+            </div>
+
             <h2 style="margin-top:24px;">Payment Approvals</h2>
             <table class="teams-table documents-table">
                 <thead>
@@ -856,6 +957,63 @@
         </div>
     </section>
 
+    <!-- FAQ Section -->
+    <section class="faq-section" id="faq">
+        <div class="container">
+            <h2>Frequently Asked Questions</h2>
+            <div class="faq-list" id="faqList">
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">How much does it cost to sign up? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Team registration is <strong>$500</strong> per season. Free agent placement is <strong>$50</strong> per player. Fees cover all league games, certified referees, and end-of-season awards.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">How many games are guaranteed per season? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Every team is guaranteed a minimum of <strong>8 regular season games</strong>, plus the opportunity to compete in the playoffs.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">Where are games played? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Games are held at <strong>John Tarleton Park</strong> in Knoxville, Tennessee 37919.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">How do free agents get placed on teams? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Free agents are matched to teams based on position needs and team balance. When you sign up, you'll provide your preferred offensive and defensive positions. League administrators will place you before the season starts.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">Will there be referees at every game? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Yes! Every game has <strong>official league referees</strong> to ensure fair play and proper rule enforcement.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">What awards are given at the end of the season? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p><strong>Championship trophies</strong> are awarded to the winning team. Individual awards include <strong>League MVP</strong> and <strong>Player of the Year</strong>.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">How do I contact the league? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Email us at <strong>865eliteflagfootball@gmail.com</strong>, visit our <a href="https://www.facebook.com/865EliteAdultFlagFootballLeague" target="_blank" rel="noopener noreferrer" style="color:#ff8f00;">Facebook page</a>, or use the contact section on this site.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" aria-expanded="false">Can I watch games if I'm not a player? <span class="faq-icon" aria-hidden="true">+</span></button>
+                    <div class="faq-answer" hidden>
+                        <p>Absolutely! Games are open to spectators. Come out and support your favorite team at John Tarleton Park. All are welcome to watch the action!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Contact Section -->
     <section class="contact" id="contact">
         <div class="container">
@@ -877,10 +1035,40 @@
             <div style="margin-top: 3rem;">
                 <h3>Follow Us</h3>
                 <p style="margin-top: 1rem;">
-                    <a href="https://www.facebook.com/865EliteAdultFlagFootballLeague" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Facebook</a>
-                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Instagram</a>
-                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">Twitter</a>
+                    <a href="https://www.facebook.com/865EliteAdultFlagFootballLeague" target="_blank" rel="noopener noreferrer" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">📘 Facebook</a>
+                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">📸 Instagram</a>
+                    <a href="#" style="color: #ff6f00; margin: 0 1rem; text-decoration: none;">🐦 Twitter/X</a>
                 </p>
+            </div>
+
+            <!-- Google Maps Embed -->
+            <div style="margin-top: 3rem;">
+                <h3>📍 Find Us</h3>
+                <div class="map-container" style="margin-top: 1rem;">
+                    <iframe
+                        src="https://maps.google.com/maps?q=John+Tarleton+Park+Knoxville+TN+37919&output=embed"
+                        width="100%"
+                        height="320"
+                        style="border:0; border-radius:8px; display:block;"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="John Tarleton Park — Knoxville, Tennessee"></iframe>
+                </div>
+            </div>
+
+            <!-- Email Newsletter Sign-Up -->
+            <div style="margin-top: 3rem;">
+                <h3>📬 Stay Updated</h3>
+                <p style="margin-top: 0.5rem; opacity: 0.9;">Sign up to receive league news, schedule changes, and announcements.</p>
+                <form id="newsletterForm" class="newsletter-form" style="margin-top: 1rem;" novalidate>
+                    <div class="newsletter-row">
+                        <input type="text" id="newsletterName" placeholder="Your Name" autocomplete="name">
+                        <input type="email" id="newsletterEmail" placeholder="Your Email" required autocomplete="email">
+                        <button type="submit" class="cta-button" style="white-space:nowrap;">Subscribe ✉</button>
+                    </div>
+                    <p id="newsletterMsg" style="margin-top:8px; font-size:0.9rem;"></p>
+                </form>
             </div>
         </div>
     </section>
@@ -888,7 +1076,47 @@
 
     <!-- Footer -->
     <footer>
-        <p>&copy; 2026 865 ELITE FLAG FOOTBALL. All rights reserved.</p>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <img src="assets/logo.jpg" alt="865 Elite Flag Football logo" class="footer-logo" loading="lazy">
+                    <p class="footer-brand-name">865 ELITE FLAG FOOTBALL</p>
+                    <p class="footer-brand-sub">Knoxville, Tennessee</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#standings">Standings</a></li>
+                        <li><a href="#leagueSchedule">Schedule</a></li>
+                        <li><a href="#playoff">Playoff Bracket</a></li>
+                        <li><a href="#gallery">Gallery</a></li>
+                        <li><a href="#payments">Sign Up</a></li>
+                        <li><a href="#faq">FAQ</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-social">
+                    <h4>Follow Us</h4>
+                    <div class="footer-social-links">
+                        <a href="https://www.facebook.com/865EliteAdultFlagFootballLeague" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <span class="social-badge facebook-badge">f</span> Facebook
+                        </a>
+                        <a href="#" aria-label="Instagram">
+                            <span class="social-badge instagram-badge">📸</span> Instagram
+                        </a>
+                    </div>
+                    <div style="margin-top:1rem; text-align:left;">
+                        <p style="font-size:0.88rem; color:#888; margin-bottom:4px;">📧 865eliteflagfootball@gmail.com</p>
+                        <p style="font-size:0.88rem; color:#888;">📍 John Tarleton Park, Knoxville, TN 37919</p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 865 ELITE FLAG FOOTBALL. All rights reserved.</p>
+            </div>
+        </div>
     </footer>
     </div>
 
