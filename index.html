@@ -4110,7 +4110,7 @@
         }
 
         function normalizeTeamNameKey(name) {
-            return String(name || '').trim().replace(/\s+/g, ' ');
+            return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
         }
 
         function loadStatsTeamLogos() {
@@ -4131,8 +4131,7 @@
             var key = normalizeTeamNameKey(teamName);
             if (!key) return '';
             var logos = loadStatsTeamLogos();
-            var legacyKey = key.toLowerCase();
-            return String(logos[key] || logos[legacyKey] || '');
+            return String(logos[key] || '');
         }
 
         function setStatsTeamLogo(teamName, logoDataUrl) {
