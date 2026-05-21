@@ -72,27 +72,13 @@
     <div id="loginModal" class="login-modal hidden" style="display:none">
         <div class="login-content">
             <button id="closeLoginModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
-            <h2>Admin Login</h2>
-
-            <!-- Step 1: Pick which admin you are -->
-            <div id="adminPickStep">
-                <p style="text-align:center; margin-bottom:12px;">Who are you? Select your admin account:</p>
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button class="admin-pick-btn cta-button" data-admin="TFick123">TFick123</button>
-                    <button class="admin-pick-btn cta-button" data-admin="Maxwell22339">Maxwell22339</button>
-                </div>
-            </div>
-
-            <!-- Step 2: Enter password for the chosen admin -->
-            <div id="adminPasswordStep" style="display:none;">
-                <p style="text-align:center; margin-bottom:12px;">Logged in as: <strong id="adminPickedName"></strong></p>
-                <form id="loginForm">
-                    <input type="hidden" id="username">
-                    <input type="password" id="password" placeholder="Enter your password" required>
-                    <button type="submit">Login</button>
-                </form>
-                <button id="adminBackBtn" type="button" style="background:transparent; border:none; color:#888; cursor:pointer; margin-top:8px; display:block; width:100%; text-align:center;">&#8592; Back</button>
-            </div>
+            <h2>Admin Login (GitHub)</h2>
+            <p style="text-align:center; margin-bottom:12px; color:#777;">Use your GitHub username and Personal Access Token.</p>
+            <form id="loginForm">
+                <input type="text" id="adminGithubUsername" placeholder="GitHub Username" autocomplete="username" required>
+                <input type="password" id="adminGithubToken" placeholder="GitHub Personal Access Token" autocomplete="current-password" required>
+                <button type="submit">Sign In</button>
+            </form>
 
             <p id="loginError" style="color: red; text-align: center; margin-top: 10px;"></p>
         </div>
@@ -1147,10 +1133,8 @@
                 <div class="footer-admin" data-no-admin-edit="true" contenteditable="false">
                     <h4>Admin Sign In</h4>
                     <form id="footerAdminLoginForm" class="footer-admin-form">
-                        <select id="footerAdminUsername" autocomplete="username" required>
-                            <option value="" selected disabled>Select Admin</option>
-                        </select>
-                        <input id="footerAdminPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+                        <input id="footerAdminGithubUsername" type="text" placeholder="GitHub Username" autocomplete="username" required>
+                        <input id="footerAdminGithubToken" type="password" placeholder="GitHub Personal Access Token" autocomplete="current-password" required>
                         <button type="submit" class="cta-button small">Sign In</button>
                     </form>
                     <div id="footerAdminSession" class="footer-admin-session hidden" style="display:none;">
