@@ -4035,6 +4035,9 @@
         const RECAP_OFFENSIVE_STATS_KEY = 'recapOffensivePlayerStats_v1';
         const RECAP_DEFENSIVE_STATS_KEY = 'recapDefensivePlayerStats_v1';
         const STATS_TEAM_LOGOS_KEY = 'statsTeamLogos_v1';
+        const STATS_TEAM_LOGO_MAX_WIDTH = 200;
+        const STATS_TEAM_LOGO_MAX_HEIGHT = 200;
+        const STATS_TEAM_LOGO_QUALITY = 0.8;
         const CURRENT_SEASON_LABEL_KEY = 'currentSeasonLabel_v1';
         const RECAP_SEASON_LABEL_KEY = 'recapSeasonLabel_v1';
         const SEASON_ARCHIVES_KEY = 'seasonArchives_v1';
@@ -4968,7 +4971,7 @@
                         reader.onload = function(ev) {
                             var dataUrl = ev && ev.target ? ev.target.result : '';
                             if (!dataUrl) return;
-                            compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(compressed) {
+                            compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                                 setStatsTeamLogo(teamName, compressed);
                                 renderAllStats();
                                 markUnsaved();
