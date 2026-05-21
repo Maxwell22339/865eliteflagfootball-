@@ -1779,7 +1779,7 @@
             toggleLoginDropdown(false);
             setNavQuickSelectOpen(false);
         });
-        document.addEventListener('change', function(e) {
+        document.getElementById('siteContent')?.addEventListener('change', function(e) {
             if (!e.target || e.target.id !== 'navQuickSelect') return;
             const targetPage = e.target.value;
             if (!targetPage) return;
@@ -1815,7 +1815,7 @@
             if (passwordInput) passwordInput.value = '';
             showAdminView();
         }
-        document.addEventListener('click', function(e) {
+        document.getElementById('siteContent')?.addEventListener('click', function(e) {
             const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
             if (!logoutBtn) return;
             e.preventDefault();
