@@ -99,8 +99,6 @@
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
-        const NAV_ICON_MENU = '\u2630';
-        const NAV_ICON_CLOSE = '\u2715';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
             freeAgent: DEFAULT_PAYPAL_URL,
@@ -130,94 +128,6 @@
 
         function isMemberLoggedIn() {
             return sessionStorage.getItem('memberLoggedIn') === 'true';
-        }
-
-        function syncAuthNavigationUI() {
-            var isAdminAuthenticated = isAdminLoggedIn();
-            var isMemberAuthenticated = isMemberLoggedIn();
-            var isAuthenticated = isAdminAuthenticated || isMemberAuthenticated;
-            var loginMenuItem = document.querySelector('.login-menu-item');
-            var loginAdminBtn = document.getElementById('loginDropdownAdmin');
-            var navLinks = document.querySelector('header .nav-links');
-            var hamburger = document.getElementById('navHamburger');
-
-            if (loginMenuItem) {
-                loginMenuItem.toggleAttribute('hidden', isAuthenticated);
-            }
-            if (loginAdminBtn) {
-                loginAdminBtn.toggleAttribute('hidden', isAdminAuthenticated);
-            }
-            if (isAuthenticated && navLinks) {
-                navLinks.classList.remove('nav-open');
-            }
-            if (hamburger && navLinks) {
-                hamburger.textContent = navLinks.classList.contains('nav-open') ? NAV_ICON_CLOSE : NAV_ICON_MENU;
-            }
-            // Guard is intentional: syncAuthNavigationUI is called from initialization flows that may execute
-            // before toggleLoginDropdown is assigned in restored/persisted script execution order.
-            if (typeof toggleLoginDropdown === 'function') toggleLoginDropdown(false);
-        }
-
-        function applyAdminSessionUI(options) {
-            options = options || {};
-            var adminHeader = document.getElementById('adminHeader');
-            if (adminHeader) adminHeader.style.display = 'block';
-
-            var stored = sessionStorage.getItem('adminUsername');
-            var adminNameEl = document.getElementById('adminNameDisplay');
-            if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
-
-            var adminOnly = document.getElementById('adminOnly');
-            if (adminOnly) adminOnly.classList.add('visible');
-
-            var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
-            if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
-
-            document.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.add('visible'); });
-
-            enablePageEdit(true);
-            renderUsersTableForAdmin();
-            renderDocsAdmin && renderDocsAdmin();
-            renderAllStats && renderAllStats();
-            renderAdminPaymentRequests && renderAdminPaymentRequests();
-            renderPayPalSettings && renderPayPalSettings();
-            bindPayPalSettingsControls && bindPayPalSettingsControls();
-            populateCtaButtonEditor && populateCtaButtonEditor();
-            bindCtaButtonControls && bindCtaButtonControls();
-
-            if (options.renderLeagueAdminTables) {
-                renderLeagueAdminTables && renderLeagueAdminTables();
-            }
-            if (options.showGalleryPanel) {
-                var galleryAdminPanel = document.getElementById('galleryAdminPanel');
-                if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
-            }
-            if (options.showPlayoffPanel) {
-                var playoffAdminPanel = document.getElementById('playoffAdminPanel');
-                if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
-            }
-        }
-
-        function applyMemberSessionUI() {
-            var username = sessionStorage.getItem('memberUsername');
-            if (!username) return { exists: false };
-            var isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
-            var memberHeader = document.getElementById('memberHeader');
-            if (memberHeader) memberHeader.style.display = 'block';
-            var memberNameDisplay = document.getElementById('memberNameDisplay');
-            if (memberNameDisplay) memberNameDisplay.textContent = isGuest ? (username + ' (Guest)') : username;
-            if (!isGuest) {
-                var navProfile = document.getElementById('navProfile');
-                if (navProfile) navProfile.classList.add('visible');
-            }
-            return { exists: true, username: username, isGuest: isGuest };
-        }
-
-        function clearMemberSessionUI() {
-            var memberHeader = document.getElementById('memberHeader');
-            if (memberHeader) memberHeader.style.display = 'none';
-            var navProfile = document.getElementById('navProfile');
-            if (navProfile) navProfile.classList.remove('visible');
         }
 
         function canAccessPage(id) {
@@ -929,8 +839,6 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            var navLinks = document.querySelector('header .nav-links');
-            if (navLinks) navLinks.classList.remove('nav-open');
             // Always remove any existing hamburger (e.g. one restored from saved HTML that
             // lacks a click listener because data-nav-init was persisted without the handler).
             var existing = document.getElementById('navHamburger');
@@ -939,13 +847,13 @@
             hamburger.id = 'navHamburger';
             hamburger.className = 'nav-hamburger';
             hamburger.setAttribute('aria-label', 'Toggle navigation');
-            hamburger.textContent = NAV_ICON_MENU;
+            hamburger.textContent = '\u2630'; // ☰
             nav.appendChild(hamburger);
             hamburger.addEventListener('click', function() {
                 var navLinks = document.querySelector('header .nav-links');
                 if (navLinks) {
                     var isOpen = navLinks.classList.toggle('nav-open');
-                    hamburger.textContent = isOpen ? NAV_ICON_CLOSE : NAV_ICON_MENU;
+                    hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
                 }
             });
         }
@@ -1018,9 +926,6 @@
             document.querySelectorAll('#adminOnly .team-logo-input').forEach(function(el) {
                 el.style.display = 'none';
             });
-            var navLinks = document.querySelector('header .nav-links');
-            if (navLinks) navLinks.classList.remove('nav-open');
-            syncAuthNavigationUI();
         }
 
         function persistSiteContent() {
@@ -1091,7 +996,6 @@
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
             ensureNavHamburger();
-            syncAuthNavigationUI();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
             bindCtaButtonControls();
@@ -1432,7 +1336,23 @@
             renderDocumentsList();
             // admin
             if (sessionStorage.getItem('adminLoggedIn') === 'true') {
-                applyAdminSessionUI();
+                document.getElementById('adminHeader').style.display = 'block';
+                const stored = sessionStorage.getItem('adminUsername');
+                const adminNameEl = document.getElementById('adminNameDisplay');
+                if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+                document.getElementById('adminOnly').classList.add('visible');
+                const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+                if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
+                document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
+                enablePageEdit(true);
+                renderUsersTableForAdmin();
+                renderDocsAdmin && renderDocsAdmin();
+                renderAllStats && renderAllStats();
+                renderAdminPaymentRequests && renderAdminPaymentRequests();
+                renderPayPalSettings && renderPayPalSettings();
+                bindPayPalSettingsControls && bindPayPalSettingsControls();
+                populateCtaButtonEditor && populateCtaButtonEditor();
+                bindCtaButtonControls && bindCtaButtonControls();
                 // restore to hashed page or default to the admin dashboard
                 const h = window.location.hash ? window.location.hash.substring(1) : 'documentsAdmin';
                 showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
@@ -1455,22 +1375,22 @@
             renderPaymentMethodsInfo();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
-                const memberSession = applyMemberSessionUI();
-                if (memberSession.exists) {
-                    if (!memberSession.isGuest) {
-                        showPage('myProfile');
-                        renderMyProfile && renderMyProfile();
-                    } else {
-                        showPage('guestArea');
-                    }
+                const username = sessionStorage.getItem('memberUsername');
+                const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                document.getElementById('memberHeader').style.display = 'block';
+                document.getElementById('memberNameDisplay').textContent = isGuest ? (username + ' (Guest)') : username;
+                if (!isGuest) {
+                    const navProfile = document.getElementById('navProfile');
+                    if (navProfile) navProfile.classList.add('visible');
+                    showPage('myProfile');
+                    renderMyProfile && renderMyProfile();
                 } else {
-                    clearMemberSessionUI();
+                    showPage('guestArea');
                 }
             } else {
-                clearMemberSessionUI();
+                document.getElementById('memberHeader').style.display = 'none';
             }
             ensureNavHamburger();
-            syncAuthNavigationUI();
             updateHeaderScrollState();
         });
 
@@ -1608,7 +1528,7 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = NAV_ICON_MENU;
+                    if (hamburger) hamburger.textContent = '\u2630';
                     showAdminLoginModal();
                     toggleLoginDropdown(false);
                 }
@@ -1625,7 +1545,7 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = NAV_ICON_MENU;
+                    if (hamburger) hamburger.textContent = '\u2630';
                     showPage(id);
                     return;
                 }
@@ -1822,23 +1742,28 @@
 
         // Member view / profile
         function showMemberView() {
-            const memberSession = applyMemberSessionUI();
-            if (!memberSession.exists) return;
-            if (memberSession.isGuest) {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) return;
+            const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+            document.getElementById('memberHeader').style.display = 'block';
+            document.getElementById('memberNameDisplay').textContent = isGuest ? (username + ' (Guest)') : username;
+            if (isGuest) {
                 showPage('guestArea');
             } else {
+                const navProfile = document.getElementById('navProfile');
+                if (navProfile) navProfile.classList.add('visible');
                 showPage('myProfile');
                 renderMyProfile();
             }
-            syncAuthNavigationUI();
         }
         function memberLogout() {
             sessionStorage.removeItem('memberLoggedIn');
             sessionStorage.removeItem('memberUsername');
             sessionStorage.removeItem('memberIsGuest');
-            clearMemberSessionUI();
+            document.getElementById('memberHeader').style.display = 'none';
+            const navProfile = document.getElementById('navProfile');
+            if (navProfile) navProfile.classList.remove('visible');
             showPage('home');
-            syncAuthNavigationUI();
         }
 
         // Guest login disabled (admin/member login only).
@@ -3412,14 +3337,34 @@
             alert('Successfully logged in as admin');
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('adminHeader').style.display = 'block';
             ensureAdminBrandingUI();
             bindAdminBrandingControls();
-            applyAdminSessionUI({
-                renderLeagueAdminTables: true,
-                showGalleryPanel: true,
-                showPlayoffPanel: true
-            });
-            syncAuthNavigationUI();
+            // display username if available
+            const adminNameEl = document.getElementById('adminNameDisplay');
+            const stored = sessionStorage.getItem('adminUsername');
+            if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+            document.getElementById('adminOnly').classList.add('visible');
+            // show admin nav items
+            document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
+            // enable full-page editing
+            enablePageEdit(true);
+            // refresh admin tables
+            renderUsersTableForAdmin();
+            renderDocsAdmin && renderDocsAdmin();
+            renderLeagueAdminTables && renderLeagueAdminTables();
+            renderAllStats && renderAllStats();
+            renderAdminPaymentRequests && renderAdminPaymentRequests();
+            renderPayPalSettings && renderPayPalSettings();
+            bindPayPalSettingsControls && bindPayPalSettingsControls();
+            populateCtaButtonEditor && populateCtaButtonEditor();
+            bindCtaButtonControls && bindCtaButtonControls();
+            var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+            if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
+            var galleryAdminPanel = document.getElementById('galleryAdminPanel');
+            if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
+            var playoffAdminPanel = document.getElementById('playoffAdminPanel');
+            if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
             showPage('documentsAdmin');
             persistSiteContent();
         }
@@ -3442,7 +3387,6 @@
             document.getElementById('adminPickStep').style.display = 'block';
             document.getElementById('adminPasswordStep').style.display = 'none';
             showPage('home');
-            syncAuthNavigationUI();
         }
 
         // Logo upload handling (admin-only)
