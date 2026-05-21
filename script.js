@@ -161,7 +161,7 @@
                 target.classList.remove('page-fade-in');
                 void target.offsetWidth; // force reflow
                 target.classList.add('page-fade-in');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                window.scrollTo(0, 0);
                 if (history.pushState) history.pushState(null, '', '#' + id);
                 else window.location.hash = id;
                 updateHeaderScrollState();
