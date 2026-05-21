@@ -847,6 +847,7 @@
             hamburger.id = 'navHamburger';
             hamburger.className = 'nav-hamburger';
             hamburger.setAttribute('aria-label', 'Toggle navigation');
+            hamburger.setAttribute('aria-expanded', 'false');
             hamburger.textContent = '\u2630'; // ☰
             nav.appendChild(hamburger);
             hamburger.addEventListener('click', function() {
@@ -854,6 +855,7 @@
                 if (navLinks) {
                     var isOpen = navLinks.classList.toggle('nav-open');
                     hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
+                    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 }
             });
         }
@@ -1528,7 +1530,10 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = '\u2630';
+                    if (hamburger) {
+                        hamburger.textContent = '\u2630';
+                        hamburger.setAttribute('aria-expanded', 'false');
+                    }
                     showAdminLoginModal();
                     toggleLoginDropdown(false);
                 }
@@ -1545,7 +1550,10 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = '\u2630';
+                    if (hamburger) {
+                        hamburger.textContent = '\u2630';
+                        hamburger.setAttribute('aria-expanded', 'false');
+                    }
                     showPage(id);
                     return;
                 }
