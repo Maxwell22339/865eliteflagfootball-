@@ -1779,7 +1779,8 @@
             toggleLoginDropdown(false);
             setNavQuickSelectOpen(false);
         });
-        document.getElementById('navQuickSelect')?.addEventListener('change', function(e) {
+        document.getElementById('siteContent')?.addEventListener('change', function(e) {
+            if (e.target.id !== 'navQuickSelect') return;
             const targetPage = e.target.value;
             if (!targetPage) return;
             setNavQuickSelectOpen(false);
@@ -1814,7 +1815,11 @@
             if (passwordInput) passwordInput.value = '';
             showAdminView();
         }
-        document.getElementById('footerAdminLogoutBtn')?.addEventListener('click', logout);
+        document.getElementById('siteContent')?.addEventListener('click', function(e) {
+            const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
+            if (!logoutBtn) return;
+            logout();
+        });
 
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
@@ -3638,6 +3643,7 @@
         }
 
         function logout() {
+            saveAllChanges();
             flushPersistSiteContent();
             sessionStorage.removeItem('adminLoggedIn');
             sessionStorage.removeItem('adminUsername');
