@@ -1474,6 +1474,20 @@
                 return;
             }
 
+            if (e.target.closest('#switchToMemberLogin')) {
+                e.preventDefault();
+                document.getElementById('memberRegisterForm').style.display = 'none';
+                document.getElementById('memberLoginForm').style.display = 'block';
+                return;
+            }
+
+            if (e.target.closest('#switchToMemberRegister')) {
+                e.preventDefault();
+                document.getElementById('memberRegisterForm').style.display = 'block';
+                document.getElementById('memberLoginForm').style.display = 'none';
+                return;
+            }
+
             var pickBtn = e.target.closest('.admin-pick-btn');
             if (pickBtn) {
                 const adminName = pickBtn.getAttribute('data-admin');
@@ -1531,8 +1545,6 @@
             toggleLoginDropdown(false);
         });
 
-        document.getElementById('switchToMemberLogin').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='none'; document.getElementById('memberLoginForm').style.display='block'; });
-        document.getElementById('switchToMemberRegister').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='block'; document.getElementById('memberLoginForm').style.display='none'; });
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
         document.getElementById('payMethod')?.addEventListener('change', updatePaymentMethodLink);
