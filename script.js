@@ -638,7 +638,7 @@
             PAYMENT_LINKS = {
                 team: (links.team || DEFAULT_PAYPAL_URL).trim(),
                 freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                cashApp: (links.cashApp || '').trim(),
+                cashApp: normalizeCashAppLink(links.cashApp || ''),
                 venmo: normalizeVenmoLink(links.venmo || '')
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
