@@ -174,6 +174,8 @@
 
         var lastHeaderScrollY = 0;
         var headerScrollTicking = false;
+        var headerScrollEnterThreshold = 110;
+        var headerScrollExitThreshold = 50;
 
         function setHeaderScrolledState(shouldScroll) {
             const siteHeader = document.querySelector('header');
@@ -189,19 +191,16 @@
 
             window.requestAnimationFrame(function() {
                 const currentY = Math.max(window.scrollY || 0, 0);
-                const delta = currentY - lastHeaderScrollY;
                 const siteHeader = document.querySelector('header');
                 if (!siteHeader) {
                     headerScrollTicking = false;
                     lastHeaderScrollY = currentY;
                     return;
                 }
-
-                if (currentY <= 24) {
-                    setHeaderScrolledState(false);
-                } else if (delta > 6 && currentY > 90) {
+                const isScrolled = siteHeader.classList.contains('scrolled');
+                if (!isScrolled && currentY >= headerScrollEnterThreshold) {
                     setHeaderScrolledState(true);
-                } else if (delta < -6) {
+                } else if (isScrolled && currentY <= headerScrollExitThreshold) {
                     setHeaderScrolledState(false);
                 }
 
@@ -1443,28 +1442,6 @@
             lm.style.display = 'flex';
         }
 
-        // Step 1: admin name buttons
-        document.querySelectorAll('.admin-pick-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const adminName = this.getAttribute('data-admin');
-                document.getElementById('username').value = adminName;
-                document.getElementById('adminPickedName').textContent = adminName;
-                document.getElementById('adminPickStep').style.display = 'none';
-                document.getElementById('adminPasswordStep').style.display = 'block';
-                document.getElementById('password').value = '';
-                document.getElementById('loginError').textContent = '';
-                document.getElementById('password').focus();
-            });
-        });
-
-        // Back button returns to step 1
-        document.getElementById('adminBackBtn')?.addEventListener('click', function() {
-            document.getElementById('adminPasswordStep').style.display = 'none';
-            document.getElementById('adminPickStep').style.display = 'block';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('loginError').textContent = '';
-        });
         function toggleLoginDropdown(forceState) {
             const dd = document.getElementById('loginDropdown');
             const btn = document.getElementById('loginMenuBtn');
@@ -1475,9 +1452,6 @@
             if (shouldOpen) { dd.classList.remove('hidden'); dd.classList.add('visible'); btn.setAttribute('aria-expanded','true'); }
             else { dd.classList.add('hidden'); dd.classList.remove('visible'); btn.setAttribute('aria-expanded','false'); }
         }
-        document.getElementById('loginMenuBtn')?.addEventListener('click', function(e){ e.stopPropagation(); toggleLoginDropdown(); });
-        document.getElementById('loginDropdown')?.addEventListener('click', function(e){ e.stopPropagation(); });
-        document.getElementById('loginDropdownAdmin')?.addEventListener('click', function(e){ e.preventDefault(); showAdminLoginModal(); toggleLoginDropdown(false); });
         document.getElementById('closeLoginModal')?.addEventListener('click', function(){
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('loginModal').style.display = 'none';
@@ -1485,7 +1459,77 @@
         document.getElementById('closeMemberModal')?.addEventListener('click', function(){
             hideMemberModal();
         });
-        document.addEventListener('click', function(){ toggleLoginDropdown(false); });
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#closeLoginModal')) {
+                var loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    loginModal.classList.add('hidden');
+                    loginModal.style.display = 'none';
+                }
+                return;
+            }
+
+            if (e.target.closest('#closeMemberModal')) {
+                hideMemberModal();
+                return;
+            }
+
+            var pickBtn = e.target.closest('.admin-pick-btn');
+            if (pickBtn) {
+                const adminName = pickBtn.getAttribute('data-admin');
+                document.getElementById('username').value = adminName;
+                document.getElementById('adminPickedName').textContent = adminName;
+                document.getElementById('adminPickStep').style.display = 'none';
+                document.getElementById('adminPasswordStep').style.display = 'block';
+                document.getElementById('password').value = '';
+                document.getElementById('loginError').textContent = '';
+                document.getElementById('password').focus();
+                return;
+            }
+
+            if (e.target.closest('#adminBackBtn')) {
+                document.getElementById('adminPasswordStep').style.display = 'none';
+                document.getElementById('adminPickStep').style.display = 'block';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('loginError').textContent = '';
+                return;
+            }
+
+            if (e.target.closest('#loginMenuBtn')) {
+                e.stopPropagation();
+                toggleLoginDropdown();
+                return;
+            }
+
+            if (e.target.closest('#loginDropdown')) {
+                e.stopPropagation();
+                if (e.target.closest('#loginDropdownAdmin')) {
+                    e.preventDefault();
+                    showAdminLoginModal();
+                    toggleLoginDropdown(false);
+                }
+                return;
+            }
+
+            var hashAnchor = e.target.closest('a[href^="#"]');
+            if (hashAnchor) {
+                const href = hashAnchor.getAttribute('href') || '';
+                const id = href.substring(1);
+                if (id) {
+                    e.preventDefault();
+                    // Close mobile/scrolled nav overlay if open
+                    var navLinks = document.querySelector('header .nav-links');
+                    if (navLinks) navLinks.classList.remove('nav-open');
+                    var hamburger = document.getElementById('navHamburger');
+                    if (hamburger) hamburger.textContent = '\u2630';
+                    showPage(id);
+                    return;
+                }
+            }
+
+            toggleLoginDropdown(false);
+        });
 
         document.getElementById('switchToMemberLogin').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='none'; document.getElementById('memberLoginForm').style.display='block'; });
         document.getElementById('switchToMemberRegister').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='block'; document.getElementById('memberLoginForm').style.display='none'; });
@@ -3232,21 +3276,7 @@
 
         // --- end Documents functions ---
 
-        // Page navigation for all anchor links with hash hrefs
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                // Close mobile/scrolled nav overlay if open
-                var navLinks = document.querySelector('header .nav-links');
-                if (navLinks) navLinks.classList.remove('nav-open');
-                var hamburger = document.getElementById('navHamburger');
-                if (hamburger) hamburger.textContent = '\u2630';
-                const id = this.getAttribute('href').substring(1);
-                if (id) showPage(id);
-            });
-        });
-
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        function handleAdminLoginSubmit(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -3272,6 +3302,12 @@
                     msgEl.style.color = 'red';
                     msgEl.textContent = 'Invalid username or password';
                 }
+            }
+        }
+
+        document.addEventListener('submit', function(e) {
+            if (e.target && e.target.id === 'loginForm') {
+                handleAdminLoginSubmit(e);
             }
         });
 
@@ -3304,6 +3340,10 @@
             bindCtaButtonControls && bindCtaButtonControls();
             var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
             if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
+            var galleryAdminPanel = document.getElementById('galleryAdminPanel');
+            if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
+            var playoffAdminPanel = document.getElementById('playoffAdminPanel');
+            if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
             showPage('documentsAdmin');
             persistSiteContent();
         }
