@@ -153,7 +153,8 @@
             if (hamburger && navLinks) {
                 hamburger.textContent = navLinks.classList.contains('nav-open') ? NAV_ICON_CLOSE : NAV_ICON_MENU;
             }
-            // Guard is intentional because this helper can run before all function declarations are initialized.
+            // Guard is intentional: syncAuthNavigationUI is called from initialization flows that may execute
+            // before toggleLoginDropdown is assigned in restored/persisted script execution order.
             if (typeof toggleLoginDropdown === 'function') toggleLoginDropdown(false);
         }
 
@@ -199,7 +200,7 @@
 
         function applyMemberSessionUI() {
             var username = sessionStorage.getItem('memberUsername');
-            if (!username) return { exists: false, username: null, isGuest: false };
+            if (!username) return { exists: false };
             var isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
             var memberHeader = document.getElementById('memberHeader');
             if (memberHeader) memberHeader.style.display = 'block';
