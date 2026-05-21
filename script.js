@@ -1816,7 +1816,7 @@
             showAdminView();
         }
         document.addEventListener('click', function(e) {
-            var logoutBtn = e.target.closest('#footerAdminLogoutBtn');
+            const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
             if (!logoutBtn) return;
             e.preventDefault();
             logout();
