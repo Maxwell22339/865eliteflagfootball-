@@ -915,6 +915,26 @@
             const adminHeader = document.getElementById('adminHeader');
             if (!adminHeader) return;
 
+            if (!document.getElementById('saveChangesBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'saveChangesBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Save Changes';
+                btn.onclick = saveAllChanges;
+                adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('togglePageEditBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'togglePageEditBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Enable Editing';
+                btn.onclick = togglePageEdit;
+                adminHeader.appendChild(btn);
+            }
+
             const toggleBtn = document.getElementById('togglePageEditBtn');
 
             if (!document.getElementById('changeLogoBtn')) {
@@ -954,6 +974,13 @@
                 input.style.display = 'none';
                 adminHeader.appendChild(input);
             }
+        }
+
+        function setAdminHeaderVisible(isVisible) {
+            var adminHdr = document.getElementById('adminHeader');
+            if (!adminHdr) return;
+            adminHdr.style.display = isVisible ? 'flex' : 'none';
+            adminHdr.classList.toggle('hidden', !isVisible);
         }
 
         function enforceNonEditableAdminUI() {
@@ -1521,6 +1548,7 @@
                 const stored = sessionStorage.getItem('adminUsername');
                 const adminNameEl = document.getElementById('adminNameDisplay');
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+                setAdminHeaderVisible(true);
                 document.getElementById('adminOnly').classList.add('visible');
                 const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
                 if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
@@ -1725,7 +1753,7 @@
         });
         document.getElementById('footerAdminLoginForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            const username = document.getElementById('footerAdminUsername').value.trim();
+            const username = document.getElementById('footerAdminUsername').value;
             const password = document.getElementById('footerAdminPassword').value;
             const formMessage = document.getElementById('footerAdminLoginMsg');
             if (formMessage) {
@@ -1734,7 +1762,7 @@
             }
             const adminAccount = getMatchingAdminAccount(username, password);
             if (!adminAccount) {
-                if (formMessage) formMessage.textContent = 'Invalid username or password';
+                if (formMessage) formMessage.textContent = 'Invalid admin selection or password';
                 return;
             }
             sessionStorage.setItem('adminLoggedIn', 'true');
@@ -3533,6 +3561,7 @@
             document.getElementById('loginModal').style.display = 'none';
             ensureAdminBrandingUI();
             bindAdminBrandingControls();
+            setAdminHeaderVisible(true);
             // display username if available
             const adminNameEl = document.getElementById('adminNameDisplay');
             const stored = sessionStorage.getItem('adminUsername');
