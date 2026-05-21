@@ -1004,7 +1004,7 @@
         }
 
         function setAdminHeaderVisible(isVisible) {
-            var adminHdr = document.getElementById('adminHeader');
+            const adminHdr = document.getElementById('adminHeader');
             if (!adminHdr) return;
             adminHdr.style.display = isVisible ? 'flex' : 'none';
             adminHdr.classList.toggle('hidden', !isVisible);
