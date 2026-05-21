@@ -1538,9 +1538,9 @@ table.zebra tbody tr:hover {
     }
     
     /* Fix canvas overflow on mobile */
-    canvas {
-        max-width: 100% !important;
-        height: auto !important;
+    canvas#regSignatureCanvas,
+    canvas#signatureCanvas {
+        max-width: 100%;
     }
     
     /* Fix modal content sizing */
@@ -1570,12 +1570,12 @@ table.zebra tbody tr:hover {
     
     .hero-content h1 {
         font-size: 2.5rem;
-        letter-spacing: 1px; /* Reduce letter spacing on small screens */
+        letter-spacing: 1px; /* Reduce from 3px to prevent overflow on small screens */
     }
     
     .hero-content p {
         font-size: 1.2rem;
-        letter-spacing: 2px; /* Reduce letter spacing on small screens */
+        letter-spacing: 2px; /* Reduce from 4px to prevent overflow on small screens */
     }
     
     /* Smaller modal padding on very small screens */
