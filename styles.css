@@ -71,6 +71,18 @@
             transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1), height 0.45s cubic-bezier(0.22, 1, 0.36, 1), transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
         }
 
+        /* Mobile: make logo smaller in header by default */
+        @media (max-width: 768px) {
+            .site-logo {
+                width: 70px;
+                height: 70px;
+            }
+            
+            .logo {
+                font-size: 1.3rem;
+            }
+        }
+
 
 
         .nav-links {
@@ -1217,6 +1229,8 @@
             border-radius: 5px;
             line-height: 1;
             flex-shrink: 0;
+            min-width: 44px; /* Touch target */
+            min-height: 44px; /* Touch target */
         }
         .nav-hamburger:hover { background: rgba(255,111,0,0.15); }
 
@@ -1231,8 +1245,18 @@
 
         /* Mobile: always show hamburger, hide nav row */
         @media (max-width: 900px) {
-            .nav-hamburger { display: block; }
+            .nav-hamburger { 
+                display: block;
+            }
             .nav-links { display: none; }
+        }
+        
+        /* Improve hamburger position on mobile */
+        @media (max-width: 768px) {
+            header.scrolled .nav-hamburger {
+                top: 10px;
+                right: 12px;
+            }
         }
 
         /* Open state: fullscreen overlay for both mobile and scrolled */
@@ -1533,10 +1557,12 @@ table.zebra tbody tr:hover {
     
     .hero-content h1 {
         font-size: 2.5rem;
+        letter-spacing: 1px; /* Reduce letter spacing on small screens */
     }
     
     .hero-content p {
         font-size: 1.2rem;
+        letter-spacing: 2px; /* Reduce letter spacing on small screens */
     }
     
     /* Smaller modal padding on very small screens */
@@ -1554,6 +1580,26 @@ table.zebra tbody tr:hover {
     .cta-button {
         padding: 10px 20px;
         font-size: 1rem;
+    }
+    
+    /* Smaller table font on very small screens */
+    .schedule-table {
+        font-size: 0.85rem;
+    }
+    
+    .schedule-table th,
+    .schedule-table td {
+        padding: 8px 6px;
+    }
+    
+    /* Smaller logo on very small screens when scrolled */
+    header.scrolled .site-logo {
+        width: 40px;
+        height: 40px;
+    }
+    
+    header.scrolled .logo span {
+        font-size: 0.75rem;
     }
 }
 
