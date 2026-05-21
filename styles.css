@@ -1950,7 +1950,6 @@ body.light-mode .nav-links.nav-open a { color: #1a1a2e; }
 .latest-result-score { color: #fff; font-weight: 800; font-size: 1rem; padding: 0 4px; }
 .latest-result-sep { color: #ff8f00; font-weight: 700; }
 /* Hero needs position:relative so the widget positions correctly — already set on base .hero rule */
-.hero { }
 
 /* --- Gallery Section --- */
 .gallery-section {
