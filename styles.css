@@ -218,7 +218,7 @@
             background-repeat: no-repeat, no-repeat, repeat, repeat;
             color: white;
             text-align: center;
-            padding: 120px 20px 180px;
+            padding: 120px 20px;
             min-height: 500px;
             display: flex;
             align-items: center;
@@ -1965,6 +1965,7 @@ body.light-mode .nav-links.nav-open a { color: #1a1a2e; }
     margin-bottom: 14px;
 }
 .countdown-timer.hidden { display: none; }
+.latest-results-widget.hidden { display: none; }
 @media (max-width: 480px) {
     .countdown-unit span { font-size: 1.4rem; }
     .countdown-unit { min-width: 38px; }
@@ -2021,6 +2022,9 @@ body.light-mode .nav-links.nav-open a { color: #1a1a2e; }
 .latest-result-score { color: #fff; font-weight: 800; font-size: 1rem; padding: 0 4px; }
 .latest-result-sep { color: #ff8f00; font-weight: 700; }
 /* Hero needs position:relative so the widget positions correctly — already set on base .hero rule */
+/* When results are present, add bottom padding so content isn't hidden behind the widget */
+.hero.has-results { padding-bottom: 180px; }
+
 
 /* --- Gallery Section --- */
 .gallery-section {

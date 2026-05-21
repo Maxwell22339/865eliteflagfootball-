@@ -3942,6 +3942,8 @@
         function renderLatestResultsWidget() {
             var body = document.getElementById('latestResultsBody');
             if (!body) return;
+            var widget = document.getElementById('latestResultsWidget');
+            var hero = document.querySelector('.hero');
             var rows = [];
             try { rows = JSON.parse(localStorage.getItem('leagueSchedule_v1') || '[]'); } catch (e) {}
             if (!Array.isArray(rows)) rows = [];
@@ -3953,9 +3955,13 @@
             });
 
             if (!played.length) {
-                body.innerHTML = '<p class="latest-results-empty">No results yet — season coming soon!</p>';
+                if (widget) widget.classList.add('hidden');
+                if (hero) hero.classList.remove('has-results');
                 return;
             }
+
+            if (widget) widget.classList.remove('hidden');
+            if (hero) hero.classList.add('has-results');
 
             var recent = played.slice(-3).reverse();
             var html = recent.map(function(r) {
