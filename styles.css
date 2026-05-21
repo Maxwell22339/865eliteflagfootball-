@@ -14,6 +14,7 @@
 
         :root {
             --hero-photo: none;
+            --header-offset: 108px;
             --hamburger-color: #ff9d2f;
             --hamburger-hover-border: #ffb04f;
             --hamburger-hover-color: #ffc67a;
@@ -64,7 +65,7 @@
         .logo span {
             transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, letter-spacing 0.35s ease, font-size 0.35s ease;
             transform-origin: left center;
-            line-height: 1.15;
+            line-height: 1.2;
         }
 
         .site-logo {
@@ -221,7 +222,7 @@
             background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat;
             color: white;
             padding: 96px 0 88px;
-            min-height: calc(100vh - 108px);
+            min-height: calc(100vh - var(--header-offset));
             border-bottom: 4px solid #ff6f00;
             position: relative;
             overflow: hidden;
@@ -1838,7 +1839,7 @@ table.zebra tbody tr:hover {
     /* Adjust hero padding */
     .hero {
         padding: 68px 0 56px;
-        min-height: auto;
+        min-height: 400px;
     }
     
     /* Better button sizing */
