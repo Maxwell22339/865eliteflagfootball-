@@ -175,7 +175,7 @@
         var lastHeaderScrollY = 0;
         var headerScrollTicking = false;
         var headerScrollEnterThreshold = 110;
-        var headerScrollExitThreshold = 50;
+        var headerScrollExitThreshold = 24;
 
         function setHeaderScrolledState(shouldScroll) {
             const siteHeader = document.querySelector('header');
