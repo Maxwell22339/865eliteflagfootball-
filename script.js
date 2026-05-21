@@ -1780,7 +1780,7 @@
             setNavQuickSelectOpen(false);
         });
         document.getElementById('siteContent')?.addEventListener('change', function(e) {
-            if (!e.target || e.target.id !== 'navQuickSelect') return;
+            if (e.target.id !== 'navQuickSelect') return;
             const targetPage = e.target.value;
             if (!targetPage) return;
             setNavQuickSelectOpen(false);
@@ -1818,7 +1818,6 @@
         document.getElementById('siteContent')?.addEventListener('click', function(e) {
             const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
             if (!logoutBtn) return;
-            e.preventDefault();
             logout();
         });
 
