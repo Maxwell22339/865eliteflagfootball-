@@ -200,13 +200,14 @@
                     <li role="none" class="dark-mode-toggle-item">
                         <button id="darkModeToggle" class="dark-mode-btn" aria-label="Toggle light mode" title="Toggle light/dark mode">🌙</button>
                     </li>
-                    <li role="none" class="login-menu">
-                        <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
-                        <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
-                            <button id="loginDropdownAdmin" class="dropdown-item" role="menuitem">Admin Login</button>
-                        </div>
-                    </li>
-                </ul> 
+                </ul>
+                <!-- Login menu is outside nav-links so it remains visible on mobile and when scrolled -->
+                <div class="login-menu">
+                    <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
+                    <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
+                        <button id="loginDropdownAdmin" class="dropdown-item" role="menuitem">Admin Login</button>
+                    </div>
+                </div>
             </nav>
         </div>
     </header>
