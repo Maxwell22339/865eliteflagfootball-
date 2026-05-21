@@ -908,6 +908,18 @@
             color: #fff;
         }
 
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         .stats-team-cell {
             display: inline-flex;
             align-items: center;
@@ -1532,7 +1544,7 @@
         <div class="container">
             <h2>Season Stats</h2>
             <p id="currentSeasonLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>
-            <p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style="color:#ff9800;">↓</strong> / <strong style="color:#ff9800;">↑</strong> buttons below each column to sort high-to-low or low-to-high.</p>
+            <p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style="color:#ff9800;" aria-hidden="true">↓</strong> / <strong style="color:#ff9800;" aria-hidden="true">↑</strong> <span class="sr-only">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>
 
             <!-- Offensive Player Stats -->
             <h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.5rem; text-align:center;">Offensive Player Stats</h3>
@@ -1626,7 +1638,7 @@
         <div class="container">
             <h2>Season Recap</h2>
             <p id="seasonRecapLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>
-            <p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style="color:#ff9800;">↓</strong> / <strong style="color:#ff9800;">↑</strong> buttons below each column to sort high-to-low or low-to-high.</p>
+            <p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style="color:#ff9800;" aria-hidden="true">↓</strong> / <strong style="color:#ff9800;" aria-hidden="true">↑</strong> <span class="sr-only">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>
             <div class="registration-form" style="max-width:720px; margin-bottom:20px;">
                 <label for="seasonRecapSelect">Choose Archived Season</label>
                 <select id="seasonRecapSelect"></select>
@@ -2300,7 +2312,7 @@
                     '<div class="container">' +
                         '<h2>Season Recap</h2>' +
                         '<p id="seasonRecapLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>' +
-                        '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\">↓</strong> / <strong style=\"color:#ff9800;\">↑</strong> buttons below each column to sort high-to-low or low-to-high.</p>' +
+                        '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>' +
                         '<div class="registration-form" style="max-width:720px; margin-bottom:20px;">' +
                             '<label for="seasonRecapSelect">Choose Archived Season</label>' +
                             '<select id="seasonRecapSelect"></select>' +
@@ -2372,7 +2384,7 @@
                 }
                 if (statsHeading && !document.getElementById('statsSortHint')) {
                     var seasonLabelDisplay = document.getElementById('currentSeasonLabelDisplay');
-                    if (seasonLabelDisplay) seasonLabelDisplay.insertAdjacentHTML('afterend', '<p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\">↓</strong> / <strong style=\"color:#ff9800;\">↑</strong> buttons below each column to sort high-to-low or low-to-high.</p>');
+                    if (seasonLabelDisplay) seasonLabelDisplay.insertAdjacentHTML('afterend', '<p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
                 }
                 var offensiveTableHead = document.querySelector('#offensiveStatsTable thead tr');
                 if (offensiveTableHead) {
@@ -2397,7 +2409,7 @@
             }
             var recapLabelDisplay = document.getElementById('seasonRecapLabelDisplay');
             if (recapLabelDisplay && !document.getElementById('seasonRecapSortHint')) {
-                recapLabelDisplay.insertAdjacentHTML('afterend', '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\">↓</strong> / <strong style=\"color:#ff9800;\">↑</strong> buttons below each column to sort high-to-low or low-to-high.</p>');
+                recapLabelDisplay.insertAdjacentHTML('afterend', '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
             }
             var recapDefensiveTableHead = document.querySelector('#recapDefensiveStatsTable thead tr');
             if (recapDefensiveTableHead) {
@@ -4256,9 +4268,10 @@
                 var activeDir = getStatsSortSelectValue(type, index);
                 var descActive = activeDir === 'desc' ? ' active' : '';
                 var ascActive  = activeDir === 'asc'  ? ' active' : '';
+                var colName = escapeHtml(cols[index]);
                 html += '<th><div class="stat-sort-btns">' +
-                    '<button class="stat-sort-btn' + descActive + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="desc" title="Sort high to low" onclick="handleStatsFilterInput(this)">↓ H</button>' +
-                    '<button class="stat-sort-btn' + ascActive  + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="asc"  title="Sort low to high"  onclick="handleStatsFilterInput(this)">↑ L</button>' +
+                    '<button class="stat-sort-btn' + descActive + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="desc" title="Sort ' + colName + ' high to low. Click again to clear sort." aria-label="Sort ' + colName + ' high to low" onclick="handleStatsFilterInput(this)">↓ H</button>' +
+                    '<button class="stat-sort-btn' + ascActive  + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="asc"  title="Sort ' + colName + ' low to high. Click again to clear sort." aria-label="Sort ' + colName + ' low to high"  onclick="handleStatsFilterInput(this)">↑ L</button>' +
                     '</div></th>';
             }
             filterRow.innerHTML = html;
