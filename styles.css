@@ -9,6 +9,7 @@
             line-height: 1.6;
             color: #e0e0e0;
             background: #1a1a2e;
+            overflow-x: hidden; /* Prevent horizontal scroll */
         }
 
         :root {
@@ -31,6 +32,7 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
+            overflow-x: hidden; /* Prevent overflow in containers */
         }
 
         nav {
@@ -202,6 +204,7 @@
             text-shadow: 3px 3px 8px rgba(0,0,0,0.6);
             text-transform: uppercase;
             letter-spacing: 3px;
+            word-break: break-word; /* Prevent overflow on narrow screens */
         }
 
         .hero-content p {
@@ -1165,18 +1168,21 @@
             header.scrolled .logo {
                 top: 10px;
                 left: 12px;
-                padding-right: 12px;
-                max-width: calc(100vw - 24px);
+                padding: 6px 12px 6px 6px;
+                max-width: calc(100vw - 80px); /* Leave room for hamburger */
             }
 
             header.scrolled .site-logo {
-                width: 56px;
-                height: 56px;
+                width: 48px;
+                height: 48px;
             }
 
             header.scrolled .logo span {
-                font-size: 1rem;
-                transform: scale(0.94);
+                font-size: 0.85rem;
+                transform: scale(0.9);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
         }
 
@@ -1493,6 +1499,26 @@ table.zebra tbody tr:hover {
         width: 48px;
         height: 48px;
     }
+    
+    /* Fix canvas overflow on mobile */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Fix modal content sizing */
+    .login-content {
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    /* Better spacing for forms on mobile */
+    .login-content input,
+    .login-content textarea,
+    .login-content select {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
 }
 
 /* Additional responsive breakpoints */
@@ -1511,6 +1537,23 @@ table.zebra tbody tr:hover {
     
     .hero-content p {
         font-size: 1.2rem;
+    }
+    
+    /* Smaller modal padding on very small screens */
+    .login-content {
+        padding: 12px;
+        max-width: 98vw;
+    }
+    
+    /* Adjust hero padding */
+    .hero {
+        padding: 80px 15px;
+    }
+    
+    /* Better button sizing */
+    .cta-button {
+        padding: 10px 20px;
+        font-size: 1rem;
     }
 }
 
