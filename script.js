@@ -114,7 +114,7 @@
 
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
-            'documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
+            'documentsAdmin','documentsPublic','guestArea','myProfile','contact','gallery','playoff','faq'];
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -161,6 +161,14 @@
                 if (history.pushState) history.pushState(null, '', '#' + id);
                 else window.location.hash = id;
                 updateHeaderScrollState();
+                // Page-specific refresh hooks
+                if (id === 'gallery' && typeof renderGallery === 'function') renderGallery();
+                if (id === 'playoff' && typeof renderPlayoffBracket === 'function') renderPlayoffBracket();
+                if (id === 'faq' && typeof initFAQ === 'function') initFAQ();
+                if (id === 'home') {
+                    if (typeof renderLatestResultsWidget === 'function') renderLatestResultsWidget();
+                    if (typeof renderCountdownTimer === 'function') renderCountdownTimer();
+                }
             }
         }
 
@@ -881,6 +889,9 @@
             // 4. Hide admin-only navigation links
             document.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.remove('visible'); });
 
+            // 4b. Remove 'visible' from all admin-only sections (covers gallery, playoff, etc.)
+            document.querySelectorAll('.admin-only').forEach(function(el) { el.classList.remove('visible'); el.style.display = ''; });
+
             // 5. Hide admin-only sections container
             var adminOnly = document.getElementById('adminOnly');
             if (adminOnly) adminOnly.classList.remove('visible');
@@ -954,6 +965,11 @@
                 // Remove dynamically-created hamburger so it is always re-created by JS with fresh listeners
                 var hamburgerClone = clone.querySelector('#navHamburger');
                 if (hamburgerClone) hamburgerClone.remove();
+                // Clean gallery / playoff admin panels before saving
+                var galPanelClone = clone.querySelector('#galleryAdminPanel');
+                if (galPanelClone) galPanelClone.classList.remove('visible');
+                var playoffPanelClone = clone.querySelector('#playoffAdminPanel');
+                if (playoffPanelClone) playoffPanelClone.classList.remove('visible');
                 // Reset dynamic payment methods panel — re-rendered on load
                 var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
                 if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
@@ -3712,3 +3728,593 @@
                 enhanceFormValidation('memberLoginForm');
             }, 1000);
         }
+
+        // =====================================================
+        // DARK MODE TOGGLE
+        // =====================================================
+        const DARK_MODE_KEY = 'darkMode_v1';
+
+        function initDarkMode() {
+            var saved = localStorage.getItem(DARK_MODE_KEY);
+            if (saved === 'light') {
+                document.body.classList.add('light-mode');
+                updateDarkModeBtn(true);
+            } else {
+                updateDarkModeBtn(false);
+            }
+            var btn = document.getElementById('darkModeToggle');
+            if (btn && !btn.dataset.dmBound) {
+                btn.dataset.dmBound = '1';
+                btn.addEventListener('click', function() {
+                    var isLight = document.body.classList.toggle('light-mode');
+                    try { localStorage.setItem(DARK_MODE_KEY, isLight ? 'light' : 'dark'); } catch (e) {}
+                    updateDarkModeBtn(isLight);
+                });
+            }
+        }
+
+        function updateDarkModeBtn(isLight) {
+            var btn = document.getElementById('darkModeToggle');
+            if (!btn) return;
+            btn.textContent = isLight ? '🌑' : '🌙';
+            btn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+            btn.setAttribute('title', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+        }
+
+        // =====================================================
+        // COUNTDOWN TIMER
+        // =====================================================
+        const COUNTDOWN_DATE_KEY = 'countdownDate_v1';
+        var countdownInterval = null;
+
+        function initCountdownTimer() {
+            renderCountdownTimer();
+            populateCountdownEditor();
+            bindCountdownAdminControls();
+        }
+
+        function renderCountdownTimer() {
+            var timerEl = document.getElementById('countdownTimer');
+            if (!timerEl) return;
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            var stored = null;
+            try { stored = JSON.parse(localStorage.getItem(COUNTDOWN_DATE_KEY) || 'null'); } catch (e) {}
+            if (!stored || !stored.date) {
+                timerEl.classList.add('hidden');
+                return;
+            }
+            var targetMs = new Date(stored.date).getTime();
+            if (isNaN(targetMs)) { timerEl.classList.add('hidden'); return; }
+            timerEl.classList.remove('hidden');
+            var labelEl = document.getElementById('countdownLabel');
+            if (labelEl) labelEl.textContent = stored.label || 'Next Game';
+
+            function tick() {
+                var now = Date.now();
+                var diff = targetMs - now;
+                if (diff <= 0) {
+                    clearInterval(countdownInterval);
+                    var d = document.getElementById('cdDays'), h = document.getElementById('cdHours'),
+                        m = document.getElementById('cdMins'), s = document.getElementById('cdSecs');
+                    if (d) d.textContent = '00';
+                    if (h) h.textContent = '00';
+                    if (m) m.textContent = '00';
+                    if (s) s.textContent = '00';
+                    return;
+                }
+                var days   = Math.floor(diff / 86400000);
+                var hours  = Math.floor((diff % 86400000) / 3600000);
+                var mins   = Math.floor((diff % 3600000) / 60000);
+                var secs   = Math.floor((diff % 60000) / 1000);
+                function pad(n) { return String(n).padStart(2, '0'); }
+                var d = document.getElementById('cdDays'), hEl = document.getElementById('cdHours'),
+                    mEl = document.getElementById('cdMins'), sEl = document.getElementById('cdSecs');
+                if (d) d.textContent = pad(days);
+                if (hEl) hEl.textContent = pad(hours);
+                if (mEl) mEl.textContent = pad(mins);
+                if (sEl) sEl.textContent = pad(secs);
+            }
+            tick();
+            countdownInterval = setInterval(tick, 1000);
+        }
+
+        function populateCountdownEditor() {
+            var dateInput = document.getElementById('countdownDateInput');
+            var labelInput = document.getElementById('countdownLabelInput');
+            if (!dateInput) return;
+            try {
+                var stored = JSON.parse(localStorage.getItem(COUNTDOWN_DATE_KEY) || 'null');
+                if (stored && stored.date) {
+                    var d = new Date(stored.date);
+                    if (!isNaN(d)) {
+                        var local = d.getFullYear() + '-' +
+                            String(d.getMonth()+1).padStart(2,'0') + '-' +
+                            String(d.getDate()).padStart(2,'0') + 'T' +
+                            String(d.getHours()).padStart(2,'0') + ':' +
+                            String(d.getMinutes()).padStart(2,'0');
+                        dateInput.value = local;
+                    }
+                }
+                if (labelInput && stored && stored.label) labelInput.value = stored.label;
+            } catch (e) {}
+        }
+
+        function bindCountdownAdminControls() {
+            var saveBtn = document.getElementById('saveCountdownSettings');
+            var clearBtn = document.getElementById('clearCountdownSettings');
+            var msgEl = document.getElementById('countdownAdminMsg');
+            if (saveBtn && !saveBtn.dataset.bound) {
+                saveBtn.dataset.bound = '1';
+                saveBtn.addEventListener('click', function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    var dateInput = document.getElementById('countdownDateInput');
+                    var labelInput = document.getElementById('countdownLabelInput');
+                    var val = dateInput ? dateInput.value : '';
+                    if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a date.'; } return; }
+                    var label = labelInput ? (labelInput.value.trim() || 'Next Game') : 'Next Game';
+                    try {
+                        localStorage.setItem(COUNTDOWN_DATE_KEY, JSON.stringify({ date: new Date(val).toISOString(), label: label }));
+                    } catch (e) {}
+                    renderCountdownTimer();
+                    if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Timer saved!'; setTimeout(function() { msgEl.textContent = ''; }, 2000); }
+                });
+            }
+            if (clearBtn && !clearBtn.dataset.bound) {
+                clearBtn.dataset.bound = '1';
+                clearBtn.addEventListener('click', function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    try { localStorage.removeItem(COUNTDOWN_DATE_KEY); } catch (e) {}
+                    var dateInput = document.getElementById('countdownDateInput');
+                    var labelInput = document.getElementById('countdownLabelInput');
+                    if (dateInput) dateInput.value = '';
+                    if (labelInput) labelInput.value = '';
+                    renderCountdownTimer();
+                    if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Timer cleared.'; setTimeout(function() { msgEl.textContent = ''; }, 2000); }
+                });
+            }
+        }
+
+        // =====================================================
+        // LATEST RESULTS WIDGET
+        // =====================================================
+        function renderLatestResultsWidget() {
+            var body = document.getElementById('latestResultsBody');
+            if (!body) return;
+            var rows = [];
+            try { rows = JSON.parse(localStorage.getItem('leagueSchedule_v1') || '[]'); } catch (e) {}
+            if (!Array.isArray(rows)) rows = [];
+
+            // Filter to games with a real score (not "0-0" or empty or "TBD")
+            var played = rows.filter(function(r) {
+                var s = (r.status || '').trim();
+                return s && s !== '0-0' && !/^tbd$/i.test(s) && /\d+\s*-\s*\d+/.test(s);
+            });
+
+            if (!played.length) {
+                body.innerHTML = '<p class="latest-results-empty">No results yet — season coming soon!</p>';
+                return;
+            }
+
+            var recent = played.slice(-3).reverse();
+            var html = recent.map(function(r) {
+                var parts = (r.status || '0-0').split('-');
+                var scoreA = escapeHtml((parts[0] || '0').trim());
+                var scoreB = escapeHtml((parts[1] || '0').trim());
+                var home = escapeHtml((r.homeTeam || 'Team').substring(0, 18));
+                var away = escapeHtml((r.awayTeam || 'Team').substring(0, 18));
+                return '<div class="latest-result-card">' +
+                    '<span class="latest-result-team">' + home + '</span>' +
+                    '<span class="latest-result-score">' + scoreA + '</span>' +
+                    '<span class="latest-result-sep">—</span>' +
+                    '<span class="latest-result-score">' + scoreB + '</span>' +
+                    '<span class="latest-result-team">' + away + '</span>' +
+                    '</div>';
+            }).join('');
+            body.innerHTML = html;
+        }
+
+        // =====================================================
+        // PHOTO GALLERY
+        // =====================================================
+        const GALLERY_META_KEY = 'galleryMeta_v1';
+
+        function loadGalleryMeta() {
+            try { return JSON.parse(localStorage.getItem(GALLERY_META_KEY) || '[]'); } catch (e) { return []; }
+        }
+        function saveGalleryMeta(list) {
+            try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(list)); } catch (e) {}
+        }
+
+        function renderGallery() {
+            var grid = document.getElementById('galleryGrid');
+            var emptyEl = document.getElementById('galleryEmpty');
+            if (!grid) return;
+            var meta = loadGalleryMeta();
+            if (!meta.length) {
+                grid.innerHTML = '<p class="gallery-empty" id="galleryEmpty">No photos yet — check back soon!</p>';
+                return;
+            }
+            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            var promises = meta.map(function(item) {
+                return idbGet('gallery_img_' + item.id).then(function(dataUrl) {
+                    return { item: item, dataUrl: dataUrl };
+                });
+            });
+            Promise.all(promises).then(function(results) {
+                grid.innerHTML = '';
+                results.forEach(function(r) {
+                    if (!r.dataUrl) return;
+                    var card = document.createElement('div');
+                    card.className = 'gallery-card';
+                    card.setAttribute('tabindex', '0');
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('aria-label', 'View photo' + (r.item.caption ? ': ' + r.item.caption : ''));
+
+                    var img = document.createElement('img');
+                    img.src = r.dataUrl;
+                    img.alt = r.item.caption || 'Gallery photo';
+                    img.loading = 'lazy';
+                    card.appendChild(img);
+
+                    if (r.item.caption) {
+                        var cap = document.createElement('div');
+                        cap.className = 'gallery-card-caption';
+                        cap.textContent = r.item.caption;
+                        card.appendChild(cap);
+                    }
+
+                    if (isAdmin) {
+                        var delBtn = document.createElement('button');
+                        delBtn.className = 'gallery-card-delete';
+                        delBtn.textContent = '×';
+                        delBtn.setAttribute('aria-label', 'Delete photo');
+                        delBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            deleteGalleryPhoto(r.item.id);
+                        });
+                        card.appendChild(delBtn);
+                    }
+
+                    card.addEventListener('click', function() { openGalleryLightbox(r.dataUrl, r.item.caption || ''); });
+                    card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGalleryLightbox(r.dataUrl, r.item.caption || ''); } });
+                    grid.appendChild(card);
+                });
+                if (!grid.children.length) {
+                    grid.innerHTML = '<p class="gallery-empty">No photos yet — check back soon!</p>';
+                }
+            });
+        }
+
+        function deleteGalleryPhoto(id) {
+            var meta = loadGalleryMeta().filter(function(m) { return m.id !== id; });
+            saveGalleryMeta(meta);
+            idbSet('gallery_img_' + id, null).catch(function() {});
+            renderGallery();
+        }
+
+        function openGalleryLightbox(src, caption) {
+            var lb = document.getElementById('galleryLightbox');
+            var img = document.getElementById('galleryLightboxImg');
+            var cap = document.getElementById('galleryLightboxCaption');
+            if (!lb || !img) return;
+            img.src = src;
+            img.alt = caption || 'Gallery photo';
+            if (cap) cap.textContent = caption || '';
+            lb.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeGalleryLightbox() {
+            var lb = document.getElementById('galleryLightbox');
+            if (lb) lb.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function initGallery() {
+            renderGallery();
+
+            var closeBtn = document.getElementById('galleryLightboxClose');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = '1';
+                closeBtn.addEventListener('click', closeGalleryLightbox);
+            }
+            var lb = document.getElementById('galleryLightbox');
+            if (lb && !lb.dataset.bound) {
+                lb.dataset.bound = '1';
+                lb.addEventListener('click', function(e) { if (e.target === lb) closeGalleryLightbox(); });
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeGalleryLightbox();
+            });
+
+            var uploadBtn = document.getElementById('galleryUploadBtn');
+            if (uploadBtn && !uploadBtn.dataset.bound) {
+                uploadBtn.dataset.bound = '1';
+                uploadBtn.addEventListener('click', function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    var fileInput = document.getElementById('galleryUploadInput');
+                    var captionInput = document.getElementById('galleryCaption');
+                    var msgEl = document.getElementById('galleryUploadMsg');
+                    var files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+                    if (!files.length) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select at least one image.'; } return; }
+                    var caption = captionInput ? captionInput.value.trim() : '';
+                    var meta = loadGalleryMeta();
+                    var promises = files.map(function(file) {
+                        return new Promise(function(resolve) {
+                            var reader = new FileReader();
+                            reader.onload = function(e) {
+                                var dataUrl = e.target.result;
+                                compressImageDataUrl(dataUrl, 1200, 900, 0.75).then(function(compressed) {
+                                    var id = 'g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                                    meta.push({ id: id, caption: caption, ts: Date.now() });
+                                    idbSet('gallery_img_' + id, compressed).then(resolve);
+                                });
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    });
+                    if (msgEl) { msgEl.style.color = '#ff8f00'; msgEl.textContent = 'Uploading…'; }
+                    Promise.all(promises).then(function() {
+                        saveGalleryMeta(meta);
+                        if (fileInput) fileInput.value = '';
+                        if (captionInput) captionInput.value = '';
+                        renderGallery();
+                        if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = files.length + ' photo(s) uploaded!'; setTimeout(function() { msgEl.textContent = ''; }, 3000); }
+                    });
+                });
+            }
+        }
+
+        // =====================================================
+        // PLAYOFF BRACKET
+        // =====================================================
+        const PLAYOFF_BRACKET_KEY = 'playoffBracket_v1';
+
+        function loadPlayoffBracket() {
+            try { return JSON.parse(localStorage.getItem(PLAYOFF_BRACKET_KEY) || '[]'); } catch (e) { return []; }
+        }
+        function savePlayoffBracket() {
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            var rounds = collectPlayoffRounds();
+            try { localStorage.setItem(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
+            renderPlayoffBracket();
+            var msg = document.getElementById('playoffAdminMsg');
+            if (msg) { msg.style.color = '#4caf50'; msg.textContent = 'Bracket saved!'; setTimeout(function() { msg.textContent = ''; }, 2500); }
+        }
+
+        function collectPlayoffRounds() {
+            var editor = document.getElementById('playoffRoundsEditor');
+            if (!editor) return [];
+            var rounds = [];
+            editor.querySelectorAll('.playoff-round-editor').forEach(function(roundEl) {
+                var titleInput = roundEl.querySelector('.playoff-round-title-input');
+                var round = { title: titleInput ? titleInput.value.trim() || 'Round' : 'Round', matchups: [] };
+                roundEl.querySelectorAll('.playoff-matchup-editor').forEach(function(matchupEl) {
+                    var inputs = matchupEl.querySelectorAll('input');
+                    round.matchups.push({
+                        teamA: inputs[0] ? inputs[0].value.trim() : '',
+                        teamB: inputs[1] ? inputs[1].value.trim() : '',
+                        scoreA: inputs[2] ? inputs[2].value.trim() : '',
+                        scoreB: inputs[3] ? inputs[3].value.trim() : ''
+                    });
+                });
+                rounds.push(round);
+            });
+            return rounds;
+        }
+
+        function addPlayoffRound() {
+            var editor = document.getElementById('playoffRoundsEditor');
+            if (!editor) return;
+            var roundIdx = editor.querySelectorAll('.playoff-round-editor').length;
+            var titles = ['Quarterfinals', 'Semifinals', 'Championship'];
+            var defaultTitle = titles[roundIdx] || ('Round ' + (roundIdx + 1));
+            var div = document.createElement('div');
+            div.className = 'playoff-round-editor';
+            div.innerHTML =
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+                    '<input class="playoff-round-title-input" type="text" value="' + escapeHtml(defaultTitle) + '" placeholder="Round name" style="flex:1;padding:7px 10px;background:#0f0f23;border:1px solid #2a2a4a;border-radius:4px;color:#ff8f00;font-weight:700;">' +
+                    '<button type="button" class="cta-button small" style="background:#c62828;" onclick="this.closest(\'.playoff-round-editor\').remove()">Remove Round</button>' +
+                '</div>' +
+                '<div class="playoff-matchup-editor">' +
+                    '<input type="text" placeholder="Team A name">' +
+                    '<input type="text" placeholder="Team B name">' +
+                    '<input type="number" placeholder="Score A" min="0">' +
+                    '<input type="number" placeholder="Score B" min="0">' +
+                '</div>';
+            var addMatchupBtn = document.createElement('button');
+            addMatchupBtn.type = 'button';
+            addMatchupBtn.className = 'cta-button small';
+            addMatchupBtn.style.marginTop = '6px';
+            addMatchupBtn.textContent = '+ Add Matchup';
+            addMatchupBtn.addEventListener('click', function() {
+                var matchupDiv = document.createElement('div');
+                matchupDiv.className = 'playoff-matchup-editor';
+                matchupDiv.innerHTML =
+                    '<input type="text" placeholder="Team A name">' +
+                    '<input type="text" placeholder="Team B name">' +
+                    '<input type="number" placeholder="Score A" min="0">' +
+                    '<input type="number" placeholder="Score B" min="0">';
+                div.insertBefore(matchupDiv, addMatchupBtn);
+            });
+            div.appendChild(addMatchupBtn);
+            editor.appendChild(div);
+        }
+
+        function renderPlayoffBracket() {
+            var display = document.getElementById('playoffBracketDisplay');
+            if (!display) return;
+            var rounds = loadPlayoffBracket();
+            if (!rounds.length) {
+                display.innerHTML = '<p class="playoff-empty">Playoff bracket will be posted when the season begins.</p>';
+                return;
+            }
+            var wrapper = document.createElement('div');
+            wrapper.className = 'bracket-wrapper';
+            rounds.forEach(function(round) {
+                var col = document.createElement('div');
+                col.className = 'bracket-round';
+                var title = document.createElement('div');
+                title.className = 'bracket-round-title';
+                title.textContent = round.title || 'Round';
+                col.appendChild(title);
+                (round.matchups || []).forEach(function(m) {
+                    var box = document.createElement('div');
+                    box.className = 'bracket-matchup';
+                    var sA = parseInt(m.scoreA, 10) || 0;
+                    var sB = parseInt(m.scoreB, 10) || 0;
+                    var hasScores = m.scoreA !== '' || m.scoreB !== '';
+                    var teamAWon = hasScores && sA > sB;
+                    var teamBWon = hasScores && sB > sA;
+                    box.innerHTML =
+                        '<div class="bracket-team ' + (teamAWon ? 'winner' : teamBWon ? 'loser' : '') + '">' +
+                            '<span class="bracket-team-name">' + escapeHtml(m.teamA || 'TBD') + '</span>' +
+                            '<span class="bracket-team-score">' + escapeHtml(m.scoreA !== '' ? m.scoreA : '—') + '</span>' +
+                        '</div>' +
+                        '<div class="bracket-team ' + (teamBWon ? 'winner' : teamAWon ? 'loser' : '') + '">' +
+                            '<span class="bracket-team-name">' + escapeHtml(m.teamB || 'TBD') + '</span>' +
+                            '<span class="bracket-team-score">' + escapeHtml(m.scoreB !== '' ? m.scoreB : '—') + '</span>' +
+                        '</div>';
+                    col.appendChild(box);
+                });
+                wrapper.appendChild(col);
+            });
+            display.innerHTML = '';
+            display.appendChild(wrapper);
+        }
+
+        function populatePlayoffEditor() {
+            var editor = document.getElementById('playoffRoundsEditor');
+            if (!editor) return;
+            editor.innerHTML = '';
+            var rounds = loadPlayoffBracket();
+            rounds.forEach(function(round) {
+                addPlayoffRound();
+                var lastRoundEl = editor.lastElementChild;
+                if (!lastRoundEl) return;
+                var titleInput = lastRoundEl.querySelector('.playoff-round-title-input');
+                if (titleInput) titleInput.value = round.title || '';
+                // Remove the default empty matchup
+                lastRoundEl.querySelectorAll('.playoff-matchup-editor').forEach(function(el) { el.remove(); });
+                var addBtn = lastRoundEl.querySelector('button.cta-button.small:not([style*="c62828"])');
+                (round.matchups || []).forEach(function(m) {
+                    var matchupDiv = document.createElement('div');
+                    matchupDiv.className = 'playoff-matchup-editor';
+                    matchupDiv.innerHTML =
+                        '<input type="text" placeholder="Team A name" value="' + escapeHtml(m.teamA || '') + '">' +
+                        '<input type="text" placeholder="Team B name" value="' + escapeHtml(m.teamB || '') + '">' +
+                        '<input type="number" placeholder="Score A" min="0" value="' + escapeHtml(m.scoreA || '') + '">' +
+                        '<input type="number" placeholder="Score B" min="0" value="' + escapeHtml(m.scoreB || '') + '">';
+                    if (addBtn) lastRoundEl.insertBefore(matchupDiv, addBtn);
+                    else lastRoundEl.appendChild(matchupDiv);
+                });
+            });
+        }
+
+        // =====================================================
+        // FAQ ACCORDION
+        // =====================================================
+        function initFAQ() {
+            var list = document.getElementById('faqList');
+            if (!list || list.dataset.faqBound) return;
+            list.dataset.faqBound = '1';
+            list.addEventListener('click', function(e) {
+                var btn = e.target.closest('.faq-question');
+                if (!btn) return;
+                var answer = btn.nextElementSibling;
+                var expanded = btn.getAttribute('aria-expanded') === 'true';
+                // Close all others
+                list.querySelectorAll('.faq-question').forEach(function(q) {
+                    if (q !== btn) {
+                        q.setAttribute('aria-expanded', 'false');
+                        var a = q.nextElementSibling;
+                        if (a) a.setAttribute('hidden', '');
+                    }
+                });
+                btn.setAttribute('aria-expanded', String(!expanded));
+                if (expanded) { answer.setAttribute('hidden', ''); }
+                else { answer.removeAttribute('hidden'); }
+            });
+        }
+
+        // =====================================================
+        // NEWSLETTER FORM
+        // =====================================================
+        const NEWSLETTER_SUBS_KEY = 'newsletterSubs_v1';
+
+        function initNewsletter() {
+            var form = document.getElementById('newsletterForm');
+            if (!form || form.dataset.bound) return;
+            form.dataset.bound = '1';
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var nameInput = document.getElementById('newsletterName');
+                var emailInput = document.getElementById('newsletterEmail');
+                var msgEl = document.getElementById('newsletterMsg');
+                var email = emailInput ? emailInput.value.trim() : '';
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please enter a valid email address.'; }
+                    return;
+                }
+                // Store subscriber locally (admin can view later)
+                try {
+                    var subs = JSON.parse(localStorage.getItem(NEWSLETTER_SUBS_KEY) || '[]');
+                    var exists = subs.some(function(s) { return s.email === email; });
+                    if (!exists) {
+                        subs.push({ name: nameInput ? nameInput.value.trim() : '', email: email, ts: new Date().toISOString() });
+                        localStorage.setItem(NEWSLETTER_SUBS_KEY, JSON.stringify(subs));
+                    }
+                } catch (err) {}
+                if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = '✅ Thanks for subscribing! We\'ll keep you updated.'; }
+                form.reset();
+            });
+        }
+
+        // =====================================================
+        // INITIALIZE ALL NEW FEATURES
+        // =====================================================
+        (function initNewFeatures() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runNewFeatureInits);
+            } else {
+                runNewFeatureInits();
+            }
+        })();
+
+        function runNewFeatureInits() {
+            initDarkMode();
+            initCountdownTimer();
+            renderLatestResultsWidget();
+            renderPlayoffBracket();
+            initFAQ();
+            initNewsletter();
+            // Gallery init deferred slightly to avoid contention with IDB loading
+            setTimeout(function() {
+                initGallery();
+                // Populate admin-only editors
+                if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+                    populatePlayoffEditor();
+                    populateCountdownEditor();
+                }
+            }, 600);
+        }
+
+        // Re-run on window.load as well to catch any timing issues
+        window.addEventListener('load', function() {
+            initDarkMode();
+            renderLatestResultsWidget();
+            renderPlayoffBracket();
+            initFAQ();
+            initNewsletter();
+            initGallery();
+            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+                populatePlayoffEditor();
+                populateCountdownEditor();
+                // Show gallery admin panel
+                var galAdmin = document.getElementById('galleryAdminPanel');
+                if (galAdmin) galAdmin.classList.add('visible');
+                var playoffAdmin = document.getElementById('playoffAdminPanel');
+                if (playoffAdmin) playoffAdmin.classList.add('visible');
+            }
+        });
