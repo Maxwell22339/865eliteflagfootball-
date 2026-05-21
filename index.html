@@ -1147,7 +1147,9 @@
                 <div class="footer-admin" data-no-admin-edit="true" contenteditable="false">
                     <h4>Admin Sign In</h4>
                     <form id="footerAdminLoginForm" class="footer-admin-form">
-                        <input id="footerAdminUsername" type="text" placeholder="Username" autocomplete="username" required>
+                        <select id="footerAdminUsername" autocomplete="username" required>
+                            <option value="" selected disabled>Select Admin</option>
+                        </select>
                         <input id="footerAdminPassword" type="password" placeholder="Password" autocomplete="current-password" required>
                         <button type="submit" class="cta-button small">Sign In</button>
                     </form>

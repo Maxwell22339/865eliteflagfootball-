@@ -224,6 +224,33 @@
             }
         }
 
+        function populateFooterAdminSelector() {
+            const selector = document.getElementById('footerAdminUsername');
+            if (!selector) return;
+            const selectedValue = selector.value;
+            selector.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select Admin';
+            placeholder.disabled = true;
+            selector.appendChild(placeholder);
+
+            ADMIN_ACCOUNTS.forEach(function(account) {
+                const option = document.createElement('option');
+                option.value = account.username;
+                option.textContent = account.username;
+                selector.appendChild(option);
+            });
+
+            if (selectedValue && ADMIN_ACCOUNTS.some(function(account) { return account.username === selectedValue; })) {
+                selector.value = selectedValue;
+            } else {
+                selector.value = '';
+                placeholder.selected = true;
+            }
+        }
+
         function showPage(id) {
             if (id && id.startsWith('#')) id = id.substring(1);
             if (ALL_PAGE_IDS.indexOf(id) === -1 || !canAccessPage(id)) {
@@ -915,6 +942,26 @@
             const adminHeader = document.getElementById('adminHeader');
             if (!adminHeader) return;
 
+            if (!document.getElementById('saveChangesBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'saveChangesBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Save Changes';
+                btn.onclick = saveAllChanges;
+                adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('togglePageEditBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'togglePageEditBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Enable Editing';
+                btn.onclick = togglePageEdit;
+                adminHeader.appendChild(btn);
+            }
+
             const toggleBtn = document.getElementById('togglePageEditBtn');
 
             if (!document.getElementById('changeLogoBtn')) {
@@ -954,6 +1001,13 @@
                 input.style.display = 'none';
                 adminHeader.appendChild(input);
             }
+        }
+
+        function setAdminHeaderVisible(isVisible) {
+            const adminHdr = document.getElementById('adminHeader');
+            if (!adminHdr) return;
+            adminHdr.style.display = isVisible ? 'flex' : 'none';
+            adminHdr.classList.toggle('hidden', !isVisible);
         }
 
         function enforceNonEditableAdminUI() {
@@ -1521,6 +1575,7 @@
                 const stored = sessionStorage.getItem('adminUsername');
                 const adminNameEl = document.getElementById('adminNameDisplay');
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+                setAdminHeaderVisible(true);
                 document.getElementById('adminOnly').classList.add('visible');
                 const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
                 if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
@@ -1545,6 +1600,7 @@
             applySavedBranding();
             applySavedHeroBackground();
             applySavedCtaButton();
+            populateFooterAdminSelector();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
             ensureAdminBrandingUI();
@@ -1734,7 +1790,7 @@
             }
             const adminAccount = getMatchingAdminAccount(username, password);
             if (!adminAccount) {
-                if (formMessage) formMessage.textContent = 'Invalid username or password';
+                if (formMessage) formMessage.textContent = 'Invalid admin selection or password';
                 return;
             }
             sessionStorage.setItem('adminLoggedIn', 'true');
@@ -3533,6 +3589,7 @@
             document.getElementById('loginModal').style.display = 'none';
             ensureAdminBrandingUI();
             bindAdminBrandingControls();
+            setAdminHeaderVisible(true);
             // display username if available
             const adminNameEl = document.getElementById('adminNameDisplay');
             const stored = sessionStorage.getItem('adminUsername');
