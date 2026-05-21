@@ -1008,6 +1008,12 @@
             if (!adminHdr) return;
             adminHdr.style.display = isVisible ? 'flex' : 'none';
             adminHdr.classList.toggle('hidden', !isVisible);
+            if (isVisible) {
+                ['saveChangesBtn', 'changeLogoBtn', 'changeHeroBackgroundBtn'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = 'inline-block';
+                });
+            }
         }
 
         function enforceNonEditableAdminUI() {
