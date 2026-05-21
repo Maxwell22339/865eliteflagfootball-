@@ -210,6 +210,7 @@
             const form = document.getElementById('footerAdminLoginForm');
             const session = document.getElementById('footerAdminSession');
             const name = document.getElementById('footerAdminName');
+            const message = document.getElementById('footerAdminLoginMsg');
             const username = sessionStorage.getItem('adminUsername') || '';
             if (form) form.style.display = isAdminLoggedIn() ? 'none' : 'grid';
             if (session) {
@@ -217,6 +218,10 @@
                 session.classList.toggle('hidden', !isAdminLoggedIn());
             }
             if (name) name.textContent = username;
+            if (message && !isAdminLoggedIn()) {
+                message.style.color = '#ffb366';
+                message.textContent = '';
+            }
         }
 
         function showPage(id) {
@@ -507,13 +512,54 @@
             }
         }
 
+        function normalizeCashAppLink(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            let normalized = raw;
+
+            if (!/^https?:\/\//i.test(normalized)) {
+                if (/^cash\.app\/\$/i.test(normalized)) {
+                    normalized = 'https://' + normalized;
+                } else if (/^\$[A-Za-z0-9_]+$/.test(normalized)) {
+                    normalized = 'https://cash.app/' + normalized;
+                } else if (/^[A-Za-z0-9_]+$/.test(normalized)) {
+                    normalized = 'https://cash.app/$' + normalized;
+                } else {
+                    return '';
+                }
+            }
+
+            try {
+                const parsed = new URL(normalized);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (host !== 'cash.app' && host !== 'www.cash.app') return '';
+                return parsed.href;
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function setSafeExternalHref(linkEl, url, allowedHosts) {
+            if (!linkEl) return false;
+            try {
+                const parsed = new URL(url);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (!/^https?:$/i.test(parsed.protocol)) return false;
+                if (allowedHosts && allowedHosts.length && allowedHosts.indexOf(host) === -1) return false;
+                linkEl.href = parsed.href;
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
         function loadPaymentLinks() {
             try {
                 const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
                 const normalizedLinks = {
                     team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
                     freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                    cashApp: (saved.cashApp || '').trim(),
+                    cashApp: normalizeCashAppLink(saved.cashApp || ''),
                     venmo: normalizeVenmoLink(saved.venmo || '')
                 };
                 PAYMENT_LINKS = {
@@ -542,23 +588,25 @@
             var hasItem = false;
             if (PAYMENT_LINKS.cashApp) {
                 var aCA = document.createElement('a');
-                aCA.href = PAYMENT_LINKS.cashApp;
-                aCA.target = '_blank';
-                aCA.rel = 'noopener noreferrer';
-                aCA.textContent = '$ CashApp';
-                aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
-                list.appendChild(aCA);
-                hasItem = true;
+                if (setSafeExternalHref(aCA, PAYMENT_LINKS.cashApp, ['cash.app', 'www.cash.app'])) {
+                    aCA.target = '_blank';
+                    aCA.rel = 'noopener noreferrer';
+                    aCA.textContent = '$ CashApp';
+                    aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                    list.appendChild(aCA);
+                    hasItem = true;
+                }
             }
             if (PAYMENT_LINKS.venmo) {
                 var aV = document.createElement('a');
-                aV.href = PAYMENT_LINKS.venmo;
-                aV.target = '_blank';
-                aV.rel = 'noopener noreferrer';
-                aV.textContent = '@ Venmo';
-                aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
-                list.appendChild(aV);
-                hasItem = true;
+                if (setSafeExternalHref(aV, PAYMENT_LINKS.venmo, ['venmo.com', 'www.venmo.com'])) {
+                    aV.target = '_blank';
+                    aV.rel = 'noopener noreferrer';
+                    aV.textContent = '@ Venmo';
+                    aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                    list.appendChild(aV);
+                    hasItem = true;
+                }
             }
             panel.style.display = hasItem ? 'block' : 'none';
         }
@@ -930,6 +978,7 @@
                 setNavQuickSelectOpen();
             });
             updateNavQuickSelectOptions();
+            setNavQuickSelectOpen(false);
         }
 
         async function restoreSiteContent() {
@@ -962,6 +1011,21 @@
             // 3. Hide admin header & all its buttons
             var adminHdr = document.getElementById('adminHeader');
             if (adminHdr) { adminHdr.style.display = 'none'; adminHdr.classList.add('hidden'); }
+            var navPanel = document.getElementById('navQuickSelectPanel');
+            if (navPanel) {
+                navPanel.classList.add('hidden');
+                navPanel.style.display = 'none';
+                navPanel.setAttribute('aria-hidden', 'true');
+            }
+            var footerAdminForm = document.getElementById('footerAdminLoginForm');
+            if (footerAdminForm) footerAdminForm.style.display = 'grid';
+            var footerAdminSession = document.getElementById('footerAdminSession');
+            if (footerAdminSession) {
+                footerAdminSession.style.display = 'none';
+                footerAdminSession.classList.add('hidden');
+            }
+            var footerAdminMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerAdminMsg) footerAdminMsg.textContent = '';
 
             // 4. Hide admin-only navigation links
             document.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.remove('visible'); });
@@ -1023,6 +1087,21 @@
                 // Force admin header hidden in saved state
                 var ahClone = clone.querySelector('#adminHeader');
                 if (ahClone) { ahClone.style.display = 'none'; ahClone.classList.add('hidden'); }
+                var navPanelClone = clone.querySelector('#navQuickSelectPanel');
+                if (navPanelClone) {
+                    navPanelClone.style.display = 'none';
+                    navPanelClone.classList.add('hidden');
+                    navPanelClone.setAttribute('aria-hidden', 'true');
+                }
+                var footerFormClone = clone.querySelector('#footerAdminLoginForm');
+                if (footerFormClone) footerFormClone.style.display = 'grid';
+                var footerSessionClone = clone.querySelector('#footerAdminSession');
+                if (footerSessionClone) {
+                    footerSessionClone.style.display = 'none';
+                    footerSessionClone.classList.add('hidden');
+                }
+                var footerMsgClone = clone.querySelector('#footerAdminLoginMsg');
+                if (footerMsgClone) footerMsgClone.textContent = '';
                 // Force admin-only sections hidden in saved state
                 var aoClone = clone.querySelector('#adminOnly');
                 if (aoClone) aoClone.classList.remove('visible');
@@ -1319,10 +1398,16 @@
             if (linkWrap && linkEl) {
                 if ((method === 'cashapp' || method === 'venmo') && url) {
                     if (infoEl) infoEl.style.display = 'none';
-                    linkEl.href = url;
-                    linkEl.textContent = label;
-                    linkEl.style.display = 'inline';
-                    linkWrap.style.display = 'block';
+                    var allowedHosts = method === 'cashapp'
+                        ? ['cash.app', 'www.cash.app']
+                        : ['venmo.com', 'www.venmo.com'];
+                    if (setSafeExternalHref(linkEl, url, allowedHosts)) {
+                        linkEl.textContent = label;
+                        linkEl.style.display = 'inline';
+                        linkWrap.style.display = 'block';
+                    } else {
+                        linkWrap.style.display = 'none';
+                    }
                 } else {
                     linkWrap.style.display = 'none';
                 }
@@ -1356,19 +1441,42 @@
                     : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
                 const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
                 const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
-                tr.innerHTML = `
-                    <td>${p.name || ''}</td>
-                    <td>${p.email || ''}</td>
-                    <td>${label}</td>
-                    <td>${details}</td>
-                    <td>${payInfo || 'N/A'}</td>
-                    <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
-                    <td>${submitted}</td>
-                    <td>
-                        <button data-action="approvePayment" data-idx="${idx}" class="cta-button small" style="margin-right:6px;">Approve</button>
-                        <button data-action="denyPayment" data-idx="${idx}" class="cta-button small" style="background:#777;">Deny</button>
-                    </td>
-                `;
+                const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
+
+                function appendCell(text, styleText) {
+                    const cell = document.createElement('td');
+                    cell.textContent = text;
+                    if (styleText) cell.style.cssText = styleText;
+                    tr.appendChild(cell);
+                    return cell;
+                }
+
+                appendCell(p.name || '');
+                appendCell(p.email || '');
+                appendCell(label);
+                appendCell(details);
+                appendCell(payInfo || 'N/A');
+                appendCell(p.status || 'pending', 'font-weight:700; color:' + (p.status === 'approved' ? '#2e7d32' : '#e65100') + ';');
+                appendCell(submitted);
+
+                const actionsCell = document.createElement('td');
+                const approveBtn = document.createElement('button');
+                approveBtn.dataset.action = 'approvePayment';
+                approveBtn.dataset.idx = String(idx);
+                approveBtn.className = 'cta-button small';
+                approveBtn.style.marginRight = '6px';
+                approveBtn.textContent = 'Approve';
+                actionsCell.appendChild(approveBtn);
+
+                const denyBtn = document.createElement('button');
+                denyBtn.dataset.action = 'denyPayment';
+                denyBtn.dataset.idx = String(idx);
+                denyBtn.className = 'cta-button small';
+                denyBtn.style.background = '#777';
+                denyBtn.textContent = 'Deny';
+                actionsCell.appendChild(denyBtn);
+
+                tr.appendChild(actionsCell);
                 tbody.appendChild(tr);
             });
 
