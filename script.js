@@ -115,6 +115,22 @@
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
             'documentsAdmin','documentsPublic','guestArea','myProfile','contact','gallery','playoff','faq'];
+        const NAV_PAGE_OPTIONS = [
+            { id: 'home', label: 'Home' },
+            { id: 'about', label: 'About' },
+            { id: 'standings', label: 'League Standings' },
+            { id: 'leagueSchedule', label: 'League Schedule' },
+            { id: 'playoff', label: 'Playoff Bracket' },
+            { id: 'player-stats', label: 'Season Stats' },
+            { id: 'season-recap', label: 'Season Recap' },
+            { id: 'gallery', label: 'Gallery' },
+            { id: 'payments', label: 'Sign Up' },
+            { id: 'documentsPublic', label: 'Documents' },
+            { id: 'faq', label: 'FAQ' },
+            { id: 'contact', label: 'Contact' },
+            { id: 'myProfile', label: 'My Profile', requiresMember: true },
+            { id: 'documentsAdmin', label: 'Admin Dashboard', requiresAdmin: true }
+        ];
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -143,6 +159,64 @@
             }
 
             return true;
+        }
+
+        function getAvailableNavOptions() {
+            return NAV_PAGE_OPTIONS.filter(function(option) {
+                if (option.requiresAdmin && !isAdminLoggedIn()) return false;
+                if (option.requiresMember && !isMemberLoggedIn()) return false;
+                return true;
+            });
+        }
+
+        function syncNavQuickSelect(activePageId) {
+            const navSelect = document.getElementById('navQuickSelect');
+            if (!navSelect) return;
+            const value = activePageId || (window.location.hash ? window.location.hash.substring(1) : 'home');
+            if (Array.from(navSelect.options).some(function(option) { return option.value === value; })) {
+                navSelect.value = value;
+            }
+        }
+
+        function updateNavQuickSelectOptions(activePageId) {
+            const navSelect = document.getElementById('navQuickSelect');
+            if (!navSelect) return;
+            const currentValue = activePageId || navSelect.value || (window.location.hash ? window.location.hash.substring(1) : 'home');
+            navSelect.innerHTML = '';
+            getAvailableNavOptions().forEach(function(option) {
+                const el = document.createElement('option');
+                el.value = option.id;
+                el.textContent = option.label;
+                navSelect.appendChild(el);
+            });
+            syncNavQuickSelect(currentValue);
+        }
+
+        function setNavQuickSelectOpen(forceState) {
+            const panel = document.getElementById('navQuickSelectPanel');
+            const hamburger = document.getElementById('navHamburger');
+            if (!panel || !hamburger) return;
+            const isHidden = panel.classList.contains('hidden');
+            const shouldOpen = typeof forceState === 'boolean' ? forceState : isHidden;
+            panel.classList.toggle('hidden', !shouldOpen);
+            panel.style.display = shouldOpen ? 'block' : 'none';
+            panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+            hamburger.textContent = shouldOpen ? '\u2715' : '\u2630';
+            hamburger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            if (shouldOpen) syncNavQuickSelect();
+        }
+
+        function updateFooterAdminState() {
+            const form = document.getElementById('footerAdminLoginForm');
+            const session = document.getElementById('footerAdminSession');
+            const name = document.getElementById('footerAdminName');
+            const username = sessionStorage.getItem('adminUsername') || '';
+            if (form) form.style.display = isAdminLoggedIn() ? 'none' : 'grid';
+            if (session) {
+                session.style.display = isAdminLoggedIn() ? 'block' : 'none';
+                session.classList.toggle('hidden', !isAdminLoggedIn());
+            }
+            if (name) name.textContent = username;
         }
 
         function showPage(id) {
@@ -174,6 +248,7 @@
                     if (typeof renderCountdownTimer === 'function') renderCountdownTimer();
                 }
             }
+            syncNavQuickSelect(id);
         }
 
         var lastHeaderScrollY = 0;
@@ -186,7 +261,10 @@
             if (!siteHeader) return;
             var changed = siteHeader.classList.contains('scrolled') !== shouldScroll;
             siteHeader.classList.toggle('scrolled', shouldScroll);
-            if (changed) toggleLoginDropdown(false);
+            if (changed) {
+                toggleLoginDropdown(false);
+                setNavQuickSelectOpen(false);
+            }
         }
 
         function updateHeaderScrollState() {
@@ -839,8 +917,6 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            // Always remove any existing hamburger (e.g. one restored from saved HTML that
-            // lacks a click listener because data-nav-init was persisted without the handler).
             var existing = document.getElementById('navHamburger');
             if (existing) existing.remove();
             var hamburger = document.createElement('button');
@@ -851,13 +927,9 @@
             hamburger.textContent = '\u2630'; // ☰
             nav.appendChild(hamburger);
             hamburger.addEventListener('click', function() {
-                var navLinks = document.querySelector('header .nav-links');
-                if (navLinks) {
-                    var isOpen = navLinks.classList.toggle('nav-open');
-                    hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
-                    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                }
+                setNavQuickSelectOpen();
             });
+            updateNavQuickSelectOptions();
         }
 
         async function restoreSiteContent() {
@@ -1338,7 +1410,6 @@
             renderDocumentsList();
             // admin
             if (sessionStorage.getItem('adminLoggedIn') === 'true') {
-                document.getElementById('adminHeader').style.display = 'block';
                 const stored = sessionStorage.getItem('adminUsername');
                 const adminNameEl = document.getElementById('adminNameDisplay');
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
@@ -1392,6 +1463,8 @@
             } else {
                 document.getElementById('memberHeader').style.display = 'none';
             }
+            updateFooterAdminState();
+            updateNavQuickSelectOptions(window.location.hash ? window.location.hash.substring(1) : 'home');
             ensureNavHamburger();
             updateHeaderScrollState();
         });
@@ -1516,27 +1589,8 @@
                 return;
             }
 
-            if (e.target.closest('#loginMenuBtn')) {
+            if (e.target.closest('#navQuickSelectPanel') || e.target.closest('#navHamburger')) {
                 e.stopPropagation();
-                toggleLoginDropdown();
-                return;
-            }
-
-            if (e.target.closest('#loginDropdown')) {
-                e.stopPropagation();
-                if (e.target.closest('#loginDropdownAdmin')) {
-                    e.preventDefault();
-                    // Close nav overlay if open (hamburger menu)
-                    var navLinks = document.querySelector('header .nav-links');
-                    if (navLinks) navLinks.classList.remove('nav-open');
-                    var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) {
-                        hamburger.textContent = '\u2630';
-                        hamburger.setAttribute('aria-expanded', 'false');
-                    }
-                    showAdminLoginModal();
-                    toggleLoginDropdown(false);
-                }
                 return;
             }
 
@@ -1546,21 +1600,45 @@
                 const id = href.substring(1);
                 if (id) {
                     e.preventDefault();
-                    // Close mobile/scrolled nav overlay if open
-                    var navLinks = document.querySelector('header .nav-links');
-                    if (navLinks) navLinks.classList.remove('nav-open');
-                    var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) {
-                        hamburger.textContent = '\u2630';
-                        hamburger.setAttribute('aria-expanded', 'false');
-                    }
+                    setNavQuickSelectOpen(false);
                     showPage(id);
                     return;
                 }
             }
 
             toggleLoginDropdown(false);
+            setNavQuickSelectOpen(false);
         });
+        document.getElementById('navQuickSelect')?.addEventListener('change', function(e) {
+            const targetPage = e.target.value;
+            if (!targetPage) return;
+            setNavQuickSelectOpen(false);
+            showPage(targetPage);
+        });
+        document.getElementById('footerAdminLoginForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('footerAdminUsername').value.trim();
+            const password = document.getElementById('footerAdminPassword').value;
+            const formMessage = document.getElementById('footerAdminLoginMsg');
+            if (formMessage) {
+                formMessage.style.color = '#ff6f61';
+                formMessage.textContent = '';
+            }
+            const adminAccount = getMatchingAdminAccount(username, password);
+            if (!adminAccount) {
+                if (formMessage) formMessage.textContent = 'Invalid username or password';
+                return;
+            }
+            sessionStorage.setItem('adminLoggedIn', 'true');
+            sessionStorage.setItem('adminUsername', adminAccount.username);
+            if (formMessage) {
+                formMessage.style.color = '#7dffb3';
+                formMessage.textContent = 'Signed in successfully';
+            }
+            document.getElementById('footerAdminPassword').value = '';
+            showAdminView();
+        });
+        document.getElementById('footerAdminLogoutBtn')?.addEventListener('click', logout);
 
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
@@ -1763,6 +1841,7 @@
                 showPage('myProfile');
                 renderMyProfile();
             }
+            updateNavQuickSelectOptions();
         }
         function memberLogout() {
             sessionStorage.removeItem('memberLoggedIn');
@@ -1771,6 +1850,7 @@
             document.getElementById('memberHeader').style.display = 'none';
             const navProfile = document.getElementById('navProfile');
             if (navProfile) navProfile.classList.remove('visible');
+            updateNavQuickSelectOptions('home');
             showPage('home');
         }
 
@@ -3341,17 +3421,15 @@
         });
 
         function showAdminView() {
-            // notify user explicitly
-            alert('Successfully logged in as admin');
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminHeader').style.display = 'block';
             ensureAdminBrandingUI();
             bindAdminBrandingControls();
             // display username if available
             const adminNameEl = document.getElementById('adminNameDisplay');
             const stored = sessionStorage.getItem('adminUsername');
             if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+            updateFooterAdminState();
             document.getElementById('adminOnly').classList.add('visible');
             // show admin nav items
             document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
@@ -3373,6 +3451,7 @@
             if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
             var playoffAdminPanel = document.getElementById('playoffAdminPanel');
             if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
+            updateNavQuickSelectOptions('documentsAdmin');
             showPage('documentsAdmin');
             persistSiteContent();
         }
@@ -3383,6 +3462,7 @@
             sessionStorage.removeItem('adminUsername');
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
+            updateFooterAdminState();
             var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
             if (scheduleAdminPanel) scheduleAdminPanel.classList.remove('visible');
             renderLeagueAdminTables && renderLeagueAdminTables();
@@ -3394,6 +3474,16 @@
             document.getElementById('loginError').textContent = '';
             document.getElementById('adminPickStep').style.display = 'block';
             document.getElementById('adminPasswordStep').style.display = 'none';
+            var footerMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerMsg) {
+                footerMsg.style.color = '#ffb366';
+                footerMsg.textContent = '';
+            }
+            var footerUser = document.getElementById('footerAdminUsername');
+            if (footerUser) footerUser.value = '';
+            var footerPw = document.getElementById('footerAdminPassword');
+            if (footerPw) footerPw.value = '';
+            updateNavQuickSelectOptions('home');
             showPage('home');
         }
 
