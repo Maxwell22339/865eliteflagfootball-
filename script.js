@@ -1779,11 +1779,17 @@
             setNavQuickSelectOpen(false);
             showPage(targetPage);
         });
-        document.getElementById('footerAdminLoginForm')?.addEventListener('submit', function(e) {
+        function handleFooterAdminLoginSubmit(e) {
             e.preventDefault();
-            const username = document.getElementById('footerAdminUsername').value.trim();
-            const password = document.getElementById('footerAdminPassword').value;
-            const formMessage = document.getElementById('footerAdminLoginMsg');
+            const form = e && e.target && e.target.id === 'footerAdminLoginForm'
+                ? e.target
+                : document.getElementById('footerAdminLoginForm');
+            if (!form) return;
+            const usernameInput = form.querySelector('#footerAdminUsername') || document.getElementById('footerAdminUsername');
+            const passwordInput = form.querySelector('#footerAdminPassword') || document.getElementById('footerAdminPassword');
+            const formMessage = form.querySelector('#footerAdminLoginMsg') || document.getElementById('footerAdminLoginMsg');
+            const username = usernameInput ? usernameInput.value.trim() : '';
+            const password = passwordInput ? passwordInput.value : '';
             if (formMessage) {
                 formMessage.style.color = '#ff6f61';
                 formMessage.textContent = '';
@@ -1799,9 +1805,9 @@
                 formMessage.style.color = '#7dffb3';
                 formMessage.textContent = 'Signed in successfully';
             }
-            document.getElementById('footerAdminPassword').value = '';
+            if (passwordInput) passwordInput.value = '';
             showAdminView();
-        });
+        }
         document.getElementById('footerAdminLogoutBtn')?.addEventListener('click', logout);
 
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
@@ -3581,6 +3587,10 @@
         document.addEventListener('submit', function(e) {
             if (e.target && e.target.id === 'loginForm') {
                 handleAdminLoginSubmit(e);
+                return;
+            }
+            if (e.target && e.target.id === 'footerAdminLoginForm') {
+                handleFooterAdminLoginSubmit(e);
             }
         });
 
