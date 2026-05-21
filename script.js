@@ -130,6 +130,30 @@
             return sessionStorage.getItem('memberLoggedIn') === 'true';
         }
 
+        function syncAuthNavigationUI() {
+            var isAdmin = isAdminLoggedIn();
+            var isMember = isMemberLoggedIn();
+            var isAuthenticated = isAdmin || isMember;
+            var loginMenuItem = document.querySelector('.login-menu-item');
+            var loginAdminBtn = document.getElementById('loginDropdownAdmin');
+            var navLinks = document.querySelector('header .nav-links');
+            var hamburger = document.getElementById('navHamburger');
+
+            if (loginMenuItem) {
+                loginMenuItem.style.display = isAuthenticated ? 'none' : '';
+            }
+            if (loginAdminBtn) {
+                loginAdminBtn.style.display = isAdmin ? 'none' : '';
+            }
+            if (isAuthenticated && navLinks) {
+                navLinks.classList.remove('nav-open');
+            }
+            if (hamburger && navLinks && !navLinks.classList.contains('nav-open')) {
+                hamburger.textContent = '\u2630';
+            }
+            toggleLoginDropdown(false);
+        }
+
         function canAccessPage(id) {
             const adminOnlyPages = ['documentsAdmin'];
             const memberOnlyPages = ['myProfile', 'guestArea'];
@@ -839,6 +863,8 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
+            var navLinks = document.querySelector('header .nav-links');
+            if (navLinks) navLinks.classList.remove('nav-open');
             // Always remove any existing hamburger (e.g. one restored from saved HTML that
             // lacks a click listener because data-nav-init was persisted without the handler).
             var existing = document.getElementById('navHamburger');
@@ -926,6 +952,9 @@
             document.querySelectorAll('#adminOnly .team-logo-input').forEach(function(el) {
                 el.style.display = 'none';
             });
+            var navLinks = document.querySelector('header .nav-links');
+            if (navLinks) navLinks.classList.remove('nav-open');
+            syncAuthNavigationUI();
         }
 
         function persistSiteContent() {
@@ -996,6 +1025,7 @@
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
             ensureNavHamburger();
+            syncAuthNavigationUI();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
             bindCtaButtonControls();
@@ -1391,6 +1421,7 @@
                 document.getElementById('memberHeader').style.display = 'none';
             }
             ensureNavHamburger();
+            syncAuthNavigationUI();
             updateHeaderScrollState();
         });
 
@@ -1755,6 +1786,7 @@
                 showPage('myProfile');
                 renderMyProfile();
             }
+            syncAuthNavigationUI();
         }
         function memberLogout() {
             sessionStorage.removeItem('memberLoggedIn');
@@ -1764,6 +1796,7 @@
             const navProfile = document.getElementById('navProfile');
             if (navProfile) navProfile.classList.remove('visible');
             showPage('home');
+            syncAuthNavigationUI();
         }
 
         // Guest login disabled (admin/member login only).
@@ -3365,6 +3398,7 @@
             if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
             var playoffAdminPanel = document.getElementById('playoffAdminPanel');
             if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
+            syncAuthNavigationUI();
             showPage('documentsAdmin');
             persistSiteContent();
         }
@@ -3387,6 +3421,7 @@
             document.getElementById('adminPickStep').style.display = 'block';
             document.getElementById('adminPasswordStep').style.display = 'none';
             showPage('home');
+            syncAuthNavigationUI();
         }
 
         // Logo upload handling (admin-only)
