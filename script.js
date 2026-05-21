@@ -115,6 +115,22 @@
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
             'documentsAdmin','documentsPublic','guestArea','myProfile','contact','gallery','playoff','faq'];
+        const NAV_PAGE_OPTIONS = [
+            { id: 'home', label: 'Home' },
+            { id: 'about', label: 'About' },
+            { id: 'standings', label: 'League Standings' },
+            { id: 'leagueSchedule', label: 'League Schedule' },
+            { id: 'playoff', label: 'Playoff Bracket' },
+            { id: 'player-stats', label: 'Season Stats' },
+            { id: 'season-recap', label: 'Season Recap' },
+            { id: 'gallery', label: 'Gallery' },
+            { id: 'payments', label: 'Sign Up' },
+            { id: 'documentsPublic', label: 'Documents' },
+            { id: 'faq', label: 'FAQ' },
+            { id: 'contact', label: 'Contact' },
+            { id: 'myProfile', label: 'My Profile', requiresMember: true },
+            { id: 'documentsAdmin', label: 'Admin Dashboard', requiresAdmin: true }
+        ];
 
         function isAdminLoggedIn() {
             return sessionStorage.getItem('adminLoggedIn') === 'true';
@@ -143,6 +159,69 @@
             }
 
             return true;
+        }
+
+        function getAvailableNavOptions() {
+            return NAV_PAGE_OPTIONS.filter(function(option) {
+                if (option.requiresAdmin && !isAdminLoggedIn()) return false;
+                if (option.requiresMember && !isMemberLoggedIn()) return false;
+                return true;
+            });
+        }
+
+        function syncNavQuickSelect(activePageId) {
+            const navSelect = document.getElementById('navQuickSelect');
+            if (!navSelect) return;
+            const value = activePageId || (window.location.hash ? window.location.hash.substring(1) : 'home');
+            if (Array.from(navSelect.options).some(function(option) { return option.value === value; })) {
+                navSelect.value = value;
+            }
+        }
+
+        function updateNavQuickSelectOptions(activePageId) {
+            const navSelect = document.getElementById('navQuickSelect');
+            if (!navSelect) return;
+            const currentValue = activePageId || navSelect.value || (window.location.hash ? window.location.hash.substring(1) : 'home');
+            navSelect.innerHTML = '';
+            getAvailableNavOptions().forEach(function(option) {
+                const el = document.createElement('option');
+                el.value = option.id;
+                el.textContent = option.label;
+                navSelect.appendChild(el);
+            });
+            syncNavQuickSelect(currentValue);
+        }
+
+        function setNavQuickSelectOpen(forceState) {
+            const panel = document.getElementById('navQuickSelectPanel');
+            const hamburger = document.getElementById('navHamburger');
+            if (!panel || !hamburger) return;
+            const isHidden = panel.classList.contains('hidden');
+            const shouldOpen = typeof forceState === 'boolean' ? forceState : isHidden;
+            panel.classList.toggle('hidden', !shouldOpen);
+            panel.style.display = shouldOpen ? 'block' : 'none';
+            panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+            hamburger.textContent = shouldOpen ? '\u2715' : '\u2630';
+            hamburger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            if (shouldOpen) syncNavQuickSelect();
+        }
+
+        function updateFooterAdminState() {
+            const form = document.getElementById('footerAdminLoginForm');
+            const session = document.getElementById('footerAdminSession');
+            const name = document.getElementById('footerAdminName');
+            const message = document.getElementById('footerAdminLoginMsg');
+            const username = sessionStorage.getItem('adminUsername') || '';
+            if (form) form.style.display = isAdminLoggedIn() ? 'none' : 'grid';
+            if (session) {
+                session.style.display = isAdminLoggedIn() ? 'block' : 'none';
+                session.classList.toggle('hidden', !isAdminLoggedIn());
+            }
+            if (name) name.textContent = username;
+            if (message && !isAdminLoggedIn()) {
+                message.style.color = '#ffb366';
+                message.textContent = '';
+            }
         }
 
         function showPage(id) {
@@ -174,6 +253,7 @@
                     if (typeof renderCountdownTimer === 'function') renderCountdownTimer();
                 }
             }
+            syncNavQuickSelect(id);
         }
 
         var lastHeaderScrollY = 0;
@@ -186,7 +266,10 @@
             if (!siteHeader) return;
             var changed = siteHeader.classList.contains('scrolled') !== shouldScroll;
             siteHeader.classList.toggle('scrolled', shouldScroll);
-            if (changed) toggleLoginDropdown(false);
+            if (changed) {
+                toggleLoginDropdown(false);
+                setNavQuickSelectOpen(false);
+            }
         }
 
         function updateHeaderScrollState() {
@@ -429,13 +512,54 @@
             }
         }
 
+        function normalizeCashAppLink(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            let normalized = raw;
+
+            if (!/^https?:\/\//i.test(normalized)) {
+                if (/^cash\.app\/\$/i.test(normalized)) {
+                    normalized = 'https://' + normalized;
+                } else if (/^\$[A-Za-z0-9_]+$/.test(normalized)) {
+                    normalized = 'https://cash.app/' + normalized;
+                } else if (/^[A-Za-z0-9_]+$/.test(normalized)) {
+                    normalized = 'https://cash.app/$' + normalized;
+                } else {
+                    return '';
+                }
+            }
+
+            try {
+                const parsed = new URL(normalized);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (host !== 'cash.app' && host !== 'www.cash.app') return '';
+                return parsed.href;
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function setSafeExternalHref(linkEl, url, allowedHosts) {
+            if (!linkEl) return false;
+            try {
+                const parsed = new URL(url);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (!/^https?:$/i.test(parsed.protocol)) return false;
+                if (allowedHosts && allowedHosts.length && allowedHosts.indexOf(host) === -1) return false;
+                linkEl.href = parsed.href;
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
         function loadPaymentLinks() {
             try {
                 const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
                 const normalizedLinks = {
                     team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
                     freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                    cashApp: (saved.cashApp || '').trim(),
+                    cashApp: normalizeCashAppLink(saved.cashApp || ''),
                     venmo: normalizeVenmoLink(saved.venmo || '')
                 };
                 PAYMENT_LINKS = {
@@ -464,23 +588,25 @@
             var hasItem = false;
             if (PAYMENT_LINKS.cashApp) {
                 var aCA = document.createElement('a');
-                aCA.href = PAYMENT_LINKS.cashApp;
-                aCA.target = '_blank';
-                aCA.rel = 'noopener noreferrer';
-                aCA.textContent = '$ CashApp';
-                aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
-                list.appendChild(aCA);
-                hasItem = true;
+                if (setSafeExternalHref(aCA, PAYMENT_LINKS.cashApp, ['cash.app', 'www.cash.app'])) {
+                    aCA.target = '_blank';
+                    aCA.rel = 'noopener noreferrer';
+                    aCA.textContent = '$ CashApp';
+                    aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                    list.appendChild(aCA);
+                    hasItem = true;
+                }
             }
             if (PAYMENT_LINKS.venmo) {
                 var aV = document.createElement('a');
-                aV.href = PAYMENT_LINKS.venmo;
-                aV.target = '_blank';
-                aV.rel = 'noopener noreferrer';
-                aV.textContent = '@ Venmo';
-                aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
-                list.appendChild(aV);
-                hasItem = true;
+                if (setSafeExternalHref(aV, PAYMENT_LINKS.venmo, ['venmo.com', 'www.venmo.com'])) {
+                    aV.target = '_blank';
+                    aV.rel = 'noopener noreferrer';
+                    aV.textContent = '@ Venmo';
+                    aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                    list.appendChild(aV);
+                    hasItem = true;
+                }
             }
             panel.style.display = hasItem ? 'block' : 'none';
         }
@@ -512,7 +638,7 @@
             PAYMENT_LINKS = {
                 team: (links.team || DEFAULT_PAYPAL_URL).trim(),
                 freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                cashApp: (links.cashApp || '').trim(),
+                cashApp: normalizeCashAppLink(links.cashApp || ''),
                 venmo: normalizeVenmoLink(links.venmo || '')
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
@@ -839,8 +965,6 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            // Always remove any existing hamburger (e.g. one restored from saved HTML that
-            // lacks a click listener because data-nav-init was persisted without the handler).
             var existing = document.getElementById('navHamburger');
             if (existing) existing.remove();
             var hamburger = document.createElement('button');
@@ -851,13 +975,10 @@
             hamburger.textContent = '\u2630'; // ☰
             nav.appendChild(hamburger);
             hamburger.addEventListener('click', function() {
-                var navLinks = document.querySelector('header .nav-links');
-                if (navLinks) {
-                    var isOpen = navLinks.classList.toggle('nav-open');
-                    hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
-                    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                }
+                setNavQuickSelectOpen();
             });
+            updateNavQuickSelectOptions();
+            setNavQuickSelectOpen(false);
         }
 
         async function restoreSiteContent() {
@@ -890,6 +1011,21 @@
             // 3. Hide admin header & all its buttons
             var adminHdr = document.getElementById('adminHeader');
             if (adminHdr) { adminHdr.style.display = 'none'; adminHdr.classList.add('hidden'); }
+            var navPanel = document.getElementById('navQuickSelectPanel');
+            if (navPanel) {
+                navPanel.classList.add('hidden');
+                navPanel.style.display = 'none';
+                navPanel.setAttribute('aria-hidden', 'true');
+            }
+            var footerAdminForm = document.getElementById('footerAdminLoginForm');
+            if (footerAdminForm) footerAdminForm.style.display = 'grid';
+            var footerAdminSession = document.getElementById('footerAdminSession');
+            if (footerAdminSession) {
+                footerAdminSession.style.display = 'none';
+                footerAdminSession.classList.add('hidden');
+            }
+            var footerAdminMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerAdminMsg) footerAdminMsg.textContent = '';
 
             // 4. Hide admin-only navigation links
             document.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.remove('visible'); });
@@ -951,6 +1087,21 @@
                 // Force admin header hidden in saved state
                 var ahClone = clone.querySelector('#adminHeader');
                 if (ahClone) { ahClone.style.display = 'none'; ahClone.classList.add('hidden'); }
+                var navPanelClone = clone.querySelector('#navQuickSelectPanel');
+                if (navPanelClone) {
+                    navPanelClone.style.display = 'none';
+                    navPanelClone.classList.add('hidden');
+                    navPanelClone.setAttribute('aria-hidden', 'true');
+                }
+                var footerFormClone = clone.querySelector('#footerAdminLoginForm');
+                if (footerFormClone) footerFormClone.style.display = 'grid';
+                var footerSessionClone = clone.querySelector('#footerAdminSession');
+                if (footerSessionClone) {
+                    footerSessionClone.style.display = 'none';
+                    footerSessionClone.classList.add('hidden');
+                }
+                var footerMsgClone = clone.querySelector('#footerAdminLoginMsg');
+                if (footerMsgClone) footerMsgClone.textContent = '';
                 // Force admin-only sections hidden in saved state
                 var aoClone = clone.querySelector('#adminOnly');
                 if (aoClone) aoClone.classList.remove('visible');
@@ -1247,10 +1398,16 @@
             if (linkWrap && linkEl) {
                 if ((method === 'cashapp' || method === 'venmo') && url) {
                     if (infoEl) infoEl.style.display = 'none';
-                    linkEl.href = url;
-                    linkEl.textContent = label;
-                    linkEl.style.display = 'inline';
-                    linkWrap.style.display = 'block';
+                    var allowedHosts = method === 'cashapp'
+                        ? ['cash.app', 'www.cash.app']
+                        : ['venmo.com', 'www.venmo.com'];
+                    if (setSafeExternalHref(linkEl, url, allowedHosts)) {
+                        linkEl.textContent = label;
+                        linkEl.style.display = 'inline';
+                        linkWrap.style.display = 'block';
+                    } else {
+                        linkWrap.style.display = 'none';
+                    }
                 } else {
                     linkWrap.style.display = 'none';
                 }
@@ -1284,19 +1441,42 @@
                     : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
                 const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
                 const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
-                tr.innerHTML = `
-                    <td>${p.name || ''}</td>
-                    <td>${p.email || ''}</td>
-                    <td>${label}</td>
-                    <td>${details}</td>
-                    <td>${payInfo || 'N/A'}</td>
-                    <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
-                    <td>${submitted}</td>
-                    <td>
-                        <button data-action="approvePayment" data-idx="${idx}" class="cta-button small" style="margin-right:6px;">Approve</button>
-                        <button data-action="denyPayment" data-idx="${idx}" class="cta-button small" style="background:#777;">Deny</button>
-                    </td>
-                `;
+                const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
+
+                function appendCell(text, styleText) {
+                    const cell = document.createElement('td');
+                    cell.textContent = text;
+                    if (styleText) cell.style.cssText = styleText;
+                    tr.appendChild(cell);
+                    return cell;
+                }
+
+                appendCell(p.name || '');
+                appendCell(p.email || '');
+                appendCell(label);
+                appendCell(details);
+                appendCell(payInfo || 'N/A');
+                appendCell(p.status || 'pending', 'font-weight:700; color:' + (p.status === 'approved' ? '#2e7d32' : '#e65100') + ';');
+                appendCell(submitted);
+
+                const actionsCell = document.createElement('td');
+                const approveBtn = document.createElement('button');
+                approveBtn.dataset.action = 'approvePayment';
+                approveBtn.dataset.idx = String(idx);
+                approveBtn.className = 'cta-button small';
+                approveBtn.style.marginRight = '6px';
+                approveBtn.textContent = 'Approve';
+                actionsCell.appendChild(approveBtn);
+
+                const denyBtn = document.createElement('button');
+                denyBtn.dataset.action = 'denyPayment';
+                denyBtn.dataset.idx = String(idx);
+                denyBtn.className = 'cta-button small';
+                denyBtn.style.background = '#777';
+                denyBtn.textContent = 'Deny';
+                actionsCell.appendChild(denyBtn);
+
+                tr.appendChild(actionsCell);
                 tbody.appendChild(tr);
             });
 
@@ -1338,7 +1518,6 @@
             renderDocumentsList();
             // admin
             if (sessionStorage.getItem('adminLoggedIn') === 'true') {
-                document.getElementById('adminHeader').style.display = 'block';
                 const stored = sessionStorage.getItem('adminUsername');
                 const adminNameEl = document.getElementById('adminNameDisplay');
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
@@ -1392,6 +1571,8 @@
             } else {
                 document.getElementById('memberHeader').style.display = 'none';
             }
+            updateFooterAdminState();
+            updateNavQuickSelectOptions(window.location.hash ? window.location.hash.substring(1) : 'home');
             ensureNavHamburger();
             updateHeaderScrollState();
         });
@@ -1516,27 +1697,8 @@
                 return;
             }
 
-            if (e.target.closest('#loginMenuBtn')) {
+            if (e.target.closest('#navQuickSelectPanel') || e.target.closest('#navHamburger')) {
                 e.stopPropagation();
-                toggleLoginDropdown();
-                return;
-            }
-
-            if (e.target.closest('#loginDropdown')) {
-                e.stopPropagation();
-                if (e.target.closest('#loginDropdownAdmin')) {
-                    e.preventDefault();
-                    // Close nav overlay if open (hamburger menu)
-                    var navLinks = document.querySelector('header .nav-links');
-                    if (navLinks) navLinks.classList.remove('nav-open');
-                    var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) {
-                        hamburger.textContent = '\u2630';
-                        hamburger.setAttribute('aria-expanded', 'false');
-                    }
-                    showAdminLoginModal();
-                    toggleLoginDropdown(false);
-                }
                 return;
             }
 
@@ -1546,21 +1708,45 @@
                 const id = href.substring(1);
                 if (id) {
                     e.preventDefault();
-                    // Close mobile/scrolled nav overlay if open
-                    var navLinks = document.querySelector('header .nav-links');
-                    if (navLinks) navLinks.classList.remove('nav-open');
-                    var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) {
-                        hamburger.textContent = '\u2630';
-                        hamburger.setAttribute('aria-expanded', 'false');
-                    }
+                    setNavQuickSelectOpen(false);
                     showPage(id);
                     return;
                 }
             }
 
             toggleLoginDropdown(false);
+            setNavQuickSelectOpen(false);
         });
+        document.getElementById('navQuickSelect')?.addEventListener('change', function(e) {
+            const targetPage = e.target.value;
+            if (!targetPage) return;
+            setNavQuickSelectOpen(false);
+            showPage(targetPage);
+        });
+        document.getElementById('footerAdminLoginForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('footerAdminUsername').value.trim();
+            const password = document.getElementById('footerAdminPassword').value;
+            const formMessage = document.getElementById('footerAdminLoginMsg');
+            if (formMessage) {
+                formMessage.style.color = '#ff6f61';
+                formMessage.textContent = '';
+            }
+            const adminAccount = getMatchingAdminAccount(username, password);
+            if (!adminAccount) {
+                if (formMessage) formMessage.textContent = 'Invalid username or password';
+                return;
+            }
+            sessionStorage.setItem('adminLoggedIn', 'true');
+            sessionStorage.setItem('adminUsername', adminAccount.username);
+            if (formMessage) {
+                formMessage.style.color = '#7dffb3';
+                formMessage.textContent = 'Signed in successfully';
+            }
+            document.getElementById('footerAdminPassword').value = '';
+            showAdminView();
+        });
+        document.getElementById('footerAdminLogoutBtn')?.addEventListener('click', logout);
 
         document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
@@ -1763,6 +1949,7 @@
                 showPage('myProfile');
                 renderMyProfile();
             }
+            updateNavQuickSelectOptions();
         }
         function memberLogout() {
             sessionStorage.removeItem('memberLoggedIn');
@@ -1771,6 +1958,7 @@
             document.getElementById('memberHeader').style.display = 'none';
             const navProfile = document.getElementById('navProfile');
             if (navProfile) navProfile.classList.remove('visible');
+            updateNavQuickSelectOptions('home');
             showPage('home');
         }
 
@@ -3341,17 +3529,15 @@
         });
 
         function showAdminView() {
-            // notify user explicitly
-            alert('Successfully logged in as admin');
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminHeader').style.display = 'block';
             ensureAdminBrandingUI();
             bindAdminBrandingControls();
             // display username if available
             const adminNameEl = document.getElementById('adminNameDisplay');
             const stored = sessionStorage.getItem('adminUsername');
             if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+            updateFooterAdminState();
             document.getElementById('adminOnly').classList.add('visible');
             // show admin nav items
             document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
@@ -3373,6 +3559,7 @@
             if (galleryAdminPanel) galleryAdminPanel.classList.add('visible');
             var playoffAdminPanel = document.getElementById('playoffAdminPanel');
             if (playoffAdminPanel) playoffAdminPanel.classList.add('visible');
+            updateNavQuickSelectOptions('documentsAdmin');
             showPage('documentsAdmin');
             persistSiteContent();
         }
@@ -3383,6 +3570,7 @@
             sessionStorage.removeItem('adminUsername');
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
+            updateFooterAdminState();
             var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
             if (scheduleAdminPanel) scheduleAdminPanel.classList.remove('visible');
             renderLeagueAdminTables && renderLeagueAdminTables();
@@ -3394,6 +3582,16 @@
             document.getElementById('loginError').textContent = '';
             document.getElementById('adminPickStep').style.display = 'block';
             document.getElementById('adminPasswordStep').style.display = 'none';
+            var footerMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerMsg) {
+                footerMsg.style.color = '#ffb366';
+                footerMsg.textContent = '';
+            }
+            var footerUser = document.getElementById('footerAdminUsername');
+            if (footerUser) footerUser.value = '';
+            var footerPw = document.getElementById('footerAdminPassword');
+            if (footerPw) footerPw.value = '';
+            updateNavQuickSelectOptions('home');
             showPage('home');
         }
 

@@ -160,12 +160,7 @@
     <div id="adminHeader" class="admin-header hidden" style="display: none;" data-no-admin-edit="true" contenteditable="false">
         <span style="font-weight:bold; margin-right:12px;">Admin Editing Mode</span>
         <span id="adminNameDisplay" style="font-weight:bold; margin-right:12px;"></span>
-        <button id="changeLogoBtn" class="cta-button small" style="margin-right:8px;">Change Logo</button>
-        <input id="logoUploadInput" type="file" accept="image/*" style="display:none;">
-        <button id="togglePageEditBtn" onclick="togglePageEdit()" class="cta-button small" style="margin-right:8px;">Disable Editing</button>
-        <button id="saveChangesBtn" onclick="saveAllChanges()" style="background:#4caf50; color:white; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:8px;">💾 Save Changes</button>
         <span id="saveMsg" style="color:#fff; margin-right:8px; font-size:0.9rem;"></span>
-        <button onclick="logout()">Logout</button>
     </div>
 
     <!-- Member Header (Shown to logged-in members) -->
@@ -195,20 +190,15 @@
                     <li role="none"><a href="#documentsPublic" role="menuitem">Documents</a></li>
                     <li role="none"><a href="#faq" role="menuitem">FAQ</a></li>
                     <li role="none"><a href="#contact" role="menuitem">Contact</a></li>
-                    <li role="none" class="admin-nav-item" id="navAdmin"><a href="#documentsAdmin" role="menuitem">Admin Dashboard</a></li>
                     <li role="none" class="member-nav-item" id="navProfile"><a href="#myProfile" role="menuitem">My Profile</a></li>
                     <li role="none" class="dark-mode-toggle-item">
                         <button id="darkModeToggle" class="dark-mode-btn" aria-label="Toggle light mode" title="Toggle light/dark mode">🌙</button>
                     </li>
-                    <li role="none" class="login-menu-item">
-                        <div class="login-menu">
-                            <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
-                            <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
-                                <button id="loginDropdownAdmin" class="dropdown-item" role="menuitem">Admin Login</button>
-                            </div>
-                        </div>
-                    </li>
                 </ul>
+                <div id="navQuickSelectPanel" class="nav-quick-select hidden" data-no-admin-edit="true" contenteditable="false" aria-hidden="true">
+                    <label for="navQuickSelect">Choose a page</label>
+                    <select id="navQuickSelect" aria-label="Choose a page"></select>
+                </div>
             </nav>
         </div>
     </header>
@@ -1153,6 +1143,19 @@
                         <p style="font-size:0.88rem; color:#888; margin-bottom:4px;">📧 865eliteflagfootball@gmail.com</p>
                         <p style="font-size:0.88rem; color:#888;">📍 John Tarleton Park, Knoxville, TN 37919</p>
                     </div>
+                </div>
+                <div class="footer-admin" data-no-admin-edit="true" contenteditable="false">
+                    <h4>Admin Sign In</h4>
+                    <form id="footerAdminLoginForm" class="footer-admin-form">
+                        <input id="footerAdminUsername" type="text" placeholder="Username" autocomplete="username" required>
+                        <input id="footerAdminPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+                        <button type="submit" class="cta-button small">Sign In</button>
+                    </form>
+                    <div id="footerAdminSession" class="footer-admin-session hidden" style="display:none;">
+                        <p>Signed in as <strong id="footerAdminName"></strong></p>
+                        <button id="footerAdminLogoutBtn" type="button" class="cta-button small">Sign Out</button>
+                    </div>
+                    <p id="footerAdminLoginMsg" class="footer-admin-message"></p>
                 </div>
             </div>
             <div class="footer-bottom">
