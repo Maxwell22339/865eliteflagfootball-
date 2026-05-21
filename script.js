@@ -208,11 +208,24 @@
         function resetToPublicView(activePageId) {
             clearAdminSession();
             lockdownForPublic();
-            renderAllStats && renderAllStats();
+            if (renderAllStats) renderAllStats();
             updateFooterAdminState();
             updateNavQuickSelectOptions(activePageId || (window.location.hash ? window.location.hash.substring(1) : 'home'));
             ensureNavHamburger();
             updateHeaderScrollState();
+        }
+
+        function showAdminAuthNotice(message) {
+            const footerMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerMsg) {
+                footerMsg.style.color = '#ffb366';
+                footerMsg.textContent = message || '';
+            }
+            const modalMsg = document.getElementById('loginError');
+            if (modalMsg) {
+                modalMsg.style.color = '#ff6f61';
+                modalMsg.textContent = message || '';
+            }
         }
 
         function isMemberLoggedIn() {
@@ -1638,6 +1651,7 @@
                 const verification = await verifyGitHubAdmin(stored || '', token);
                 if (!verification.ok) {
                     resetToPublicView(window.location.hash ? window.location.hash.substring(1) : 'home');
+                    showAdminAuthNotice('Admin session expired or permissions changed. Please sign in again.');
                     return;
                 }
                 sessionStorage.setItem('adminUsername', verification.username);
