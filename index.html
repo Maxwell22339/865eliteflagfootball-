@@ -2389,9 +2389,9 @@
             if (!/^https?:\/\//i.test(normalized)) {
                 if (/^venmo\.com\//i.test(normalized)) {
                     normalized = 'https://' + normalized;
-                } else if (/^u\/[A-Za-z0-9_-]+$/i.test(normalized)) {
+                } else if (/^u\/[A-Za-z0-9_-]+$/.test(normalized)) {
                     normalized = 'https://venmo.com/' + normalized;
-                } else if (/^[A-Za-z0-9_-]+$/i.test(normalized)) {
+                } else if (/^[A-Za-z0-9_-]+$/.test(normalized)) {
                     normalized = 'https://venmo.com/u/' + normalized;
                 } else {
                     return '';
