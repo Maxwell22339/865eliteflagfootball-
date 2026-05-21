@@ -951,6 +951,12 @@
             background: rgba(255, 111, 0, 0.18);
         }
 
+        .standings-logo-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .stats-team-admin-editor {
             display: flex;
             flex-direction: column;
@@ -1445,6 +1451,7 @@
             <table class="schedule-table" id="leagueStandingsTable">
                 <thead>
                     <tr>
+                        <th>Logo</th>
                         <th>Team</th>
                         <th>Wins</th>
                         <th>Losses</th>
@@ -1454,6 +1461,11 @@
                 </thead>
                 <tbody id="leagueStandingsBody">
                     <tr>
+                        <td>
+                            <div class="standings-logo-cell">
+                                <div class="stats-team-logo-placeholder">86</div>
+                            </div>
+                        </td>
                         <td>865 ELITE FLAG FOOTBALL</td>
                         <td>0</td>
                         <td>0</td>
@@ -4614,19 +4626,31 @@
                 const cells = Array.from(tr.querySelectorAll('td')).map(function(td) {
                     return td.innerText.trim();
                 });
-                if (cells.length < 5) return null;
+                const firstCell = tr.querySelector('td:first-child');
+                const hasLogoColumn = !!(firstCell && firstCell.querySelector('.standings-logo-cell, .stats-team-logo, .stats-team-logo-placeholder, img'));
+                const offset = hasLogoColumn ? 1 : 0;
+                if (cells.length < (5 + offset)) return null;
                 return {
-                    team: cells[0] || '',
-                    wins: cells[1] || '',
-                    losses: cells[2] || '',
-                    pointsScored: cells[3] || '',
-                    pointsAgainst: cells[4] || ''
+                    team: cells[0 + offset] || '',
+                    wins: cells[1 + offset] || '',
+                    losses: cells[2 + offset] || '',
+                    pointsScored: cells[3 + offset] || '',
+                    pointsAgainst: cells[4 + offset] || ''
                 };
             }).filter(function(row) {
                 return row && Object.keys(row).some(function(key) { return row[key]; });
             });
             saveLeagueStandings(rows);
             renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows, 'standings');
+        }
+
+        function renderStandingsTeamLogo(teamName) {
+            var safeName = escapeHtml(teamName || 'Team');
+            var logo = getStatsTeamLogo(teamName);
+            if (logo) {
+                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">';
+            }
+            return '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
         }
 
         function syncLeagueScheduleFromPublicTable() {
@@ -4663,11 +4687,12 @@
             if (!tbody) return;
             const rows = loadLeagueStandings();
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
                 return;
             }
             tbody.innerHTML = rows.map(function(row) {
                 return '<tr>' +
+                    '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
                     '<td>' + escapeHtml(row.wins || '0') + '</td>' +
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
