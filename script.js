@@ -1,0 +1,3713 @@
+        // --- Helper: compress image data URL to reduce localStorage usage ---
+        function compressImageDataUrl(dataUrl, maxWidth, maxHeight, quality) {
+            maxWidth = maxWidth || 800;
+            maxHeight = maxHeight || 800;
+            quality = quality || 0.7;
+            return new Promise(function(resolve) {
+                var img = new Image();
+                img.onload = function() {
+                    var w = img.width, h = img.height;
+                    if (w > maxWidth || h > maxHeight) {
+                        var ratio = Math.min(maxWidth / w, maxHeight / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    var canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = function() { resolve(dataUrl); };
+                img.src = dataUrl;
+            });
+        }
+
+        // --- Helper: safe localStorage setter with quota handling ---
+        function safeLocalStorageSet(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    alert('Storage is full. Please clear some data (old documents or images) to free up space.');
+                } else {
+                    alert('Unable to save data to browser storage. You may be in private browsing mode.');
+                }
+                return false;
+            }
+        }
+
+        // --- IndexedDB helpers (for large binary items: images, documents, page HTML) ---
+        var _idbPromise = null;
+        function openIDB() {
+            if (_idbPromise) return _idbPromise;
+            _idbPromise = new Promise(function(resolve, reject) {
+                var req = indexedDB.open('eliteFF_db', 1);
+                req.onupgradeneeded = function(e) { e.target.result.createObjectStore('blobs'); };
+                req.onsuccess = function(e) { resolve(e.target.result); };
+                req.onerror = function(e) { _idbPromise = null; reject(e.target.error); };
+            });
+            return _idbPromise;
+        }
+        function idbGet(key) {
+            return openIDB().then(function(db) {
+                return new Promise(function(resolve) {
+                    var req = db.transaction('blobs', 'readonly').objectStore('blobs').get(key);
+                    req.onsuccess = function(e) { resolve(e.target.result); };
+                    req.onerror = function() { resolve(undefined); };
+                });
+            }).catch(function() { return undefined; });
+        }
+        function idbSet(key, value) {
+            return openIDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction('blobs', 'readwrite').objectStore('blobs').put(value, key);
+                    req.onsuccess = function() { resolve(true); };
+                    req.onerror = function(e) { reject(e.target.error); };
+                });
+            }).catch(function() { return false; });
+        }
+
+        // --- One-time migration: move large items from localStorage to IndexedDB ---
+        function migrateLocalStorageToIDB() {
+            if (localStorage.getItem('idb_migrated_v1')) return Promise.resolve();
+            var keys = [SITE_LOGO_KEY, HOME_HERO_BACKGROUND_KEY, PAGE_CONTENT_KEY, 'documents'];
+            var promises = keys.map(function(k) {
+                try {
+                    var val = localStorage.getItem(k);
+                    if (!val) return Promise.resolve();
+                    var parsed = k === 'documents' ? JSON.parse(val) : val;
+                    return idbSet(k, parsed).then(function() { localStorage.removeItem(k); });
+                } catch (e) { return Promise.resolve(); }
+            });
+            return Promise.all(promises).then(function() {
+                try { localStorage.setItem('idb_migrated_v1', '1'); } catch (e) {}
+            });
+        }
+
+        // --- Admin credentials ---
+        const ADMIN_ACCOUNTS = [
+            { username: 'TFick123', password: 'IowaTennessee' },
+            { username: 'Maxwell22339', password: 'Daush+1115' }
+        ];
+        const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
+        const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
+        const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
+        const CTA_BUTTON_KEY = 'heroCtaButton_v1';
+        const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
+        const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
+        const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
+        const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
+        let PAYMENT_LINKS = {
+            team: DEFAULT_PAYPAL_URL,
+            freeAgent: DEFAULT_PAYPAL_URL,
+            cashApp: '',
+            venmo: ''
+        };
+        let PAYMENT_NOTIFICATION_SETTINGS = {
+            adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
+            publicKey: '',
+            serviceId: '',
+            templateId: ''
+        };
+
+        // ---- Page navigation (SPA-style) ----
+        const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
+            'documentsAdmin','documentsPublic','guestArea','myProfile','contact'];
+
+        function isAdminLoggedIn() {
+            return sessionStorage.getItem('adminLoggedIn') === 'true';
+        }
+
+        function getMatchingAdminAccount(username, password) {
+            return ADMIN_ACCOUNTS.find(function(account) {
+                return account.username === username && account.password === password;
+            }) || null;
+        }
+
+        function isMemberLoggedIn() {
+            return sessionStorage.getItem('memberLoggedIn') === 'true';
+        }
+
+        function canAccessPage(id) {
+            const adminOnlyPages = ['documentsAdmin'];
+            const memberOnlyPages = ['myProfile', 'guestArea'];
+
+            if (adminOnlyPages.indexOf(id) !== -1) {
+                return isAdminLoggedIn();
+            }
+
+            if (memberOnlyPages.indexOf(id) !== -1) {
+                return isMemberLoggedIn();
+            }
+
+            return true;
+        }
+
+        function showPage(id) {
+            if (id && id.startsWith('#')) id = id.substring(1);
+            if (ALL_PAGE_IDS.indexOf(id) === -1 || !canAccessPage(id)) {
+                id = 'home';
+            }
+            ALL_PAGE_IDS.forEach(function(pageId) {
+                var el = document.getElementById(pageId);
+                if (el) el.style.display = 'none';
+            });
+            var target = document.getElementById(id);
+            if (target) {
+                target.style.display = 'block';
+                window.scrollTo(0, 0);
+                if (history.pushState) history.pushState(null, '', '#' + id);
+                else window.location.hash = id;
+                updateHeaderScrollState();
+            }
+        }
+
+        var lastHeaderScrollY = 0;
+        var headerScrollTicking = false;
+
+        function setHeaderScrolledState(shouldScroll) {
+            const siteHeader = document.querySelector('header');
+            if (!siteHeader) return;
+            var changed = siteHeader.classList.contains('scrolled') !== shouldScroll;
+            siteHeader.classList.toggle('scrolled', shouldScroll);
+            if (changed) toggleLoginDropdown(false);
+        }
+
+        function updateHeaderScrollState() {
+            if (headerScrollTicking) return;
+            headerScrollTicking = true;
+
+            window.requestAnimationFrame(function() {
+                const currentY = Math.max(window.scrollY || 0, 0);
+                const delta = currentY - lastHeaderScrollY;
+                const siteHeader = document.querySelector('header');
+                if (!siteHeader) {
+                    headerScrollTicking = false;
+                    lastHeaderScrollY = currentY;
+                    return;
+                }
+
+                if (currentY <= 24) {
+                    setHeaderScrolledState(false);
+                } else if (delta > 6 && currentY > 90) {
+                    setHeaderScrolledState(true);
+                } else if (delta < -6) {
+                    setHeaderScrolledState(false);
+                }
+
+                lastHeaderScrollY = currentY;
+                headerScrollTicking = false;
+            });
+        }
+
+        function buildSeasonStatsAdminPanelMarkup() {
+            return '' +
+                '<div id="seasonStatsAdminPanel" class="admin-only" data-no-admin-edit="true" contenteditable="false" style="display:none; margin-top:24px;">' +
+                    '<div class="registration-form" style="max-width:820px;">' +
+                        '<h3 style="color:#ff6f00; margin-bottom:12px; text-align:center;">Season Archive Tools</h3>' +
+                        '<div class="registration-grid">' +
+                            '<div>' +
+                                '<label for="currentSeasonLabelInput">Current Season Label</label>' +
+                                '<input id="currentSeasonLabelInput" type="text" placeholder="2026 Season">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="margin-top:12px; text-align:center;">' +
+                            '<button type="button" class="cta-button small" onclick="saveCurrentSeasonLabel()">Save Season Label</button>' +
+                            '<button type="button" class="cta-button small" style="margin-left:8px;" onclick="archiveCurrentSeasonToRecap()">Archive Current Season To Recap</button>' +
+                        '</div>' +
+                        '<p id="seasonStatsAdminMsg" style="text-align:center; margin-top:10px;"></p>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        function buildSeasonRecapSectionMarkup() {
+            return '' +
+                '<section class="schedule" id="season-recap" data-no-admin-edit="true" contenteditable="false">' +
+                    '<div class="container">' +
+                        '<h2>Season Recap</h2>' +
+                        '<p id="seasonRecapLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>' +
+                        '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>' +
+                        '<div class="registration-form" style="max-width:720px; margin-bottom:20px;">' +
+                            '<label for="seasonRecapSelect">Choose Archived Season</label>' +
+                            '<select id="seasonRecapSelect"></select>' +
+                            '<p id="seasonRecapUpdatedNote" style="text-align:center; margin-top:10px; color:#bbb;"></p>' +
+                        '</div>' +
+                        '<h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.5rem; text-align:center;">Offensive Season Recap</h3>' +
+                        '<table class="schedule-table" id="recapOffensiveStatsTable">' +
+                            '<thead>' +
+                                '<tr>' +
+                                    '<th>Team</th>' +
+                                    '<th>Player Name</th>' +
+                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                '</tr>' +
+                            '</thead>' +
+                            '<tbody id="recapOffensiveStatsBody">' +
+                                '<tr><td colspan="11" style="text-align:center; color:#aaa;">No archived offensive stats yet.</td></tr>' +
+                            '</tbody>' +
+                        '</table>' +
+                        '<h3 style="color:#ff6f00; margin-top:2rem; margin-bottom:0.5rem; text-align:center;">Defensive Season Recap</h3>' +
+                        '<table class="schedule-table" id="recapDefensiveStatsTable">' +
+                            '<thead>' +
+                                '<tr>' +
+                                    '<th>Team</th>' +
+                                    '<th>Player Name</th>' +
+                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '<th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                '</tr>' +
+                            '</thead>' +
+                            '<tbody id="recapDefensiveStatsBody">' +
+                                '<tr><td colspan="7" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>' +
+                            '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                '</section>';
+        }
+
+        function ensureSeasonStatsAndRecapUI() {
+            var navLinks = document.querySelector('header .nav-links');
+            var statsLink = navLinks ? navLinks.querySelector('a[href="#player-stats"]') : null;
+            if (statsLink) statsLink.textContent = 'Season Stats';
+
+            if (navLinks && !navLinks.querySelector('a[href="#season-recap"]')) {
+                var recapNavItem = document.createElement('li');
+                recapNavItem.innerHTML = '<a href="#season-recap">Season Recap</a>';
+                var paymentsItem = navLinks.querySelector('a[href="#payments"]');
+                if (paymentsItem && paymentsItem.parentElement) navLinks.insertBefore(recapNavItem, paymentsItem.parentElement);
+                else navLinks.appendChild(recapNavItem);
+            }
+
+            var statsSection = document.getElementById('player-stats');
+            if (statsSection) {
+                var statsContainer = statsSection.querySelector('.container');
+                var statsHeading = statsContainer ? statsContainer.querySelector('h2') : null;
+                if (statsHeading) statsHeading.textContent = 'Season Stats';
+                if (statsHeading && !document.getElementById('currentSeasonLabelDisplay')) {
+                    statsHeading.insertAdjacentHTML('afterend', '<p id="currentSeasonLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>');
+                }
+                if (statsHeading && !document.getElementById('statsSortHint')) {
+                    var seasonLabelDisplay = document.getElementById('currentSeasonLabelDisplay');
+                    if (seasonLabelDisplay) seasonLabelDisplay.insertAdjacentHTML('afterend', '<p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
+                }
+                var offensiveTableHead = document.querySelector('#offensiveStatsTable thead tr');
+                if (offensiveTableHead) {
+                    offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+                }
+                var defensiveTableHead = document.querySelector('#defensiveStatsTable thead tr');
+                if (defensiveTableHead) {
+                    defensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+                }
+                if (statsContainer && !document.getElementById('seasonStatsAdminPanel')) {
+                    statsContainer.insertAdjacentHTML('beforeend', buildSeasonStatsAdminPanelMarkup());
+                }
+            }
+
+            if (!document.getElementById('season-recap') && statsSection) {
+                statsSection.insertAdjacentHTML('afterend', buildSeasonRecapSectionMarkup());
+            }
+
+            var recapTableHead = document.querySelector('#recapOffensiveStatsTable thead tr');
+            if (recapTableHead) {
+                recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+            }
+            var recapLabelDisplay = document.getElementById('seasonRecapLabelDisplay');
+            if (recapLabelDisplay && !document.getElementById('seasonRecapSortHint')) {
+                recapLabelDisplay.insertAdjacentHTML('afterend', '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
+            }
+            var recapDefensiveTableHead = document.querySelector('#recapDefensiveStatsTable thead tr');
+            if (recapDefensiveTableHead) {
+                recapDefensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+            }
+
+            var recapEmptyState = document.querySelector('#recapOffensiveStatsBody tr td[colspan]');
+            if (recapEmptyState && /No archived offensive stats yet\./i.test(recapEmptyState.textContent || '')) {
+                recapEmptyState.setAttribute('colspan', '11');
+            }
+        }
+
+        function ensureLeagueScheduleResultsUI() {
+            var publicScheduleHeader = document.querySelector('#leagueScheduleTable thead tr th:last-child');
+            if (publicScheduleHeader) publicScheduleHeader.textContent = 'Results';
+
+            var adminScheduleHeader = document.querySelector('#leagueScheduleAdminPanel thead tr th:nth-child(6)');
+            if (adminScheduleHeader) adminScheduleHeader.textContent = 'Results';
+
+            var publicScheduleRows = document.querySelectorAll('#leagueScheduleBody tr');
+            publicScheduleRows.forEach(function(row) {
+                var cells = row.querySelectorAll('td');
+                if (cells.length < 6) return;
+                var resultCell = cells[5];
+                if (resultCell.querySelector('.schedule-result-scoreboard') && resultCell.querySelector('.schedule-result-team')) return;
+
+                var matchup = cells[3].querySelector('.schedule-matchup');
+                var homeTeamName = matchup ? matchup.querySelector('.schedule-team-home .schedule-team-name') : null;
+                var awayTeamName = matchup ? matchup.querySelector('.schedule-team-away .schedule-team-name') : null;
+                var scoreText = (resultCell.textContent || '').trim() || '\u2014';
+                var homeTeam = homeTeamName ? homeTeamName.textContent.trim() : 'TBD';
+                var awayTeam = awayTeamName ? awayTeamName.textContent.trim() : 'TBD';
+                var parsedResult = parseScheduleResultText(scoreText);
+
+                resultCell.innerHTML = '<div class="schedule-result">' +
+                    '<div class="schedule-result-scoreboard">' +
+                        '<div class="schedule-result-score">' + escapeHtml(parsedResult.leftScore) + '</div>' +
+                        '<div class="schedule-result-separator">-</div>' +
+                        '<div class="schedule-result-score">' + escapeHtml(parsedResult.rightScore) + '</div>' +
+                    '</div>' +
+                    '<div class="schedule-result-teams">' +
+                        '<div class="schedule-result-team">' + escapeHtml(homeTeam) + '</div>' +
+                        '<div class="schedule-result-team">' + escapeHtml(awayTeam) + '</div>' +
+                    '</div>' +
+                '</div>';
+            });
+        }
+
+        window.addEventListener('popstate', function() {
+            var id = window.location.hash ? window.location.hash.substring(1) : 'home';
+            if (ALL_PAGE_IDS.indexOf(id) !== -1 && canAccessPage(id)) {
+                ALL_PAGE_IDS.forEach(function(pageId) {
+                    var el = document.getElementById(pageId);
+                    if (el) el.style.display = 'none';
+                });
+                var target = document.getElementById(id);
+                if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
+                updateHeaderScrollState();
+            } else {
+                showPage('home');
+            }
+        });
+
+        window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
+
+        function normalizeVenmoLink(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            let normalized = raw.replace(/^@/, '');
+
+            if (!/^https?:\/\//i.test(normalized)) {
+                if (/^venmo\.com\//i.test(normalized)) {
+                    normalized = 'https://' + normalized;
+                } else if (/^u\/[A-Za-z0-9_-]+$/.test(normalized)) {
+                    normalized = 'https://venmo.com/' + normalized;
+                } else if (/^[A-Za-z0-9_-]+$/.test(normalized)) {
+                    normalized = 'https://venmo.com/u/' + normalized;
+                } else {
+                    return '';
+                }
+            }
+
+            try {
+                const parsed = new URL(normalized);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (host !== 'venmo.com' && host !== 'www.venmo.com') return '';
+                return parsed.href;
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function loadPaymentLinks() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
+                const normalizedLinks = {
+                    team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
+                    freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
+                    cashApp: (saved.cashApp || '').trim(),
+                    venmo: normalizeVenmoLink(saved.venmo || '')
+                };
+                PAYMENT_LINKS = {
+                    team: normalizedLinks.team,
+                    freeAgent: normalizedLinks.freeAgent,
+                    cashApp: normalizedLinks.cashApp,
+                    venmo: normalizedLinks.venmo
+                };
+
+                if (saved.team !== normalizedLinks.team || saved.freeAgent !== normalizedLinks.freeAgent ||
+                        saved.cashApp !== normalizedLinks.cashApp || saved.venmo !== normalizedLinks.venmo) {
+                    localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
+                }
+            } catch (err) {
+                PAYMENT_LINKS = { team: DEFAULT_PAYPAL_URL, freeAgent: DEFAULT_PAYPAL_URL, cashApp: '', venmo: '' };
+                localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+            }
+        }
+
+        function renderPaymentMethodsInfo() {
+            loadPaymentLinks();
+            var panel = document.getElementById('paymentMethodsInfo');
+            var list = document.getElementById('paymentMethodsList');
+            if (!panel || !list) return;
+            list.innerHTML = '';
+            var hasItem = false;
+            if (PAYMENT_LINKS.cashApp) {
+                var aCA = document.createElement('a');
+                aCA.href = PAYMENT_LINKS.cashApp;
+                aCA.target = '_blank';
+                aCA.rel = 'noopener noreferrer';
+                aCA.textContent = '$ CashApp';
+                aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aCA);
+                hasItem = true;
+            }
+            if (PAYMENT_LINKS.venmo) {
+                var aV = document.createElement('a');
+                aV.href = PAYMENT_LINKS.venmo;
+                aV.target = '_blank';
+                aV.rel = 'noopener noreferrer';
+                aV.textContent = '@ Venmo';
+                aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(aV);
+                hasItem = true;
+            }
+            panel.style.display = hasItem ? 'block' : 'none';
+        }
+
+        function loadPaymentNotificationSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PAYMENT_NOTIFICATION_SETTINGS_KEY) || '{}');
+                PAYMENT_NOTIFICATION_SETTINGS = {
+                    adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
+                    publicKey: saved.publicKey || '',
+                    serviceId: saved.serviceId || '',
+                    templateId: saved.templateId || ''
+                };
+                if (saved.adminEmail !== DEFAULT_ADMIN_NOTIFICATION_EMAIL) {
+                    localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+                }
+            } catch (err) {
+                PAYMENT_NOTIFICATION_SETTINGS = {
+                    adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
+                    publicKey: '',
+                    serviceId: '',
+                    templateId: ''
+                };
+                localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+            }
+        }
+
+        function savePaymentLinks(links) {
+            PAYMENT_LINKS = {
+                team: (links.team || DEFAULT_PAYPAL_URL).trim(),
+                freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
+                cashApp: (links.cashApp || '').trim(),
+                venmo: normalizeVenmoLink(links.venmo || '')
+            };
+            localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+            renderPaymentMethodsInfo();
+        }
+
+        function savePaymentNotificationSettings(settings) {
+            PAYMENT_NOTIFICATION_SETTINGS = {
+                adminEmail: (settings.adminEmail || DEFAULT_ADMIN_NOTIFICATION_EMAIL).trim() || DEFAULT_ADMIN_NOTIFICATION_EMAIL,
+                publicKey: (settings.publicKey || '').trim(),
+                serviceId: (settings.serviceId || '').trim(),
+                templateId: (settings.templateId || '').trim()
+            };
+            localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+        }
+
+        async function sendAdminPaymentNotification(details) {
+            loadPaymentNotificationSettings();
+
+            if (!PAYMENT_NOTIFICATION_SETTINGS.adminEmail ||
+                !PAYMENT_NOTIFICATION_SETTINGS.publicKey ||
+                !PAYMENT_NOTIFICATION_SETTINGS.serviceId ||
+                !PAYMENT_NOTIFICATION_SETTINGS.templateId ||
+                !window.emailjs) {
+                return { sent: false, reason: 'not-configured' };
+            }
+
+            try {
+                await window.emailjs.send(
+                    PAYMENT_NOTIFICATION_SETTINGS.serviceId,
+                    PAYMENT_NOTIFICATION_SETTINGS.templateId,
+                    {
+                        to_email: PAYMENT_NOTIFICATION_SETTINGS.adminEmail,
+                        admin_email: PAYMENT_NOTIFICATION_SETTINGS.adminEmail,
+                        registration_type: details.type === 'team' ? 'Team Registration' : 'Free Agent',
+                        payer_name: details.name,
+                        payer_email: details.email,
+                        team_name: details.teamName || 'N/A',
+                        team_member_count: details.teamMembers || 'N/A',
+                        team_years: details.teamYears || 'N/A',
+                        player_position: details.offPosition ? ('Off: ' + details.offPosition + ' | Def: ' + (details.defPosition || 'N/A')) : (details.position || 'N/A'),
+                        football_experience: details.experience || 'N/A',
+                        payment_method: details.method ? ({ paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' }[details.method] || details.method) : 'N/A',
+                        payment_username: details.paymentUsername || 'N/A',
+                        paypal_link: details.paypalLink || 'Not configured',
+                        submitted_at: details.submittedAt,
+                        message: 'A new ' + (details.type === 'team' ? 'team registration' : 'free agent') + ' payment request was submitted.'
+                    },
+                    {
+                        publicKey: PAYMENT_NOTIFICATION_SETTINGS.publicKey
+                    }
+                );
+                return { sent: true };
+            } catch (err) {
+                return { sent: false, reason: 'send-failed', error: err };
+            }
+        }
+
+        function bindPayPalSettingsControls() {
+            const saveBtn = document.getElementById('savePayPalLinksBtn');
+            const teamInput = document.getElementById('paypalTeamLink');
+            const freeInput = document.getElementById('paypalFreeAgentLink');
+            const cashAppInput = document.getElementById('cashAppLink');
+            const venmoInput = document.getElementById('venmoLink');
+            const adminEmailInput = document.getElementById('adminNotificationEmail');
+            const publicKeyInput = document.getElementById('emailjsPublicKey');
+            const serviceIdInput = document.getElementById('emailjsServiceId');
+            const templateIdInput = document.getElementById('emailjsTemplateId');
+            const msg = document.getElementById('paypalSettingsMsg');
+            if (!saveBtn || !teamInput || !freeInput || !adminEmailInput || !publicKeyInput || !serviceIdInput || !templateIdInput || saveBtn.dataset.bound) return;
+            saveBtn.dataset.bound = 'true';
+            saveBtn.addEventListener('click', function() {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') {
+                    if (msg) {
+                        msg.style.color = '#e65100';
+                        msg.textContent = 'Admin login required to save payment settings.';
+                    }
+                    return;
+                }
+                savePaymentLinks({
+                    team: teamInput.value,
+                    freeAgent: freeInput.value,
+                    cashApp: cashAppInput ? cashAppInput.value : '',
+                    venmo: venmoInput ? venmoInput.value : ''
+                });
+                if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
+                savePaymentNotificationSettings({
+                    adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
+                    publicKey: publicKeyInput.value,
+                    serviceId: serviceIdInput.value,
+                    templateId: templateIdInput.value
+                });
+                if (msg) {
+                    msg.style.color = 'green';
+                    msg.textContent = 'Payment settings saved successfully.';
+                }
+                flushPersistSiteContent();
+                if (updatePaymentMethodLink) { updatePaymentMethodLink(); }
+            });
+        }
+
+        function renderPayPalSettings() {
+            loadPaymentLinks();
+            loadPaymentNotificationSettings();
+            const teamInput = document.getElementById('paypalTeamLink');
+            const freeInput = document.getElementById('paypalFreeAgentLink');
+            const cashAppInput = document.getElementById('cashAppLink');
+            const venmoInput = document.getElementById('venmoLink');
+            const adminEmailInput = document.getElementById('adminNotificationEmail');
+            const publicKeyInput = document.getElementById('emailjsPublicKey');
+            const serviceIdInput = document.getElementById('emailjsServiceId');
+            const templateIdInput = document.getElementById('emailjsTemplateId');
+            if (teamInput) teamInput.value = PAYMENT_LINKS.team || '';
+            if (freeInput) freeInput.value = PAYMENT_LINKS.freeAgent || '';
+            if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
+            if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
+            if (adminEmailInput) adminEmailInput.value = DEFAULT_ADMIN_NOTIFICATION_EMAIL;
+            if (publicKeyInput) publicKeyInput.value = PAYMENT_NOTIFICATION_SETTINGS.publicKey || '';
+            if (serviceIdInput) serviceIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.serviceId || '';
+            if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
+        }
+
+        async function applySavedBranding() {
+            try {
+                const savedLogo = await idbGet(SITE_LOGO_KEY);
+                if (savedLogo) {
+                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
+                    const icon = document.querySelector('link[rel="icon"]');
+                    if (icon) {
+                        icon.href = savedLogo;
+                        icon.type = 'image/png';
+                    }
+                }
+            } catch (err) {
+                // Ignore branding restore errors.
+            }
+        }
+
+        async function applySavedHeroBackground() {
+            try {
+                const savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
+                if (savedBackground) {
+                    document.documentElement.style.setProperty('--hero-photo', 'url("' + savedBackground + '")');
+                } else {
+                    document.documentElement.style.setProperty('--hero-photo', 'none');
+                }
+            } catch (err) {
+                document.documentElement.style.setProperty('--hero-photo', 'none');
+            }
+        }
+
+        function applySavedCtaButton() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(CTA_BUTTON_KEY) || '{}');
+                var btn = document.getElementById('heroCtaBtn');
+                if (btn) {
+                    if (saved.text) btn.textContent = saved.text;
+                    if (saved.link) btn.setAttribute('href', saved.link);
+                }
+            } catch (err) {
+                // Ignore CTA button restore errors.
+            }
+        }
+
+        function bindCtaButtonControls() {
+            var saveBtn = document.getElementById('saveCtaBtnSettings');
+            if (!saveBtn) return;
+            saveBtn.onclick = function() {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                var textInput = document.getElementById('ctaBtnTextInput');
+                var linkInput = document.getElementById('ctaBtnLinkInput');
+                var msgEl = document.getElementById('ctaBtnMsg');
+                var newText = (textInput && textInput.value.trim()) || 'Join Our League';
+                var newLink = (linkInput && linkInput.value.trim()) || '#payments';
+                var btn = document.getElementById('heroCtaBtn');
+                if (btn) {
+                    btn.textContent = newText;
+                    btn.setAttribute('href', newLink);
+                }
+                try {
+                    localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
+                } catch (err) {
+                    // Ignore storage write failures.
+                }
+                if (msgEl) {
+                    msgEl.style.color = '#4caf50';
+                    msgEl.textContent = 'Button saved!';
+                    setTimeout(function() { msgEl.textContent = ''; }, 2000);
+                }
+                flushPersistSiteContent();
+            };
+        }
+
+        function populateCtaButtonEditor() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(CTA_BUTTON_KEY) || '{}');
+                var btn = document.getElementById('heroCtaBtn');
+                var textInput = document.getElementById('ctaBtnTextInput');
+                var linkInput = document.getElementById('ctaBtnLinkInput');
+                if (textInput) textInput.value = saved.text || (btn ? btn.textContent.trim() : 'Join Our League');
+                if (linkInput) linkInput.value = saved.link || (btn ? btn.getAttribute('href') : '#payments');
+            } catch (err) {
+                // Ignore editor populate errors.
+            }
+        }
+
+        function bindAdminBrandingControls() {
+            const changeLogoBtn = document.getElementById('changeLogoBtn');
+            const logoUploadInput = document.getElementById('logoUploadInput');
+            const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
+            const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
+
+            if (changeLogoBtn) {
+                changeLogoBtn.onclick = function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    var currentLogoInput = document.getElementById('logoUploadInput');
+                    if (currentLogoInput) currentLogoInput.click();
+                };
+            }
+
+            if (logoUploadInput) {
+                logoUploadInput.onchange = function() {
+                    const file = this.files && this.files[0];
+                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const dataUrl = e.target && e.target.result;
+                        if (!dataUrl) return;
+                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(compressed) {
+                            document.querySelectorAll('.site-logo').forEach(img => { img.src = compressed; });
+                            const icon = document.querySelector('link[rel="icon"]');
+                            if (icon) {
+                                icon.href = compressed;
+                                icon.type = 'image/jpeg';
+                            }
+                            idbSet(SITE_LOGO_KEY, compressed);
+                            flushPersistSiteContent();
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                    this.value = '';
+                };
+            }
+
+            if (changeHeroBackgroundBtn) {
+                changeHeroBackgroundBtn.onclick = function() {
+                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    var currentBackgroundInput = document.getElementById('heroBackgroundUploadInput');
+                    if (currentBackgroundInput) currentBackgroundInput.click();
+                };
+            }
+
+            if (heroBackgroundUploadInput) {
+                heroBackgroundUploadInput.onchange = function() {
+                    const file = this.files && this.files[0];
+                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const dataUrl = e.target && e.target.result;
+                        if (!dataUrl) return;
+                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(compressed) {
+                            document.documentElement.style.setProperty('--hero-photo', 'url("' + compressed + '")');
+                            idbSet(HOME_HERO_BACKGROUND_KEY, compressed);
+                            flushPersistSiteContent();
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                    this.value = '';
+                };
+            }
+        }
+
+        function ensureAdminBrandingUI() {
+            const adminHeader = document.getElementById('adminHeader');
+            if (!adminHeader) return;
+
+            const toggleBtn = document.getElementById('togglePageEditBtn');
+
+            if (!document.getElementById('changeLogoBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeLogoBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Logo';
+                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
+                else adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('logoUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'logoUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                adminHeader.appendChild(input);
+            }
+
+            if (!document.getElementById('changeHeroBackgroundBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeHeroBackgroundBtn';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Home Background';
+                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
+                else adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('heroBackgroundUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'heroBackgroundUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                adminHeader.appendChild(input);
+            }
+        }
+
+        function enforceNonEditableAdminUI() {
+            document.querySelectorAll('[data-no-admin-edit="true"]').forEach(el => {
+                el.setAttribute('contenteditable', 'false');
+            });
+        }
+
+        function ensureNavHamburger() {
+            var nav = document.querySelector('header nav');
+            if (!nav) return;
+            var hamburger = document.getElementById('navHamburger');
+            if (!hamburger) {
+                hamburger = document.createElement('button');
+                hamburger.id = 'navHamburger';
+                hamburger.className = 'nav-hamburger';
+                hamburger.setAttribute('aria-label', 'Toggle navigation');
+                hamburger.textContent = '\u2630'; // ☰
+                nav.appendChild(hamburger);
+            }
+            if (!hamburger.dataset.navInit) {
+                hamburger.dataset.navInit = '1';
+                hamburger.addEventListener('click', function() {
+                    var navLinks = document.querySelector('header .nav-links');
+                    if (navLinks) {
+                        var isOpen = navLinks.classList.toggle('nav-open');
+                        hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
+                    }
+                });
+            }
+        }
+
+        async function restoreSiteContent() {
+            try {
+                const saved = await idbGet(PAGE_CONTENT_KEY);
+                const container = document.getElementById('siteContent');
+                if (saved && container) {
+                    container.innerHTML = saved;
+                }
+            } catch (err) {
+                // If storage is unavailable or corrupted, continue with default markup.
+            }
+            // Always run lockdown after restoring — cleans ALL admin artifacts
+            lockdownForPublic();
+        }
+
+        /* ── Public Lockdown ──────────────────────────────────────
+           Strips every editable/admin artifact from the page.
+           Called on every page load BEFORE any admin check runs,
+           so a non-admin visitor can never see editing controls. */
+        function lockdownForPublic() {
+            // 1. Remove ALL contenteditable attributes everywhere
+            document.querySelectorAll('[contenteditable]').forEach(function(el) {
+                el.removeAttribute('contenteditable');
+            });
+
+            // 2. Remove admin-editable class from body
+            document.body.classList.remove('admin-editable');
+
+            // 3. Hide admin header & all its buttons
+            var adminHdr = document.getElementById('adminHeader');
+            if (adminHdr) { adminHdr.style.display = 'none'; adminHdr.classList.add('hidden'); }
+
+            // 4. Hide admin-only navigation links
+            document.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.remove('visible'); });
+
+            // 5. Hide admin-only sections container
+            var adminOnly = document.getElementById('adminOnly');
+            if (adminOnly) adminOnly.classList.remove('visible');
+            var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+            if (scheduleAdminPanel) scheduleAdminPanel.classList.remove('visible');
+
+            // 6. Hide stats admin buttons (Add Player)
+            var offBtn = document.getElementById('offensiveStatsAdminBtns');
+            if (offBtn) offBtn.style.display = 'none';
+            var defBtn = document.getElementById('defensiveStatsAdminBtns');
+            if (defBtn) defBtn.style.display = 'none';
+
+            // 7. Remove admin-only "Remove" column headers from stats tables
+            document.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
+
+            // 8. Re-apply explicit non-editable on protected sections
+            ['standings','leagueSchedule','player-stats','season-recap','adminHeader','memberHeader','paypalSettings','leagueScheduleAdminPanel','seasonStatsAdminPanel'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) { el.setAttribute('contenteditable','false'); el.setAttribute('data-no-admin-edit','true'); }
+            });
+
+            // 9. Disable and hide admin-only form controls in case a saved state leaked them into view
+            document.querySelectorAll('#adminOnly input, #adminOnly select, #adminOnly textarea, #adminOnly button').forEach(function(el) {
+                el.disabled = true;
+            });
+            document.querySelectorAll('#leagueScheduleAdminPanel input, #leagueScheduleAdminPanel select, #leagueScheduleAdminPanel textarea, #leagueScheduleAdminPanel button').forEach(function(el) {
+                el.disabled = true;
+            });
+            document.querySelectorAll('#adminOnly .team-logo-input').forEach(function(el) {
+                el.style.display = 'none';
+            });
+        }
+
+        function persistSiteContent() {
+            try {
+                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                const container = document.getElementById('siteContent');
+                if (!container) return;
+                // Clone and strip ALL admin artifacts before saving
+                const clone = container.cloneNode(true);
+                // Remove contenteditable attributes
+                clone.querySelectorAll('[contenteditable]').forEach(function(el) { el.removeAttribute('contenteditable'); });
+                // Clear dynamically-rendered admin content so non-admin visitors won't see inputs
+                var offClone = clone.querySelector('#offensiveStatsBody');
+                if (offClone) offClone.innerHTML = '';
+                var defClone = clone.querySelector('#defensiveStatsBody');
+                if (defClone) defClone.innerHTML = '';
+                var recapOffClone = clone.querySelector('#recapOffensiveStatsBody');
+                if (recapOffClone) recapOffClone.innerHTML = '';
+                var recapDefClone = clone.querySelector('#recapDefensiveStatsBody');
+                if (recapDefClone) recapDefClone.innerHTML = '';
+                // Force admin header hidden in saved state
+                var ahClone = clone.querySelector('#adminHeader');
+                if (ahClone) { ahClone.style.display = 'none'; ahClone.classList.add('hidden'); }
+                // Force admin-only sections hidden in saved state
+                var aoClone = clone.querySelector('#adminOnly');
+                if (aoClone) aoClone.classList.remove('visible');
+                var schedulePanelClone = clone.querySelector('#leagueScheduleAdminPanel');
+                if (schedulePanelClone) schedulePanelClone.classList.remove('visible');
+                // Force admin nav items hidden
+                clone.querySelectorAll('.admin-nav-item').forEach(function(el) { el.classList.remove('visible'); });
+                // Hide stats admin buttons
+                var offBtnC = clone.querySelector('#offensiveStatsAdminBtns');
+                if (offBtnC) offBtnC.style.display = 'none';
+                var defBtnC = clone.querySelector('#defensiveStatsAdminBtns');
+                if (defBtnC) defBtnC.style.display = 'none';
+                var seasonPanelClone = clone.querySelector('#seasonStatsAdminPanel');
+                if (seasonPanelClone) seasonPanelClone.style.display = 'none';
+                // Remove admin-only column headers from stats
+                clone.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
+                // Reset dynamic payment methods panel — re-rendered on load
+                var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
+                if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
+                idbSet(PAGE_CONTENT_KEY, clone.innerHTML);
+            } catch (err) {
+                // Ignore storage write failures.
+            }
+        }
+
+        (async function() {
+            await migrateLocalStorageToIDB();
+            await restoreSiteContent();
+            ensureSeasonStatsAndRecapUI();
+            ensureLeagueScheduleResultsUI();
+            ensurePaymentSignupUI();
+            loadPaymentLinks();
+            renderPaymentMethodsInfo();
+            await applySavedBranding();
+            await applySavedHeroBackground();
+            applySavedCtaButton();
+            ensureAdminBrandingUI();
+            enforceNonEditableAdminUI();
+            ensureNavHamburger();
+            bindAdminBrandingControls();
+            bindPayPalSettingsControls();
+            bindCtaButtonControls();
+            renderPayPalSettings();
+
+            // Show the correct page immediately after restoring content
+            (function() {
+                var h = window.location.hash ? window.location.hash.substring(1) : 'home';
+                var restricted = ['myProfile','guestArea','documentsAdmin'];
+                var validPage = ALL_PAGE_IDS.indexOf(h) !== -1 && restricted.indexOf(h) === -1 ? h : 'home';
+                showPage(validPage);
+                updateHeaderScrollState();
+            })();
+        })();
+
+        // logo/image support removed — header shows text only.
+
+        // --- Members persistence (localStorage) ---
+        function loadMembers() {
+            try {
+                return JSON.parse(localStorage.getItem('members') || '[]');
+            } catch (err) {
+                return [];
+            }
+        }
+        function saveMembers(list) {
+            safeLocalStorageSet('members', JSON.stringify(list));
+            renderUsersTableForAdmin();
+        }
+
+        function ensurePaymentSignupUI() {
+            var coachingWrap = document.getElementById('teamCoachingStaffWrap');
+            if (coachingWrap) coachingWrap.remove();
+
+            var staleCoachingLabel = Array.from(document.querySelectorAll('#paymentForm label')).find(function(label) {
+                return /number of coaching staff/i.test(label.textContent || '');
+            });
+            if (staleCoachingLabel && staleCoachingLabel.parentElement) {
+                staleCoachingLabel.parentElement.remove();
+            }
+
+            // Remove any stale single position field from old versions (e.g. "Position Played", "What Position Do You Play?")
+            Array.from(document.querySelectorAll('#paymentForm label')).forEach(function(label) {
+                var text = label.textContent || '';
+                if (/position.?played|what position/i.test(text) && label.parentElement) {
+                    label.parentElement.remove();
+                }
+            });
+
+            // Ensure the positions row wrapper exists with both dropdowns side by side
+            var regGrid = document.querySelector('#paymentForm .registration-grid');
+            if (regGrid) {
+                var posRow = document.getElementById('freeAgentPositionsRow');
+                var offPosWrap = document.getElementById('freeAgentOffPosWrap');
+                var defPosWrap = document.getElementById('freeAgentDefPosWrap');
+
+                // If posRow is missing, create it
+                if (!posRow) {
+                    posRow = document.createElement('div');
+                    posRow.id = 'freeAgentPositionsRow';
+                    posRow.style.cssText = 'display: none; grid-column: 1 / -1;';
+                    var innerGrid = document.createElement('div');
+                    innerGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;';
+                    posRow.appendChild(innerGrid);
+                    var expWrap = document.getElementById('freeAgentExperienceWrap');
+                    if (expWrap && expWrap.parentElement === regGrid) {
+                        regGrid.insertBefore(posRow, expWrap);
+                    } else {
+                        regGrid.appendChild(posRow);
+                    }
+                }
+
+                var innerGrid = posRow.querySelector('div');
+                if (!innerGrid) {
+                    innerGrid = document.createElement('div');
+                    innerGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 12px;';
+                    posRow.appendChild(innerGrid);
+                }
+
+                // Move/create offensive position wrap inside posRow inner grid
+                if (!offPosWrap) {
+                    offPosWrap = document.createElement('div');
+                    offPosWrap.id = 'freeAgentOffPosWrap';
+                    offPosWrap.innerHTML =
+                        '<label for="payOffPosition">Offensive Position</label>' +
+                        '<select id="payOffPosition">' +
+                            '<option value="">Select offensive position</option>' +
+                            '<option value="QB">QB</option>' +
+                            '<option value="RB">RB</option>' +
+                            '<option value="WR">WR</option>' +
+                            '<option value="TE">TE</option>' +
+                            '<option value="C">C</option>' +
+                            '<option value="OL">OL</option>' +
+                            '<option value="ATH">ATH (Athlete)</option>' +
+                        '</select>';
+                    innerGrid.insertBefore(offPosWrap, innerGrid.firstChild);
+                } else if (offPosWrap.parentElement !== innerGrid) {
+                    // It exists but outside the posRow — move it inside
+                    offPosWrap.style.display = '';
+                    innerGrid.insertBefore(offPosWrap, innerGrid.firstChild);
+                }
+
+                // Move/create defensive position wrap inside posRow inner grid
+                if (!defPosWrap) {
+                    defPosWrap = document.createElement('div');
+                    defPosWrap.id = 'freeAgentDefPosWrap';
+                    defPosWrap.innerHTML =
+                        '<label for="payDefPosition">Defensive Position</label>' +
+                        '<select id="payDefPosition">' +
+                            '<option value="">Select defensive position</option>' +
+                            '<option value="DL">DL</option>' +
+                            '<option value="LB">LB</option>' +
+                            '<option value="CB">CB</option>' +
+                            '<option value="S">S</option>' +
+                            '<option value="DB">DB</option>' +
+                            '<option value="Rusher">Rusher</option>' +
+                        '</select>';
+                    innerGrid.appendChild(defPosWrap);
+                } else if (defPosWrap.parentElement !== innerGrid) {
+                    defPosWrap.style.display = '';
+                    innerGrid.appendChild(defPosWrap);
+                }
+            }
+
+            var teamMembersInput = document.getElementById('payTeamMembers');
+            if (teamMembersInput && teamMembersInput.tagName === 'SELECT') {
+                Array.from(teamMembersInput.options).forEach(function(option) {
+                    var value = Number(option.value || '0');
+                    if (value > 16) option.remove();
+                });
+                if (Number(teamMembersInput.value || '0') > 16) {
+                    teamMembersInput.value = '16';
+                }
+            }
+        }
+
+        function loadPaymentRequests() {
+            try { return JSON.parse(localStorage.getItem('paymentRequests') || '[]'); }
+            catch (err) { return []; }
+        }
+        function savePaymentRequests(list) {
+            localStorage.setItem('paymentRequests', JSON.stringify(list));
+            renderAdminPaymentRequests();
+        }
+
+        function updatePaymentTypeFields() {
+            ensurePaymentSignupUI();
+            const typeInput = document.getElementById('payType');
+            const teamMembersWrap = document.getElementById('teamMemberCountWrap');
+            const teamYearsWrap = document.getElementById('teamYearsWrap');
+            const teamNameWrap = document.getElementById('teamNameWrap');
+            const positionsRow = document.getElementById('freeAgentPositionsRow');
+            const offPosWrap = document.getElementById('freeAgentOffPosWrap');
+            const defPosWrap = document.getElementById('freeAgentDefPosWrap');
+            const experienceWrap = document.getElementById('freeAgentExperienceWrap');
+            const teamMembersInput = document.getElementById('payTeamMembers');
+            const teamYearsInput = document.getElementById('payTeamYears');
+            const teamNameInput = document.getElementById('payTeamName');
+            const offPosInput = document.getElementById('payOffPosition');
+            const defPosInput = document.getElementById('payDefPosition');
+            const experienceInput = document.getElementById('payExperience');
+            const nameLabel = document.getElementById('payNameLabel');
+            const emailLabel = document.getElementById('payEmailLabel');
+            const nameInput = document.getElementById('payName');
+            const emailInput = document.getElementById('payEmail');
+            if (!typeInput || !teamMembersWrap || !teamYearsWrap || !experienceWrap) return;
+
+            const isTeam = typeInput.value === 'team';
+            const isFreeAgent = typeInput.value === 'freeAgent';
+            teamMembersWrap.style.display = isTeam ? 'block' : 'none';
+            teamYearsWrap.style.display = isTeam ? 'block' : 'none';
+            if (teamNameWrap) teamNameWrap.style.display = isTeam ? 'block' : 'none';
+            // Toggle the positions row wrapper (preferred) or fall back to individual wrappers
+            if (positionsRow) {
+                positionsRow.style.display = isFreeAgent ? 'block' : 'none';
+            } else {
+                if (offPosWrap) offPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+                if (defPosWrap) defPosWrap.style.display = isFreeAgent ? 'block' : 'none';
+            }
+            experienceWrap.style.display = isFreeAgent ? 'block' : 'none';
+            if (teamMembersInput) teamMembersInput.required = isTeam;
+            if (teamYearsInput) teamYearsInput.required = isTeam;
+            if (teamNameInput) teamNameInput.required = isTeam;
+            if (offPosInput) offPosInput.required = isFreeAgent;
+            if (defPosInput) defPosInput.required = isFreeAgent;
+            if (experienceInput) experienceInput.required = isFreeAgent;
+            if (isTeam) {
+                if (offPosInput) offPosInput.value = '';
+                if (defPosInput) defPosInput.value = '';
+                if (experienceInput) experienceInput.value = '';
+            }
+
+            if (nameLabel && nameLabel.dataset) {
+                nameLabel.textContent = isTeam ? (nameLabel.dataset.teamLabel || nameLabel.textContent) : (nameLabel.dataset.freeLabel || nameLabel.textContent);
+            }
+            if (emailLabel && emailLabel.dataset) {
+                emailLabel.textContent = isTeam ? (emailLabel.dataset.teamLabel || emailLabel.textContent) : (emailLabel.dataset.freeLabel || emailLabel.textContent);
+            }
+            if (nameInput && nameInput.dataset) {
+                nameInput.placeholder = isTeam ? (nameInput.dataset.teamPlaceholder || nameInput.placeholder) : (nameInput.dataset.freePlaceholder || nameInput.placeholder);
+            }
+            if (emailInput && emailInput.dataset) {
+                emailInput.placeholder = isTeam ? (emailInput.dataset.teamPlaceholder || emailInput.placeholder) : (emailInput.dataset.freePlaceholder || emailInput.placeholder);
+            }
+
+            if (teamMembersInput && Number(teamMembersInput.value || '0') > 16) {
+                teamMembersInput.value = '16';
+            }
+
+            if (!isTeam) {
+                if (teamMembersInput) teamMembersInput.value = '';
+                if (teamYearsInput) teamYearsInput.value = '';
+                if (teamNameInput) teamNameInput.value = '';
+            }
+
+            if (!isFreeAgent) {
+                if (offPosInput) offPosInput.value = '';
+                if (defPosInput) defPosInput.value = '';
+                if (experienceInput) experienceInput.value = '';
+            }
+        }
+
+        function updatePaymentMethodLink() {
+            loadPaymentLinks();
+            const method = (document.getElementById('payMethod') || {}).value || '';
+            const linkWrap = document.getElementById('payMethodLinkWrap');
+            const linkEl = document.getElementById('payMethodLink');
+            const infoEl = document.getElementById('payMethodInfo');
+            const submitBtn = document.getElementById('paySubmitBtn');
+            const usernameWrap = document.getElementById('paymentUsernameWrap');
+            const usernameInput = document.getElementById('paymentUsername');
+            let url = '';
+            let label = '';
+            if (method === 'cashapp') {
+                url = PAYMENT_LINKS.cashApp || '';
+                label = 'Open CashApp Payment Link';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp';
+            } else if (method === 'venmo') {
+                url = PAYMENT_LINKS.venmo || '';
+                label = 'Open Venmo Payment Link';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo';
+            } else if (method === 'paypal') {
+                if (submitBtn) submitBtn.textContent = 'Continue To PayPal';
+            } else {
+                if (submitBtn) submitBtn.textContent = 'Continue To Payment';
+            }
+            if (linkWrap && linkEl) {
+                if ((method === 'cashapp' || method === 'venmo') && url) {
+                    if (infoEl) infoEl.style.display = 'none';
+                    linkEl.href = url;
+                    linkEl.textContent = label;
+                    linkEl.style.display = 'inline';
+                    linkWrap.style.display = 'block';
+                } else {
+                    linkWrap.style.display = 'none';
+                }
+            }
+            if (usernameWrap) {
+                const needsUsername = method === 'cashapp' || method === 'venmo';
+                usernameWrap.style.display = needsUsername ? 'block' : 'none';
+                if (usernameInput) usernameInput.required = needsUsername;
+                if (!needsUsername && usernameInput) usernameInput.value = '';
+            }
+        }
+
+
+        function renderAdminPaymentRequests() {
+            const tbody = document.getElementById('adminPaymentsTbody');
+            if (!tbody) return;
+            const items = loadPaymentRequests();
+            tbody.innerHTML = '';
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                return;
+            }
+            items.forEach((p, idx) => {
+                const tr = document.createElement('tr');
+                const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                const positionInfo = p.offPosition
+                    ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
+                    : (p.position ? 'Position: ' + p.position : '');
+                const details = p.type === 'freeAgent'
+                    ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
+                    : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
+                const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
+                const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
+                tr.innerHTML = `
+                    <td>${p.name || ''}</td>
+                    <td>${p.email || ''}</td>
+                    <td>${label}</td>
+                    <td>${details}</td>
+                    <td>${payInfo || 'N/A'}</td>
+                    <td style="font-weight:700; color:${p.status === 'approved' ? '#2e7d32' : '#e65100'};">${p.status || 'pending'}</td>
+                    <td>${submitted}</td>
+                    <td>
+                        <button data-action="approvePayment" data-idx="${idx}" class="cta-button small" style="margin-right:6px;">Approve</button>
+                        <button data-action="denyPayment" data-idx="${idx}" class="cta-button small" style="background:#777;">Deny</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const items = loadPaymentRequests();
+                    if (!items[idx]) return;
+                    items[idx].status = 'approved';
+                    items[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(items);
+                });
+            });
+
+            tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const items = loadPaymentRequests();
+                    if (!items[idx]) return;
+                    items[idx].status = 'denied';
+                    items[idx].reviewedAt = new Date().toISOString();
+                    savePaymentRequests(items);
+                });
+            });
+        }
+
+        // Simple password hashing (SHA-256) with fallback
+        async function hashPw(password) {
+            if (window.crypto && crypto.subtle) {
+                const enc = new TextEncoder();
+                const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            return password; // fallback (not secure)
+        }
+
+        // --- UI: show saved logo and check auth states on load ---
+        window.addEventListener('load', function() {
+            renderDocumentsList();
+            // admin
+            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+                document.getElementById('adminHeader').style.display = 'block';
+                const stored = sessionStorage.getItem('adminUsername');
+                const adminNameEl = document.getElementById('adminNameDisplay');
+                if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+                document.getElementById('adminOnly').classList.add('visible');
+                const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+                if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
+                document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
+                enablePageEdit(true);
+                renderUsersTableForAdmin();
+                renderDocsAdmin && renderDocsAdmin();
+                renderAllStats && renderAllStats();
+                renderAdminPaymentRequests && renderAdminPaymentRequests();
+                renderPayPalSettings && renderPayPalSettings();
+                bindPayPalSettingsControls && bindPayPalSettingsControls();
+                populateCtaButtonEditor && populateCtaButtonEditor();
+                bindCtaButtonControls && bindCtaButtonControls();
+                // restore to hashed page or default to the admin dashboard
+                const h = window.location.hash ? window.location.hash.substring(1) : 'documentsAdmin';
+                showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
+            } else {
+                // Non-admin: full lockdown — no editing visible anywhere
+                lockdownForPublic();
+                renderAllStats && renderAllStats();
+            }
+            applySavedBranding();
+            applySavedHeroBackground();
+            applySavedCtaButton();
+            ensureSeasonStatsAndRecapUI();
+            ensureLeagueScheduleResultsUI();
+            ensureAdminBrandingUI();
+            enforceNonEditableAdminUI();
+            bindAdminBrandingControls();
+            bindPayPalSettingsControls();
+            bindCtaButtonControls();
+            renderPayPalSettings();
+            renderPaymentMethodsInfo();
+            // member
+            if (sessionStorage.getItem('memberLoggedIn') === 'true') {
+                const username = sessionStorage.getItem('memberUsername');
+                const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                document.getElementById('memberHeader').style.display = 'block';
+                document.getElementById('memberNameDisplay').textContent = isGuest ? (username + ' (Guest)') : username;
+                if (!isGuest) {
+                    const navProfile = document.getElementById('navProfile');
+                    if (navProfile) navProfile.classList.add('visible');
+                    showPage('myProfile');
+                    renderMyProfile && renderMyProfile();
+                } else {
+                    showPage('guestArea');
+                }
+            } else {
+                document.getElementById('memberHeader').style.display = 'none';
+            }
+            ensureNavHamburger();
+            updateHeaderScrollState();
+        });
+
+        // --- Admin login (existing) ---
+
+
+        // --- Logo upload handling (admin-only) ---
+
+
+        // --- Members: registration & login UI ---
+        function showMemberModal() {
+            document.getElementById('memberModal').style.display = 'flex';
+            document.getElementById('memberModal').classList.remove('hidden');
+            document.getElementById('memberAuthError').textContent = '';
+            // default to register view
+            document.getElementById('memberRegisterForm').style.display = 'block';
+            document.getElementById('memberLoginForm').style.display = 'none';
+            // clear registration signature area when opening
+            const rCanvas = document.getElementById('regSignatureCanvas');
+            if (rCanvas && rCanvas.getContext) { const rCtx = rCanvas.getContext('2d'); rCtx.clearRect(0,0,rCanvas.width,rCanvas.height); }
+            const rTyped = document.getElementById('regTypedSignature'); if (rTyped) rTyped.value = '';
+            // if currently browsing as guest, prefill username so conversion is seamless
+            try {
+                const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                const regInput = document.getElementById('regUsername');
+                if (isGuest && regInput) regInput.value = sessionStorage.getItem('memberUsername') || '';
+                else if (regInput) regInput.value = '';
+            } catch (err) { /* ignore in older browsers */ }
+        }
+        function hideMemberModal() {
+            document.getElementById('memberModal').style.display = 'none';
+            document.getElementById('memberModal').classList.add('hidden');
+        }
+
+        // Registration now uses on-page sections, so no nav modal hook here.
+
+        // Login menu (top-right): open/close + Guest/Admin actions
+        function showAdminLoginModal() {
+            const lm = document.getElementById('loginModal');
+            if (!lm) return;
+            // Always start at step 1 (pick admin)
+            const pickStep = document.getElementById('adminPickStep');
+            const passStep = document.getElementById('adminPasswordStep');
+            const usernameEl = document.getElementById('username');
+            const passwordEl = document.getElementById('password');
+            const errorEl = document.getElementById('loginError');
+            if (pickStep) pickStep.style.display = 'block';
+            if (passStep) passStep.style.display = 'none';
+            if (usernameEl) usernameEl.value = '';
+            if (passwordEl) passwordEl.value = '';
+            if (errorEl) errorEl.textContent = '';
+            lm.classList.remove('hidden');
+            lm.style.display = 'flex';
+        }
+
+        // Step 1: admin name buttons
+        document.querySelectorAll('.admin-pick-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const adminName = this.getAttribute('data-admin');
+                document.getElementById('username').value = adminName;
+                document.getElementById('adminPickedName').textContent = adminName;
+                document.getElementById('adminPickStep').style.display = 'none';
+                document.getElementById('adminPasswordStep').style.display = 'block';
+                document.getElementById('password').value = '';
+                document.getElementById('loginError').textContent = '';
+                document.getElementById('password').focus();
+            });
+        });
+
+        // Back button returns to step 1
+        document.getElementById('adminBackBtn')?.addEventListener('click', function() {
+            document.getElementById('adminPasswordStep').style.display = 'none';
+            document.getElementById('adminPickStep').style.display = 'block';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').textContent = '';
+        });
+        function toggleLoginDropdown(forceState) {
+            const dd = document.getElementById('loginDropdown');
+            const btn = document.getElementById('loginMenuBtn');
+            if (!dd || !btn) return;
+            const isOpen = !dd.classList.contains('hidden');
+            const shouldOpen = (typeof forceState === 'boolean') ? forceState : !isOpen;
+            dd.style.display = 'block';
+            if (shouldOpen) { dd.classList.remove('hidden'); dd.classList.add('visible'); btn.setAttribute('aria-expanded','true'); }
+            else { dd.classList.add('hidden'); dd.classList.remove('visible'); btn.setAttribute('aria-expanded','false'); }
+        }
+        document.getElementById('loginMenuBtn')?.addEventListener('click', function(e){ e.stopPropagation(); toggleLoginDropdown(); });
+        document.getElementById('loginDropdown')?.addEventListener('click', function(e){ e.stopPropagation(); });
+        document.getElementById('loginDropdownAdmin')?.addEventListener('click', function(e){ e.preventDefault(); showAdminLoginModal(); toggleLoginDropdown(false); });
+        document.getElementById('closeLoginModal')?.addEventListener('click', function(){
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').style.display = 'none';
+        });
+        document.getElementById('closeMemberModal')?.addEventListener('click', function(){
+            hideMemberModal();
+        });
+        document.addEventListener('click', function(){ toggleLoginDropdown(false); });
+
+        document.getElementById('switchToMemberLogin').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='none'; document.getElementById('memberLoginForm').style.display='block'; });
+        document.getElementById('switchToMemberRegister').addEventListener('click', function(e){ e.preventDefault(); document.getElementById('memberRegisterForm').style.display='block'; document.getElementById('memberLoginForm').style.display='none'; });
+        document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
+        updatePaymentTypeFields();
+        document.getElementById('payMethod')?.addEventListener('change', updatePaymentMethodLink);
+        updatePaymentMethodLink();
+
+        document.getElementById('paymentForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('payName').value.trim();
+            const email = document.getElementById('payEmail').value.trim();
+            const type = document.getElementById('payType').value;
+            const method = (document.getElementById('payMethod') || {}).value || '';
+            const teamMembers = document.getElementById('payTeamMembers').value.trim();
+            const teamYears = document.getElementById('payTeamYears').value.trim();
+            const teamName = document.getElementById('payTeamName').value.trim();
+            const offPosition = type === 'team' ? '' : document.getElementById('payOffPosition').value.trim();
+            const defPosition = type === 'team' ? '' : document.getElementById('payDefPosition').value.trim();
+            const experience = type === 'team' ? '' : document.getElementById('payExperience').value.trim();
+            const paymentUsername = document.getElementById('paymentUsername').value.trim();
+            loadPaymentLinks();
+            loadPaymentNotificationSettings();
+            let link = '';
+            if (method === 'cashapp') {
+                link = PAYMENT_LINKS.cashApp || '';
+            } else if (method === 'venmo') {
+                link = PAYMENT_LINKS.venmo || '';
+            } else {
+                link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
+            }
+            const msg = document.getElementById('paymentMsg');
+
+            if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Team registrations must provide the team name, team members, and years playing together.';
+                }
+                return;
+            }
+
+            if (type === 'team' && Number(teamMembers) > 16) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Team registrations cannot exceed 16 players.';
+                }
+                return;
+            }
+
+            if (type === 'freeAgent' && (!offPosition || !defPosition || !experience)) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Free agents must provide their offensive position, defensive position, and flag football experience.';
+                }
+                return;
+            }
+
+            if ((method === 'cashapp' || method === 'venmo') && !paymentUsername) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Please enter your CashApp or Venmo username for the account sending payment.';
+                }
+                return;
+            }
+
+            const submittedAt = new Date().toISOString();
+
+            const requests = loadPaymentRequests();
+            requests.push({
+                name,
+                email,
+                type,
+                method,
+                teamName,
+                teamMembers,
+                teamYears,
+                offPosition,
+                defPosition,
+                experience,
+                paymentUsername,
+                status: 'pending',
+                submittedAt: submittedAt
+            });
+            savePaymentRequests(requests);
+
+            const notificationResult = await sendAdminPaymentNotification({
+                name,
+                email,
+                type,
+                teamName,
+                teamMembers,
+                teamYears,
+                offPosition,
+                defPosition,
+                experience,
+                method,
+                paymentUsername,
+                paypalLink: link,
+                submittedAt: submittedAt
+            });
+
+            const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
+            const methodLabel = methodLabels[method] || 'Payment';
+
+            if (!link || !/^https:\/\//i.test(link)) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = notificationResult.sent
+                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.'
+                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.';
+                }
+                return;
+            }
+            if (msg) {
+                msg.style.color = 'green';
+                msg.textContent = notificationResult.sent
+                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.'
+                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
+            }
+            window.open(link, '_blank', 'noopener,noreferrer');
+        });
+
+        // Member register
+        document.getElementById('memberRegisterForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            document.getElementById('memberAuthError').textContent = '';
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regPasswordConfirm').value;
+            const firstName = document.getElementById('regFirstName').value.trim();
+            const lastName = document.getElementById('regLastName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const team = document.getElementById('regTeam').value.trim();
+
+            if (!username || !password) { document.getElementById('memberAuthError').textContent = 'Username and password required'; return; }
+            if (password !== confirm) { document.getElementById('memberAuthError').textContent = 'Passwords do not match'; return; }
+
+            // require a signature (drawn on canvas or typed)
+            const regCanvas = document.getElementById('regSignatureCanvas');
+            const regTyped = document.getElementById('regTypedSignature').value.trim();
+            const needSignature = isCanvasBlank(regCanvas) && !regTyped;
+            if (needSignature) { document.getElementById('memberAuthError').textContent = 'Please provide a signature to complete registration'; return; }
+
+            const members = loadMembers();
+            if (members.find(m => m.username.toLowerCase() === username.toLowerCase())) { document.getElementById('memberAuthError').textContent = 'Username already taken'; return; }
+
+            const pwHash = await hashPw(password);
+            const user = { username, passwordHash: pwHash, firstName, lastName, email, team };
+
+            // capture signature
+            let sigData = null;
+            if (!isCanvasBlank(regCanvas)) sigData = regCanvas.toDataURL();
+            else if (regTyped) { const tmp = document.createElement('canvas'); tmp.width = 600; tmp.height = 80; const tc = tmp.getContext('2d'); tc.fillStyle = '#000'; tc.font = '28px sans-serif'; tc.fillText(regTyped, 8, 50); sigData = tmp.toDataURL(); }
+            if (sigData) user.signedDocs = [{ docId: 'registration', signature: sigData, signedAt: new Date().toISOString(), title: 'Registration Signature' }];
+
+            // if the visitor was a guest, convert that session into this new persistent member
+            if (sessionStorage.getItem('memberIsGuest') === 'true') {
+                user.convertedFromGuest = true;
+                user.guestFrom = sessionStorage.getItem('memberUsername') || null;
+                user.convertedAt = new Date().toISOString();
+                // clear guest session marker
+                sessionStorage.removeItem('memberIsGuest');
+            }
+
+            members.push(user);
+            saveMembers(members);
+
+            // auto-login the new member (replace guest session)
+            sessionStorage.setItem('memberLoggedIn', 'true');
+            sessionStorage.setItem('memberUsername', username);
+            hideMemberModal();
+            showMemberView();
+        });
+
+        // Member login
+        document.getElementById('memberLoginForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            const username = document.getElementById('memberLoginUsername').value.trim();
+            const password = document.getElementById('memberLoginPassword').value;
+            const members = loadMembers();
+            const pwHash = await hashPw(password);
+            const user = members.find(m => m.username === username && m.passwordHash === pwHash);
+            if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
+            sessionStorage.setItem('memberLoggedIn', 'true');
+            sessionStorage.setItem('memberUsername', username);
+            hideMemberModal();
+            showMemberView();
+        });
+
+        // Member view / profile
+        function showMemberView() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) return;
+            const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+            document.getElementById('memberHeader').style.display = 'block';
+            document.getElementById('memberNameDisplay').textContent = isGuest ? (username + ' (Guest)') : username;
+            if (isGuest) {
+                showPage('guestArea');
+            } else {
+                const navProfile = document.getElementById('navProfile');
+                if (navProfile) navProfile.classList.add('visible');
+                showPage('myProfile');
+                renderMyProfile();
+            }
+        }
+        function memberLogout() {
+            sessionStorage.removeItem('memberLoggedIn');
+            sessionStorage.removeItem('memberUsername');
+            sessionStorage.removeItem('memberIsGuest');
+            document.getElementById('memberHeader').style.display = 'none';
+            const navProfile = document.getElementById('navProfile');
+            if (navProfile) navProfile.classList.remove('visible');
+            showPage('home');
+        }
+
+        // Guest login disabled (admin/member login only).
+        // open registration WITHOUT logging the guest out — we'll convert the session on submit
+        document.getElementById('guestRegisterBtn')?.addEventListener('click', function(){
+            showMemberModal();
+            document.getElementById('memberRegisterForm').style.display = 'block';
+            document.getElementById('memberLoginForm').style.display = 'none';
+            const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+            if (isGuest) {
+                const guestName = sessionStorage.getItem('memberUsername') || '';
+                document.getElementById('regUsername').value = guestName;
+            } else {
+                document.getElementById('regUsername').value = '';
+            }
+        });
+        // preview team logo when file chosen
+        document.querySelectorAll('.team-logo-input').forEach(inp => {
+            inp.addEventListener('change', function() {
+                const file = this.files[0];
+                const container = this.parentElement;
+                const img = container ? container.querySelector('img.team-logo') : null;
+                if (file && img) {
+                    const reader = new FileReader();
+                    reader.onload = () => { img.src = reader.result; };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+        document.addEventListener('change', function(e) {
+            const input = e.target;
+            if (!input.classList || !input.classList.contains('schedule-admin-logo-upload')) return;
+
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const block = input.closest('.schedule-admin-team-block');
+            const hiddenInput = block ? block.querySelector('input[type="hidden"][data-key="' + input.dataset.key + '"]') : null;
+            const preview = block ? block.querySelector('.schedule-admin-logo-preview') : null;
+            const emptyState = block ? block.querySelector('.schedule-admin-logo-empty') : null;
+            if (!hiddenInput || !preview) return;
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                hiddenInput.value = ev.target.result;
+                preview.src = ev.target.result;
+                preview.classList.remove('hidden');
+                if (emptyState) emptyState.style.display = 'none';
+                markUnsaved();
+            };
+            reader.readAsDataURL(file);
+        });
+        document.getElementById('guestLogoutBtn')?.addEventListener('click', memberLogout);
+
+        // Render profile for logged-in member
+        function renderMyProfile() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) return;
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            document.getElementById('mpUsername').value = user.username;
+            document.getElementById('mpFirstName').value = user.firstName || '';
+            document.getElementById('mpLastName').value = user.lastName || '';
+            document.getElementById('mpEmail').value = user.email || '';
+            document.getElementById('mpTeam').value = user.team || '';
+            document.getElementById('mpPassword').value = '';
+            document.getElementById('mpMsg').textContent = '';
+        }
+
+        // Save profile changes
+        document.getElementById('myProfileForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            const username = document.getElementById('mpUsername').value;
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            user.firstName = document.getElementById('mpFirstName').value.trim();
+            user.lastName = document.getElementById('mpLastName').value.trim();
+            user.email = document.getElementById('mpEmail').value.trim();
+            user.team = document.getElementById('mpTeam').value.trim();
+            const newPw = document.getElementById('mpPassword').value;
+            if (newPw) user.passwordHash = await hashPw(newPw);
+            saveMembers(members);
+            document.getElementById('mpMsg').textContent = 'Profile saved.';
+            setTimeout(()=> document.getElementById('mpMsg').textContent = '', 3000);
+        });
+
+        // --- Admin: render members inside Users table and allow inline edits/delete ---
+        function renderUsersTableForAdmin() {
+            const tbody = document.getElementById('usersTbody');
+            if (!tbody) return;
+            const members = loadMembers();
+            tbody.innerHTML = '';
+            if (members.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
+                return;
+            }
+            members.forEach((m, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input data-idx="${idx}" data-field="username" value="${m.username}" readonly></td>
+                    <td><input data-idx="${idx}" data-field="firstName" value="${m.firstName || ''}"></td>
+                    <td><input data-idx="${idx}" data-field="lastName" value="${m.lastName || ''}"></td>
+                    <td><input data-idx="${idx}" data-field="email" value="${m.email || ''}"></td>
+                    <td style="display:flex; gap:8px; align-items:center;"><input data-idx="${idx}" data-field="team" value="${m.team || ''}"><button data-action="delete" data-idx="${idx}" style="background:#e65100;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            // attach events
+            tbody.querySelectorAll('input[data-field]').forEach(inp => {
+                inp.addEventListener('input', function(e){
+                    const idx = Number(this.dataset.idx);
+                    const field = this.dataset.field;
+                    const members = loadMembers();
+                    members[idx][field] = this.value;
+                    saveMembers(members);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', function(){
+                    const idx = Number(this.dataset.idx);
+                    const members = loadMembers();
+                    members.splice(idx, 1);
+                    saveMembers(members);
+                });
+            });
+        }
+
+        // --- Member logout already defined above as memberLogout() ---
+
+        // --- Documents (admin upload + member signing) ---
+        async function loadDocuments() {
+            try {
+                var stored = await idbGet('documents');
+                if (!stored) return [];
+                return Array.isArray(stored) ? stored : [];
+            } catch (err) { return []; }
+        }
+        async function saveDocuments(list) {
+            await idbSet('documents', list);
+            await renderDocsAdmin();
+            await renderDocumentsList();
+        }
+
+        async function renderDocsAdmin() {
+            const tbody = document.getElementById('adminDocsTbody');
+            if (!tbody) return;
+            const docs = await loadDocuments();
+            tbody.innerHTML = '';
+            if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No documents uploaded.</td></tr>'; return; }
+            docs.forEach((d, idx) => {
+                const tr = document.createElement('tr');
+                const uploaded = new Date(d.uploadedAt).toLocaleString();
+                const signedCount = loadMembers().filter(m => (m.signedDocs || []).some(s => s.docId === d.id)).length;
+                tr.innerHTML = `
+                    <td>${d.title || d.filename}</td>
+                    <td><a href="${d.dataUrl}" download="${d.filename}">Download</a></td>
+                    <td>${uploaded}</td>
+                    <td>${signedCount}</td>
+                    <td><button data-action="deleteDoc" data-idx="${idx}" class="doc-delete">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('button[data-action="deleteDoc"]').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const idx = Number(this.dataset.idx);
+                    const docs = await loadDocuments();
+                    const docId = docs[idx].id;
+                    docs.splice(idx, 1);
+                    await saveDocuments(docs);
+                    // remove signed records for removed doc
+                    const members = loadMembers();
+                    members.forEach(m => { m.signedDocs = (m.signedDocs || []).filter(s => s.docId !== docId); });
+                    saveMembers(members);
+                });
+            });
+        }
+
+        async function renderDocumentsList() {
+            const tbody = document.getElementById('publicDocsTbody');
+            if (!tbody) return;
+            const docs = await loadDocuments();
+            tbody.innerHTML = '';
+            if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#777; padding:20px;">No documents available.</td></tr>'; return; }
+            docs.forEach(d => {
+                const tr = document.createElement('tr');
+                const uploaded = new Date(d.uploadedAt).toLocaleDateString();
+                let actionHtml = `<a href="${d.dataUrl}" download="${d.filename}" class="doc-actions">Download</a>`;
+                let signed = false;
+                if (sessionStorage.getItem('memberLoggedIn') === 'true') {
+                    const username = sessionStorage.getItem('memberUsername');
+                    const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
+                    if (isGuest) {
+                        actionHtml += ` <button class="doc-actions secondary" data-action="loginToSign">Register to sign</button>`;
+                    } else {
+                        const m = loadMembers().find(u => u.username === username);
+                        signed = !!(m && (m.signedDocs || []).some(s => s.docId === d.id));
+                        if (signed) actionHtml += ' <span style="color:#4caf50; font-weight:bold;">Signed</span>';
+                        else actionHtml += ` <button class="doc-actions" data-docid="${d.id}" data-action="sign">Sign</button>`;
+                    }
+                } else {
+                    actionHtml += ` <button class="doc-actions secondary" data-docid="${d.id}" data-action="loginToSign">Login to sign</button>`;
+                }
+                tr.innerHTML = `<td>${d.title || d.filename}</td><td><a href="${d.dataUrl}" download="${d.filename}">${d.filename}</a></td><td>${uploaded}</td><td>${actionHtml}</td>`;
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('button[data-action="sign"]').forEach(btn => btn.addEventListener('click', e => openSignModal(e.currentTarget.dataset.docid)));
+            tbody.querySelectorAll('button[data-action="loginToSign"]').forEach(btn => btn.addEventListener('click', showMemberModal));
+        }
+
+        async function openSignModal(docId) {
+            const docs = await loadDocuments();
+            const doc = docs.find(d => d.id === docId);
+            if (!doc) return;
+            document.getElementById('signModal').style.display = 'flex';
+            document.getElementById('signModal').classList.remove('hidden');
+            const iframe = document.getElementById('docPreviewFrame');
+            const img = document.getElementById('docPreviewImg');
+            if (doc.mimeType && doc.mimeType.startsWith('image/')) { img.src = doc.dataUrl; img.style.display = 'block'; iframe.style.display = 'none'; }
+            else { iframe.src = doc.dataUrl; iframe.style.display = 'block'; img.style.display = 'none'; }
+            currentSigningDocId = docId;
+            clearSignature();
+            document.getElementById('signMsg').textContent = '';
+        }
+
+        function closeSignModal() {
+            document.getElementById('signModal').style.display = 'none';
+            currentSigningDocId = null;
+        }
+
+        // signature canvas helpers
+        let currentSigningDocId = null;
+        const sigCanvas = document.getElementById('signatureCanvas');
+        const sigCtx = sigCanvas.getContext('2d');
+        let drawing = false;
+        function clearSignature() { sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height); document.getElementById('typedSignature').value = ''; }
+        function isCanvasBlank(c) { const blank = document.createElement('canvas'); blank.width = c.width; blank.height = c.height; return c.toDataURL() === blank.toDataURL(); }
+
+        function setupSignatureCanvas() {
+            const rect = () => sigCanvas.getBoundingClientRect();
+            function getPos(e) {
+                const r = rect();
+                if (e.touches && e.touches.length) e = e.touches[0];
+                return { x: (e.clientX - r.left) * (sigCanvas.width / r.width), y: (e.clientY - r.top) * (sigCanvas.height / r.height) };
+            }
+            sigCanvas.addEventListener('pointerdown', (e) => { drawing = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); e.preventDefault(); });
+            sigCanvas.addEventListener('pointermove', (e) => { if (!drawing) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.strokeStyle = '#000'; sigCtx.lineWidth = 2; sigCtx.lineCap = 'round'; sigCtx.stroke(); });
+            ['pointerup','pointerleave'].forEach(evt => sigCanvas.addEventListener(evt, () => { drawing = false; }));
+        }
+        setupSignatureCanvas();
+
+        // registration-signature canvas (used during account creation)
+        const regCanvas = document.getElementById('regSignatureCanvas');
+        const regCtx = regCanvas ? regCanvas.getContext('2d') : null;
+        function setupRegSignatureCanvas() {
+            if (!regCanvas) return;
+            let regDrawing = false;
+            const rectR = () => regCanvas.getBoundingClientRect();
+            function getPosR(e) { const r = rectR(); if (e.touches && e.touches.length) e = e.touches[0]; return { x: (e.clientX - r.left) * (regCanvas.width / r.width), y: (e.clientY - r.top) * (regCanvas.height / r.height) }; }
+            regCanvas.addEventListener('pointerdown', (e) => { regDrawing = true; const p = getPosR(e); regCtx.beginPath(); regCtx.moveTo(p.x, p.y); e.preventDefault(); });
+            regCanvas.addEventListener('pointermove', (e) => { if (!regDrawing) return; const p = getPosR(e); regCtx.lineTo(p.x, p.y); regCtx.strokeStyle = '#000'; regCtx.lineWidth = 2; regCtx.lineCap = 'round'; regCtx.stroke(); });
+            ['pointerup','pointerleave'].forEach(evt => regCanvas.addEventListener(evt, () => { regDrawing = false; }));
+        }
+        setupRegSignatureCanvas();
+        document.getElementById('regClearSignatureBtn')?.addEventListener('click', function(){ if (regCtx) regCtx.clearRect(0,0,regCanvas.width, regCanvas.height); document.getElementById('regTypedSignature').value = ''; });
+
+        document.getElementById('clearSignatureBtn').addEventListener('click', clearSignature);
+        document.getElementById('closeSignModalBtn').addEventListener('click', closeSignModal);
+        document.getElementById('saveSignatureBtn').addEventListener('click', async function() {
+            const username = sessionStorage.getItem('memberUsername');
+            if (!username) { showMemberModal(); return; }
+            const members = loadMembers();
+            const user = members.find(u => u.username === username);
+            if (!user) return;
+            const typed = document.getElementById('typedSignature').value.trim();
+            let sigData = null;
+            if (!isCanvasBlank(sigCanvas)) sigData = sigCanvas.toDataURL();
+            else if (typed) {
+                const tmp = document.createElement('canvas'); tmp.width = 600; tmp.height = 80; const tc = tmp.getContext('2d'); tc.fillStyle = '#000'; tc.font = '28px sans-serif'; tc.fillText(typed, 8, 50); sigData = tmp.toDataURL();
+            } else { document.getElementById('signMsg').textContent = 'Please draw or type your name to sign.'; return; }
+            user.signedDocs = user.signedDocs || [];
+            user.signedDocs.push({ docId: currentSigningDocId, signature: sigData, signedAt: new Date().toISOString() });
+            saveMembers(members);
+            document.getElementById('signMsg').textContent = 'Document signed.';
+            setTimeout(() => { closeSignModal(); renderDocumentsList(); renderDocsAdmin(); }, 900);
+        });
+
+        // admin upload handlers
+        document.getElementById('docUploadBtn').addEventListener('click', () => document.getElementById('docUploadInput').click());
+        document.getElementById('docUploadInput').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if (!file) return; const title = document.getElementById('docTitleInput').value.trim() || file.name;
+            const reader = new FileReader(); reader.onload = async function(ev) {
+                const docs = await loadDocuments();
+                docs.push({ id: Date.now().toString(), title, filename: file.name, mimeType: file.type || '', dataUrl: ev.target.result, uploadedAt: new Date().toISOString() });
+                await saveDocuments(docs);
+                e.target.value = ''; document.getElementById('docTitleInput').value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // render lists on load
+        renderDocsAdmin();
+        renderDocumentsList();
+        renderAdminPaymentRequests();
+
+        // ---- Player Stats (Offensive / Defensive) ----
+        const LEAGUE_STANDINGS_KEY = 'leagueStandings_v1';
+        const LEAGUE_SCHEDULE_KEY = 'leagueSchedule_v1';
+        const OFFENSIVE_STATS_KEY = 'offensivePlayerStats_v1';
+        const DEFENSIVE_STATS_KEY = 'defensivePlayerStats_v1';
+        const RECAP_OFFENSIVE_STATS_KEY = 'recapOffensivePlayerStats_v1';
+        const RECAP_DEFENSIVE_STATS_KEY = 'recapDefensivePlayerStats_v1';
+        const STATS_TEAM_LOGOS_KEY = 'statsTeamLogos_v1';
+        const STATS_TEAM_LOGO_MAX_WIDTH = 200;
+        const STATS_TEAM_LOGO_MAX_HEIGHT = 200;
+        const STATS_TEAM_LOGO_QUALITY = 0.8;
+        const CURRENT_SEASON_LABEL_KEY = 'currentSeasonLabel_v1';
+        const RECAP_SEASON_LABEL_KEY = 'recapSeasonLabel_v1';
+        const SEASON_ARCHIVES_KEY = 'seasonArchives_v1';
+        const SELECTED_SEASON_ARCHIVE_KEY = 'selectedSeasonArchive_v1';
+        const leagueStandingsFields = [
+            { key: 'team', placeholder: 'Team name' },
+            { key: 'wins', placeholder: '0' },
+            { key: 'losses', placeholder: '0' },
+            { key: 'pointsScored', placeholder: '0' },
+            { key: 'pointsAgainst', placeholder: '0' }
+        ];
+        const leagueScheduleFields = [
+            { key: 'week', placeholder: 'Week 1' },
+            { key: 'date', placeholder: 'MM/DD/YYYY' },
+            { key: 'time', placeholder: '7:00 PM' },
+            { key: 'homeTeam', placeholder: 'Team 1 name' },
+            { key: 'homeLogo', placeholder: '' },
+            { key: 'awayTeam', placeholder: 'Team 2 name' },
+            { key: 'awayLogo', placeholder: '' },
+            { key: 'location', placeholder: 'Field name' },
+            { key: 'status', placeholder: '0-0' }
+        ];
+        const defaultLeagueStandings = [
+            {
+                team: '865 ELITE FLAG FOOTBALL',
+                wins: '0',
+                losses: '0',
+                pointsScored: '0',
+                pointsAgainst: '0'
+            }
+        ];
+        const defaultLeagueSchedule = [
+            {
+                week: 'Week 1',
+                date: 'TBD',
+                time: 'TBD',
+                homeTeam: '865 ELITE FLAG FOOTBALL',
+                homeLogo: '',
+                awayTeam: 'TBD',
+                awayLogo: '',
+                location: 'TBD',
+                status: '0-0'
+            }
+        ];
+        const offensiveCols = ['Team','Player Name','Player Position','Passing TD','Passing Yards','INT\'s','Rushing Yards','Rushing Touchdowns','Recieving Yards','Recieving Touchdowns','Receptions'];
+        const defensiveCols = ['Team','Player Name','Player Position','Tackles','Sacks','Interceptions','Pass Break Ups','Defensive TDs'];
+        const statsSortState = {
+            offensive: { column: 3, direction: 'desc' },
+            defensive: { column: 3, direction: 'desc' },
+            recapOffensive: { column: 3, direction: 'desc' },
+            recapDefensive: { column: 3, direction: 'desc' }
+        };
+
+        function getDefaultStatsSortConfig(type) {
+            if (type === 'defensive' || type === 'recapDefensive') {
+                return { column: 3, direction: 'desc' };
+            }
+            return { column: 3, direction: 'desc' };
+        }
+
+        function getStatsSortSelectValue(type, column) {
+            var config = getStatsSortConfig(type);
+            return config.column === column ? config.direction : '';
+        }
+
+        function normalizeStatsRow(row, cols) {
+            return cols.map(function(_, index) {
+                return row && row[index] !== undefined ? row[index] : '';
+            });
+        }
+
+        function normalizeTeamNameKey(name) {
+            return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        }
+
+        function loadStatsTeamLogos() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(STATS_TEAM_LOGOS_KEY) || '{}');
+                if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+                return Object.keys(saved).reduce(function(acc, key) {
+                    if (typeof key !== 'string') return acc;
+                    var normalizedKey = normalizeTeamNameKey(key);
+                    var value = saved[key];
+                    if (!normalizedKey || typeof value !== 'string') return acc;
+                    acc[normalizedKey] = value;
+                    return acc;
+                }, {});
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveStatsTeamLogos(logos) {
+            localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+        }
+
+        function getStatsTeamLogo(teamName) {
+            var key = normalizeTeamNameKey(teamName);
+            if (!key) return '';
+            var logos = loadStatsTeamLogos();
+            return String(logos[key] || '');
+        }
+
+        function setStatsTeamLogo(teamName, logoDataUrl) {
+            var key = normalizeTeamNameKey(teamName);
+            if (!key) return;
+            var logos = loadStatsTeamLogos();
+            logos[key] = String(logoDataUrl || '');
+            saveStatsTeamLogos(logos);
+        }
+
+        function renderStatsTeamCell(teamName) {
+            var safeName = escapeHtml(teamName || '\u2014');
+            var logo = getStatsTeamLogo(teamName);
+            var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
+            var logoMarkup = logo
+                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">'
+                : '<div class="stats-team-logo-placeholder">' + initials + '</div>';
+            return '<div class="stats-team-cell">' + logoMarkup + '<span>' + safeName + '</span></div>';
+        }
+
+        function buildStatsTeamAdminEditor(statsKey, rowIndex, teamName) {
+            var safeName = escapeHtml(teamName || '');
+            var currentLogo = getStatsTeamLogo(teamName);
+            var previewMarkup = currentLogo
+                ? '<img class="stats-team-logo" src="' + escapeHtml(currentLogo) + '" alt="' + (safeName || 'Team') + ' logo preview">'
+                : '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
+            return '<div class="stats-team-admin-editor">' +
+                '<input type="text" value="' + safeName + '" data-statskey="' + statsKey + '" data-row="' + rowIndex + '" data-col="0" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;" placeholder="Team name">' +
+                '<div class="stats-team-admin-preview">' + previewMarkup + '<span style="font-size:0.75rem;color:#bbb;">Logo</span></div>' +
+                '<input type="file" accept="image/*" aria-label="Upload team logo" class="stats-team-admin-upload stats-team-logo-upload" data-statskey="' + statsKey + '" data-row="' + rowIndex + '">' +
+            '</div>';
+        }
+
+        function handleStatsFilterInput(btn) {
+            if (!btn) return;
+            var type = btn.getAttribute('data-stats-filter-type');
+            var column = btn.getAttribute('data-stats-filter-col');
+            if (!type || column == null || !statsSortState[type]) return;
+            var selectedDirection = btn.getAttribute('data-dir') || '';
+            var numericColumn = Number(column);
+
+            if (selectedDirection === 'asc' || selectedDirection === 'desc') {
+                if (statsSortState[type].column === numericColumn && statsSortState[type].direction === selectedDirection) {
+                    statsSortState[type] = getDefaultStatsSortConfig(type);
+                } else {
+                    statsSortState[type].column = numericColumn;
+                    statsSortState[type].direction = selectedDirection;
+                }
+            } else {
+                statsSortState[type] = getDefaultStatsSortConfig(type);
+            }
+
+            renderAllStats();
+        }
+
+        function ensureStatsFilterRow(tableId, cols, type) {
+            var table = document.getElementById(tableId);
+            var thead = table ? table.querySelector('thead') : null;
+            if (!thead) return;
+
+            var headerRow = thead.querySelector('tr');
+            if (!headerRow) return;
+            headerRow.classList.add('stats-column-row');
+
+            var filterRow = thead.querySelector('.stats-filter-row');
+            if (!filterRow) {
+                filterRow = document.createElement('tr');
+                filterRow.className = 'stats-filter-row';
+                thead.appendChild(filterRow);
+            }
+
+            var headerCount = headerRow.querySelectorAll('th').length;
+            var sortableColumns = type === 'offensive' || type === 'recapOffensive'
+                ? [2, 3, 4, 5, 6, 7, 8, 9, 10]
+                : [2, 3, 4, 5, 6, 7];
+            var html = '';
+            for (var index = 0; index < headerCount; index += 1) {
+                if (index >= cols.length || sortableColumns.indexOf(index) === -1) {
+                    html += '<th class="stats-filter-spacer"></th>';
+                    continue;
+                }
+                var activeDir = getStatsSortSelectValue(type, index);
+                var descActive = activeDir === 'desc' ? ' active' : '';
+                var ascActive  = activeDir === 'asc'  ? ' active' : '';
+                var colName = escapeHtml(cols[index]);
+                html += '<th><div class="stat-sort-btns">' +
+                    '<button class="stat-sort-btn' + descActive + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="desc" title="Sort ' + colName + ' high to low. Click again to clear sort." aria-label="Sort ' + colName + ' high to low" onclick="handleStatsFilterInput(this)">↓ H</button>' +
+                    '<button class="stat-sort-btn' + ascActive  + '" data-stats-filter-type="' + escapeHtml(type) + '" data-stats-filter-col="' + index + '" data-dir="asc"  title="Sort ' + colName + ' low to high. Click again to clear sort." aria-label="Sort ' + colName + ' low to high"  onclick="handleStatsFilterInput(this)">↑ L</button>' +
+                    '</div></th>';
+            }
+            filterRow.innerHTML = html;
+        }
+
+        function ensureAllStatsFilterUI() {
+            ensureStatsFilterRow('offensiveStatsTable', offensiveCols, 'offensive');
+            ensureStatsFilterRow('defensiveStatsTable', defensiveCols, 'defensive');
+            ensureStatsFilterRow('recapOffensiveStatsTable', offensiveCols, 'recapOffensive');
+            ensureStatsFilterRow('recapDefensiveStatsTable', defensiveCols, 'recapDefensive');
+        }
+
+        function getDefaultSeasonLabel(offset) {
+            return String(new Date().getFullYear() + (offset || 0)) + ' Season';
+        }
+
+        function getNextSeasonLabel(label) {
+            var text = String(label || '').trim();
+            var match = text.match(/(19|20)\d{2}/);
+            if (!match) return getDefaultSeasonLabel(1);
+            var nextYear = String(Number(match[0]) + 1);
+            return text.replace(match[0], nextYear);
+        }
+
+        function loadSeasonLabel(key, fallback) {
+            try {
+                return (localStorage.getItem(key) || fallback || '').trim() || fallback;
+            } catch (err) {
+                return fallback;
+            }
+        }
+
+        function saveSeasonLabel(key, value) {
+            localStorage.setItem(key, String(value || '').trim());
+        }
+
+        function loadSeasonArchives() {
+            try {
+                var parsed = JSON.parse(localStorage.getItem(SEASON_ARCHIVES_KEY) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function saveSeasonArchives(items) {
+            localStorage.setItem(SEASON_ARCHIVES_KEY, JSON.stringify(items || []));
+        }
+
+        function getSelectedSeasonArchiveId() {
+            return localStorage.getItem(SELECTED_SEASON_ARCHIVE_KEY) || '';
+        }
+
+        function setSelectedSeasonArchiveId(id) {
+            if (id) localStorage.setItem(SELECTED_SEASON_ARCHIVE_KEY, id);
+            else localStorage.removeItem(SELECTED_SEASON_ARCHIVE_KEY);
+        }
+
+        function migrateLegacyRecapArchive() {
+            var archives = loadSeasonArchives();
+            if (archives.length) return archives;
+
+            var legacyOffensive = loadPlayerStats(RECAP_OFFENSIVE_STATS_KEY) || [];
+            var legacyDefensive = loadPlayerStats(RECAP_DEFENSIVE_STATS_KEY) || [];
+            var legacyLabel = loadSeasonLabel(RECAP_SEASON_LABEL_KEY, '').trim();
+            if (!legacyLabel && !legacyOffensive.length && !legacyDefensive.length) {
+                return archives;
+            }
+
+            var legacyArchive = {
+                id: 'archive-' + Date.now(),
+                label: legacyLabel || 'Archived Season',
+                archivedAt: new Date().toISOString(),
+                offensive: legacyOffensive,
+                defensive: legacyDefensive
+            };
+            archives = [legacyArchive];
+            saveSeasonArchives(archives);
+            setSelectedSeasonArchiveId(legacyArchive.id);
+            return archives;
+        }
+
+        function getSelectedSeasonArchive() {
+            var archives = migrateLegacyRecapArchive();
+            if (!archives.length) return null;
+            var selectedId = getSelectedSeasonArchiveId();
+            var selected = archives.find(function(item) { return item.id === selectedId; }) || archives[0];
+            if (selected && selected.id !== selectedId) setSelectedSeasonArchiveId(selected.id);
+            return selected || null;
+        }
+
+        function renderSeasonLabels() {
+            var currentLabel = loadSeasonLabel(CURRENT_SEASON_LABEL_KEY, getDefaultSeasonLabel(0));
+            var selectedArchive = getSelectedSeasonArchive();
+            var recapLabel = selectedArchive ? selectedArchive.label : 'Previous Season Not Archived Yet';
+            var currentDisplay = document.getElementById('currentSeasonLabelDisplay');
+            var recapDisplay = document.getElementById('seasonRecapLabelDisplay');
+            var currentInput = document.getElementById('currentSeasonLabelInput');
+            if (currentDisplay) currentDisplay.textContent = currentLabel;
+            if (recapDisplay) recapDisplay.textContent = recapLabel;
+            if (currentInput) currentInput.value = currentLabel;
+        }
+
+        function formatArchiveUpdatedAt(value) {
+            if (!value) return 'Archive has not been updated yet.';
+            var date = new Date(value);
+            if (Number.isNaN(date.getTime())) return 'Archive has not been updated yet.';
+            return 'Last updated: ' + date.toLocaleString();
+        }
+
+        function bindSeasonRecapSelect() {
+            var select = document.getElementById('seasonRecapSelect');
+            if (!select || select.dataset.bound === 'true') return;
+            select.dataset.bound = 'true';
+            select.addEventListener('change', function() {
+                setSelectedSeasonArchiveId(this.value);
+                renderSeasonLabels();
+                renderSeasonRecapStats();
+            });
+        }
+
+        function renderSeasonArchiveSelect() {
+            var select = document.getElementById('seasonRecapSelect');
+            var note = document.getElementById('seasonRecapUpdatedNote');
+            if (!select) return;
+            var archives = migrateLegacyRecapArchive();
+            var selectedArchive = getSelectedSeasonArchive();
+
+            if (!archives.length) {
+                select.innerHTML = '<option value="">No archived seasons yet</option>';
+                select.disabled = true;
+                if (note) note.textContent = 'Archive has not been updated yet.';
+                return;
+            }
+
+            select.disabled = false;
+            select.innerHTML = archives.map(function(item) {
+                return '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(item.label) + '</option>';
+            }).join('');
+            if (selectedArchive) select.value = selectedArchive.id;
+            if (note) note.textContent = formatArchiveUpdatedAt(selectedArchive && selectedArchive.archivedAt);
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function cloneRows(rows) {
+            return rows.map(function(row) {
+                return Object.assign({}, row);
+            });
+        }
+
+        function blankLeagueRow(fields) {
+            var row = {};
+            fields.forEach(function(field) {
+                row[field.key] = '';
+            });
+            return row;
+        }
+
+        function getScheduleTeamInitials(name) {
+            var words = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!words.length) return 'TBD';
+            return words.slice(0, 2).map(function(word) {
+                return word.charAt(0).toUpperCase();
+            }).join('');
+        }
+
+        function normalizeScheduleResultText(value) {
+            var text = String(value || '').trim();
+            if (!text || /^upcoming$/i.test(text)) return '0-0';
+            return text;
+        }
+
+        function parseLegacyMatchup(matchup) {
+            var text = String(matchup || '').trim();
+            if (!text) return { homeTeam: '', awayTeam: '' };
+            var parts = text.split(/\s+vs\.?\s+/i);
+            if (parts.length < 2) {
+                return { homeTeam: text, awayTeam: '' };
+            }
+            return {
+                homeTeam: (parts.shift() || '').trim(),
+                awayTeam: parts.join(' vs ').trim()
+            };
+        }
+
+        function normalizeLeagueScheduleRow(row) {
+            var source = row || {};
+            var legacyTeams = parseLegacyMatchup(source.matchup);
+            return {
+                week: String(source.week || '').trim(),
+                date: String(source.date || '').trim(),
+                time: String(source.time || '').trim(),
+                homeTeam: String(source.homeTeam || legacyTeams.homeTeam || '').trim(),
+                homeLogo: String(source.homeLogo || '').trim(),
+                awayTeam: String(source.awayTeam || legacyTeams.awayTeam || '').trim(),
+                awayLogo: String(source.awayLogo || '').trim(),
+                location: String(source.location || '').trim(),
+                status: normalizeScheduleResultText(source.status)
+            };
+        }
+
+        function getScheduleResultOutcome(text) {
+            var result = parseScheduleResultText(normalizeScheduleResultText(text));
+            var left = Number(result.leftScore);
+            var right = Number(result.rightScore);
+            if (!result.hasPair || Number.isNaN(left) || Number.isNaN(right) || left === right) {
+                return { home: '', away: '' };
+            }
+            return left > right ? { home: 'win', away: 'loss' } : { home: 'loss', away: 'win' };
+        }
+
+        function renderScheduleTeamMarkup(name, logo, sideClass, outcome) {
+            var teamName = name || 'TBD';
+            var safeName = escapeHtml(teamName);
+            var safeLogo = escapeHtml(logo || '');
+            var badgeMarkup = outcome === 'win'
+                ? '<div class="schedule-team-badge win">W</div>'
+                : outcome === 'loss'
+                    ? '<div class="schedule-team-badge loss">L</div>'
+                    : '';
+            var logoMarkup = logo
+                ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo">'
+                : '<div class="schedule-team-logo schedule-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName)) + '</div>';
+
+            return '<div class="schedule-team ' + sideClass + '">' +
+                badgeMarkup +
+                logoMarkup +
+                '<div class="schedule-team-name">' + safeName + '</div>' +
+            '</div>';
+        }
+
+        function renderScheduleMatchupMarkup(row) {
+            var outcome = getScheduleResultOutcome(row.status);
+            return '<div class="schedule-matchup" data-home-logo="' + escapeHtml(row.homeLogo || '') + '" data-away-logo="' + escapeHtml(row.awayLogo || '') + '">' +
+                renderScheduleTeamMarkup(row.homeTeam, row.homeLogo, 'schedule-team-home', outcome.home) +
+                '<div class="schedule-versus">VS</div>' +
+                renderScheduleTeamMarkup(row.awayTeam, row.awayLogo, 'schedule-team-away', outcome.away) +
+            '</div>';
+        }
+
+        function parseScheduleResultText(text) {
+            var value = normalizeScheduleResultText(text);
+            var match = value.match(/^(.+?)\s*-\s*(.+)$/);
+            if (!match) {
+                return {
+                    leftScore: value || '\u2014',
+                    rightScore: '\u2014',
+                    hasPair: false
+                };
+            }
+            return {
+                leftScore: match[1].trim() || '\u2014',
+                rightScore: match[2].trim() || '\u2014',
+                hasPair: true
+            };
+        }
+
+        function getScheduleAdminScoreParts(text) {
+            var parsed = parseScheduleResultText(text);
+            var left = String(parsed.leftScore || '0').trim();
+            var right = String(parsed.rightScore || '0').trim();
+            return {
+                left: /^\d+$/.test(left) ? left : '0',
+                right: /^\d+$/.test(right) ? right : '0'
+            };
+        }
+
+        function syncScheduleScoreInputs(input) {
+            var row = input ? input.closest('tr') : null;
+            if (!row) return;
+            var leftInput = row.querySelector('input[data-score-part="left"]');
+            var rightInput = row.querySelector('input[data-score-part="right"]');
+            var hiddenInput = row.querySelector('input[data-key="status"]');
+            if (!leftInput || !rightInput || !hiddenInput) return;
+            var left = String(leftInput.value || '0').replace(/[^0-9]/g, '') || '0';
+            var right = String(rightInput.value || '0').replace(/[^0-9]/g, '') || '0';
+            leftInput.value = left;
+            rightInput.value = right;
+            hiddenInput.value = left + '-' + right;
+        }
+
+        function renderScheduleResultMarkup(row) {
+            var result = parseScheduleResultText(row.status);
+            return '<div class="schedule-result">' +
+                '<div class="schedule-result-scoreboard">' +
+                    '<div class="schedule-result-score">' + escapeHtml(result.leftScore) + '</div>' +
+                    '<div class="schedule-result-separator">-</div>' +
+                    '<div class="schedule-result-score">' + escapeHtml(result.rightScore) + '</div>' +
+                '</div>' +
+                '<div class="schedule-result-teams">' +
+                    '<div class="schedule-result-team">' + escapeHtml(row.homeTeam || 'TBD') + '</div>' +
+                    '<div class="schedule-result-team">' + escapeHtml(row.awayTeam || 'TBD') + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        function loadLeagueCollection(key, defaults) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw === null) return cloneRows(defaults);
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : cloneRows(defaults);
+            } catch (e) {
+                return cloneRows(defaults);
+            }
+        }
+
+        function saveLeagueCollection(key, rows) {
+            localStorage.setItem(key, JSON.stringify(rows));
+        }
+
+        function loadLeagueStandings() {
+            return loadLeagueCollection(LEAGUE_STANDINGS_KEY, defaultLeagueStandings);
+        }
+
+        function saveLeagueStandings(rows) {
+            saveLeagueCollection(LEAGUE_STANDINGS_KEY, rows);
+        }
+
+        function loadLeagueSchedule() {
+            return loadLeagueCollection(LEAGUE_SCHEDULE_KEY, defaultLeagueSchedule).map(normalizeLeagueScheduleRow);
+        }
+
+        function saveLeagueSchedule(rows) {
+            saveLeagueCollection(LEAGUE_SCHEDULE_KEY, rows.map(normalizeLeagueScheduleRow));
+        }
+
+        function syncLeagueStandingsFromPublicTable() {
+            const tbody = document.getElementById('leagueStandingsBody');
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+                const cells = Array.from(tr.querySelectorAll('td')).map(function(td) {
+                    return td.innerText.trim();
+                });
+                const firstCell = tr.querySelector('td:first-child');
+                const hasLogoColumn = !!(firstCell && firstCell.querySelector('.standings-logo-cell, .stats-team-logo, .stats-team-logo-placeholder, img'));
+                const offset = hasLogoColumn ? 1 : 0;
+                if (cells.length < (5 + offset)) return null;
+                return {
+                    team: cells[0 + offset] || '',
+                    wins: cells[1 + offset] || '',
+                    losses: cells[2 + offset] || '',
+                    pointsScored: cells[3 + offset] || '',
+                    pointsAgainst: cells[4 + offset] || ''
+                };
+            }).filter(function(row) {
+                return row && Object.keys(row).some(function(key) { return row[key]; });
+            });
+            saveLeagueStandings(rows);
+            renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows, 'standings');
+        }
+
+        function renderStandingsTeamLogo(teamName) {
+            var safeName = escapeHtml(teamName || 'Team');
+            var logo = getStatsTeamLogo(teamName);
+            if (logo) {
+                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">';
+            }
+            return '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
+        }
+
+        function syncLeagueScheduleFromPublicTable() {
+            const tbody = document.getElementById('leagueScheduleBody');
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+                const cells = Array.from(tr.querySelectorAll('td'));
+                if (cells.length < 6) return null;
+                const matchup = cells[3].querySelector('.schedule-matchup');
+                const resultScore = cells[5].querySelector('.schedule-result-score');
+                const legacyMatchup = parseLegacyMatchup(cells[3].innerText.replace(/\s+/g, ' ').trim());
+                const homeTeamName = matchup ? matchup.querySelector('.schedule-team-home .schedule-team-name') : null;
+                const awayTeamName = matchup ? matchup.querySelector('.schedule-team-away .schedule-team-name') : null;
+                return {
+                    week: cells[0].innerText.trim() || '',
+                    date: cells[1].innerText.trim() || '',
+                    time: cells[2].innerText.trim() || '',
+                    homeTeam: homeTeamName ? homeTeamName.innerText.trim() : legacyMatchup.homeTeam,
+                    homeLogo: matchup ? (matchup.dataset.homeLogo || '') : '',
+                    awayTeam: awayTeamName ? awayTeamName.innerText.trim() : legacyMatchup.awayTeam,
+                    awayLogo: matchup ? (matchup.dataset.awayLogo || '') : '',
+                    location: cells[4].innerText.trim() || '',
+                    status: normalizeScheduleResultText(resultScore ? resultScore.innerText.trim() : cells[5].innerText.trim() || '')
+                };
+            }).filter(function(row) {
+                return row && Object.keys(row).some(function(key) { return row[key]; });
+            });
+            saveLeagueSchedule(rows);
+            renderLeagueScheduleAdminTable(rows);
+        }
+
+        function renderLeagueStandingsPublic() {
+            const tbody = document.getElementById('leagueStandingsBody');
+            if (!tbody) return;
+            const rows = loadLeagueStandings();
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(function(row) {
+                return '<tr>' +
+                    '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
+                    '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
+                    '<td>' + escapeHtml(row.wins || '0') + '</td>' +
+                    '<td>' + escapeHtml(row.losses || '0') + '</td>' +
+                    '<td>' + escapeHtml(row.pointsScored || '0') + '</td>' +
+                    '<td>' + escapeHtml(row.pointsAgainst || '0') + '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        function renderLeagueSchedulePublic() {
+            const tbody = document.getElementById('leagueScheduleBody');
+            if (!tbody) return;
+            const rows = loadLeagueSchedule();
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#aaa;">Schedule will be posted soon.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(function(row) {
+                return '<tr>' +
+                    '<td>' + escapeHtml(row.week || '\u2014') + '</td>' +
+                    '<td>' + escapeHtml(row.date || '\u2014') + '</td>' +
+                    '<td>' + escapeHtml(row.time || '\u2014') + '</td>' +
+                    '<td>' + renderScheduleMatchupMarkup(row) + '</td>' +
+                    '<td>' + escapeHtml(row.location || '\u2014') + '</td>' +
+                    '<td>' + renderScheduleResultMarkup(row) + '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        function renderLeagueAdminTable(bodyId, fields, rows, type) {
+            const tbody = document.getElementById(bodyId);
+            if (!tbody) return;
+            const editableRows = rows.length ? rows : [blankLeagueRow(fields)];
+            let html = '';
+            editableRows.forEach(function(row, rowIdx) {
+                html += '<tr>';
+                fields.forEach(function(field) {
+                    html += '<td><input type="text" data-key="' + field.key + '" value="' + escapeHtml(row[field.key] || '') + '" placeholder="' + escapeHtml(field.placeholder) + '"></td>';
+                });
+                html += '<td><button type="button" class="cta-button small" style="background:#c62828;" onclick="removeLeagueAdminRow(\'' + type + '\',' + rowIdx + ')">Remove</button></td>';
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderLeagueScheduleAdminTable(rows) {
+            const tbody = document.getElementById('leagueScheduleAdminBody');
+            if (!tbody) return;
+            const editableRows = rows.length ? rows : [blankLeagueRow(leagueScheduleFields)];
+            let html = '';
+
+            editableRows.map(normalizeLeagueScheduleRow).forEach(function(row, rowIdx) {
+                var scoreParts = getScheduleAdminScoreParts(row.status);
+                html += '<tr>' +
+                    '<td><input type="text" data-key="week" value="' + escapeHtml(row.week || '') + '" placeholder="Week 1"></td>' +
+                    '<td><input type="text" data-key="date" value="' + escapeHtml(row.date || '') + '" placeholder="MM/DD/YYYY"></td>' +
+                    '<td><input type="text" data-key="time" value="' + escapeHtml(row.time || '') + '" placeholder="7:00 PM"></td>' +
+                    '<td>' +
+                        '<div class="schedule-admin-matchup">' +
+                            '<div class="schedule-admin-team-block">' +
+                                '<label>Team 1 Name</label>' +
+                                '<input type="text" data-key="homeTeam" value="' + escapeHtml(row.homeTeam || '') + '" placeholder="Team 1 name">' +
+                                '<label>Team 1 Logo</label>' +
+                                '<img class="schedule-admin-logo-preview' + (row.homeLogo ? '' : ' hidden') + '" src="' + escapeHtml(row.homeLogo || '') + '" alt="Team 1 logo preview">' +
+                                '<div class="schedule-admin-logo-empty"' + (row.homeLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
+                                '<input type="hidden" data-key="homeLogo" value="' + escapeHtml(row.homeLogo || '') + '">' +
+                                '<input type="file" accept="image/*" class="schedule-admin-logo-upload" data-key="homeLogo">' +
+                            '</div>' +
+                            '<div class="schedule-admin-team-block">' +
+                                '<label>Team 2 Name</label>' +
+                                '<input type="text" data-key="awayTeam" value="' + escapeHtml(row.awayTeam || '') + '" placeholder="Team 2 name">' +
+                                '<label>Team 2 Logo</label>' +
+                                '<img class="schedule-admin-logo-preview' + (row.awayLogo ? '' : ' hidden') + '" src="' + escapeHtml(row.awayLogo || '') + '" alt="Team 2 logo preview">' +
+                                '<div class="schedule-admin-logo-empty"' + (row.awayLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
+                                '<input type="hidden" data-key="awayLogo" value="' + escapeHtml(row.awayLogo || '') + '">' +
+                                '<input type="file" accept="image/*" class="schedule-admin-logo-upload" data-key="awayLogo">' +
+                            '</div>' +
+                        '</div>' +
+                    '</td>' +
+                    '<td><input type="text" data-key="location" value="' + escapeHtml(row.location || '') + '" placeholder="Field name"></td>' +
+                    '<td>' +
+                        '<div class="schedule-score-editor">' +
+                            '<input type="number" min="0" step="1" data-score-part="left" value="' + escapeHtml(scoreParts.left) + '" oninput="syncScheduleScoreInputs(this)">' +
+                            '<span>-</span>' +
+                            '<input type="number" min="0" step="1" data-score-part="right" value="' + escapeHtml(scoreParts.right) + '" oninput="syncScheduleScoreInputs(this)">' +
+                            '<input type="hidden" data-key="status" value="' + escapeHtml(normalizeScheduleResultText(row.status || '0-0')) + '">' +
+                        '</div>' +
+                    '</td>' +
+                    '<td><button type="button" class="cta-button small" style="background:#c62828;" onclick="removeLeagueAdminRow(\'schedule\',' + rowIdx + ')">Remove</button></td>' +
+                '</tr>';
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function renderLeagueAdminTables() {
+            renderLeagueStandingsPublic();
+            renderLeagueSchedulePublic();
+            renderLeagueScheduleAdminTable(loadLeagueSchedule());
+        }
+
+        function collectLeagueAdminRows(bodyId, fields) {
+            const tbody = document.getElementById(bodyId);
+            if (!tbody) return [];
+            return Array.from(tbody.querySelectorAll('tr')).map(function(row) {
+                const item = {};
+                fields.forEach(function(field) {
+                    const input = row.querySelector('input[data-key="' + field.key + '"]');
+                    item[field.key] = input ? input.value.trim() : '';
+                });
+                return item;
+            }).filter(function(row) {
+                return fields.some(function(field) {
+                    return row[field.key];
+                });
+            });
+        }
+
+        function showLeagueAdminMessage(id, text, color) {
+            const msg = document.getElementById(id);
+            if (!msg) return;
+            msg.style.color = color;
+            msg.textContent = text;
+            setTimeout(function() {
+                if (msg.textContent === text) msg.textContent = '';
+            }, 3000);
+        }
+
+        function addLeagueAdminRow(type) {
+            if (!isAdminLoggedIn()) return;
+            if (type === 'standings') {
+                const rows = loadLeagueStandings();
+                rows.push(blankLeagueRow(leagueStandingsFields));
+                renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows, 'standings');
+                return;
+            }
+            const rows = loadLeagueSchedule();
+            rows.push(blankLeagueRow(leagueScheduleFields));
+            renderLeagueScheduleAdminTable(rows);
+        }
+
+        function removeLeagueAdminRow(type, rowIdx) {
+            if (!isAdminLoggedIn()) return;
+            if (type === 'standings') {
+                const rows = collectLeagueAdminRows('leagueStandingsAdminBody', leagueStandingsFields);
+                rows.splice(rowIdx, 1);
+                renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows, 'standings');
+                return;
+            }
+            const rows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
+            rows.splice(rowIdx, 1);
+            renderLeagueScheduleAdminTable(rows);
+        }
+
+        function saveStandingsFromAdminForm() {
+            if (!isAdminLoggedIn()) return;
+            if (!document.getElementById('leagueStandingsAdminBody')) return;
+            const rows = collectLeagueAdminRows('leagueStandingsAdminBody', leagueStandingsFields);
+            saveLeagueStandings(rows);
+            renderLeagueAdminTables();
+            showLeagueAdminMessage('leagueStandingsAdminMsg', 'Standings saved successfully.', 'green');
+        }
+
+        function saveScheduleFromAdminForm() {
+            if (!isAdminLoggedIn()) return;
+            const rows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
+            saveLeagueSchedule(rows);
+            renderLeagueAdminTables();
+            showLeagueAdminMessage('leagueScheduleAdminMsg', 'Schedule saved successfully.', 'green');
+        }
+
+        function loadPlayerStats(key) {
+            try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
+        }
+        function savePlayerStats(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        function getStatsSortConfig(type) {
+            return statsSortState[type] || { column: 3, direction: 'desc' };
+        }
+
+        function getStatsCellValue(row, column) {
+            if (!row || row[column] == null) return { type: 'text', value: '' };
+            const rawValue = String(row[column]).trim();
+            const numeric = Number(rawValue.replace(/[^0-9.-]/g, ''));
+            if (rawValue && !Number.isNaN(numeric) && /^-?[0-9]+(?:\.[0-9]+)?$/.test(rawValue.replace(/,/g, ''))) {
+                return { type: 'number', value: numeric };
+            }
+            return { type: 'text', value: rawValue.toLowerCase() };
+        }
+
+        function getSortedStatsRows(data, type) {
+            const config = getStatsSortConfig(type);
+            return data.map(function(row, originalIndex) {
+                if (row && row.row && row.originalIndex !== undefined) {
+                    return row;
+                }
+                return { row: row, originalIndex: originalIndex };
+            }).sort(function(left, right) {
+                const leftValue = getStatsCellValue(left.row, config.column);
+                const rightValue = getStatsCellValue(right.row, config.column);
+
+                if (!leftValue.value && !rightValue.value) {
+                    return left.originalIndex - right.originalIndex;
+                }
+                if (!leftValue.value) return 1;
+                if (!rightValue.value) return -1;
+
+                if (leftValue.type === 'number' && rightValue.type === 'number') {
+                    if (leftValue.value === rightValue.value) {
+                        return left.originalIndex - right.originalIndex;
+                    }
+                    return config.direction === 'asc' ? leftValue.value - rightValue.value : rightValue.value - leftValue.value;
+                }
+
+                const compareResult = String(leftValue.value).localeCompare(String(rightValue.value), undefined, { numeric: true, sensitivity: 'base' });
+                if (compareResult === 0) {
+                    return left.originalIndex - right.originalIndex;
+                }
+                return config.direction === 'asc' ? compareResult : -compareResult;
+            });
+        }
+
+        function bindStatsHeaderSorting() {
+            [
+                { type: 'offensive', tableId: 'offensiveStatsTable', sortableColumns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                { type: 'defensive', tableId: 'defensiveStatsTable', sortableColumns: [2, 3, 4, 5, 6, 7] },
+                { type: 'recapOffensive', tableId: 'recapOffensiveStatsTable', sortableColumns: [2, 3, 4, 5, 6, 7, 8, 9, 10] },
+                { type: 'recapDefensive', tableId: 'recapDefensiveStatsTable', sortableColumns: [2, 3, 4, 5, 6, 7] }
+            ].forEach(function(config) {
+                const table = document.getElementById(config.tableId);
+                const headers = table ? table.querySelectorAll('thead .stats-column-row th') : [];
+                if (!headers.length) return;
+
+                headers.forEach(function(header, index) {
+                    header.classList.remove('sortable-stat-header', 'sort-asc', 'sort-desc');
+                    header.removeAttribute('role');
+                    header.removeAttribute('tabindex');
+                    header.removeAttribute('title');
+                    header.removeAttribute('aria-label');
+
+                    var indicator = header.querySelector('.stat-sort-indicator');
+                    if (config.sortableColumns.indexOf(index) === -1) {
+                        if (indicator) indicator.remove();
+                        return;
+                    }
+
+                    header.classList.add('sortable-stat-header');
+                    header.setAttribute('role', 'button');
+                    header.setAttribute('tabindex', '0');
+                    header.setAttribute('title', 'Click to sort. Click again to reverse order.');
+                    header.setAttribute('aria-label', header.textContent.trim() + '. Click to sort ascending or descending.');
+
+                    if (!indicator) {
+                        indicator = document.createElement('span');
+                        indicator.className = 'stat-sort-indicator';
+                        indicator.setAttribute('aria-hidden', 'true');
+                        header.appendChild(indicator);
+                    }
+                    indicator.textContent = '';
+
+                    if (statsSortState[config.type].column === index) {
+                        header.classList.add(statsSortState[config.type].direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                    }
+
+                    if (header.dataset.sortBound === 'true') return;
+                    header.dataset.sortBound = 'true';
+
+                    function handleSortTrigger() {
+                        if (statsSortState[config.type].column === index) {
+                            statsSortState[config.type].direction = statsSortState[config.type].direction === 'desc' ? 'asc' : 'desc';
+                        } else {
+                            statsSortState[config.type].column = index;
+                            statsSortState[config.type].direction = 'desc';
+                        }
+                        renderAllStats();
+                    }
+
+                    header.addEventListener('click', handleSortTrigger);
+                    header.addEventListener('keydown', function(event) {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleSortTrigger();
+                        }
+                    });
+                });
+            });
+        }
+
+        function renderStatsTable(bodyId, key, cols, type, allowEditing, useBlankFallback, overrideData) {
+            const tbody = document.getElementById(bodyId);
+            if (!tbody) return;
+            const isAdmin = !!allowEditing;
+            const fallbackRows = useBlankFallback === false ? [] : [cols.map(function() { return ''; })];
+            const data = Array.isArray(overrideData) ? overrideData : (loadPlayerStats(key) || fallbackRows);
+            const sortedRows = getSortedStatsRows(data, type);
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="' + cols.length + '" style="text-align:center; color:#aaa;">No stats recorded yet.</td></tr>';
+                return;
+            }
+            let html = '';
+            sortedRows.forEach(function(entry) {
+                const row = normalizeStatsRow(entry.row, cols);
+                const rIdx = entry.originalIndex;
+                html += '<tr>';
+                row.forEach(function(cell, cIdx) {
+                    if (isAdmin) {
+                        if (cIdx === 0) {
+                            html += '<td>' + buildStatsTeamAdminEditor(key, rIdx, cell || '') + '</td>';
+                        } else {
+                            html += '<td><input type="text" value="' + (cell || '') + '" data-statskey="' + key + '" data-row="' + rIdx + '" data-col="' + cIdx + '" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;"></td>';
+                        }
+                    } else {
+                        if (cIdx === 0) {
+                            html += '<td>' + renderStatsTeamCell(cell || '') + '</td>';
+                        } else {
+                            html += '<td>' + (cell || '\u2014') + '</td>';
+                        }
+                    }
+                });
+                if (isAdmin) {
+                    html += '<td><button class="cta-button small" style="background:#c62828;padding:2px 8px;font-size:0.75rem;" onclick="removeStatsRow(\'' + bodyId + '\',\'' + key + '\',' + rIdx + ')">✕</button></td>';
+                }
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            if (isAdmin) {
+                tbody.querySelectorAll('input[type="text"]').forEach(function(inp) {
+                    inp.addEventListener('input', function() {
+                        var r = Number(this.dataset.row);
+                        var c = Number(this.dataset.col);
+                        var k = this.dataset.statskey;
+                        var d = loadPlayerStats(k) || [];
+                        if (d[r]) { d[r][c] = this.value; savePlayerStats(k, d); markUnsaved(); }
+                    });
+                });
+
+                tbody.querySelectorAll('.stats-team-logo-upload').forEach(function(inp) {
+                    inp.addEventListener('change', function() {
+                        var file = this.files && this.files[0];
+                        if (!file) return;
+                        var r = Number(this.dataset.row);
+                        var k = this.dataset.statskey;
+                        var d = loadPlayerStats(k) || [];
+                        var teamName = d[r] ? String(d[r][0] || '').trim() : '';
+                        if (!teamName) {
+                            alert('Please enter the team name before uploading a team logo.');
+                            this.value = '';
+                            return;
+                        }
+                        var reader = new FileReader();
+                        reader.onload = function(ev) {
+                            var dataUrl = ev && ev.target ? ev.target.result : '';
+                            if (!dataUrl) return;
+                            compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
+                                setStatsTeamLogo(teamName, compressed);
+                                renderAllStats();
+                                markUnsaved();
+                            }).catch(function() {
+                                alert('Unable to process the selected image. Please use a valid JPG, PNG, or GIF file and try again.');
+                            });
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                });
+            }
+        }
+
+        function saveCurrentSeasonLabel() {
+            if (!isAdminLoggedIn()) return;
+            var input = document.getElementById('currentSeasonLabelInput');
+            var label = input ? input.value.trim() : '';
+            if (!label) label = getDefaultSeasonLabel(0);
+            saveSeasonLabel(CURRENT_SEASON_LABEL_KEY, label);
+            renderSeasonLabels();
+            var msg = document.getElementById('seasonStatsAdminMsg');
+            if (msg) {
+                msg.style.color = 'green';
+                msg.textContent = 'Current season label saved.';
+                setTimeout(function() { if (msg.textContent === 'Current season label saved.') msg.textContent = ''; }, 3000);
+            }
+        }
+
+        function archiveCurrentSeasonToRecap() {
+            if (!isAdminLoggedIn()) return;
+            var currentLabelInput = document.getElementById('currentSeasonLabelInput');
+            var currentLabel = currentLabelInput && currentLabelInput.value.trim() ? currentLabelInput.value.trim() : loadSeasonLabel(CURRENT_SEASON_LABEL_KEY, getDefaultSeasonLabel(0));
+            saveSeasonLabel(CURRENT_SEASON_LABEL_KEY, currentLabel);
+            var archivedAt = new Date().toISOString();
+            var archives = migrateLegacyRecapArchive().filter(function(item) {
+                return item.label !== currentLabel;
+            });
+            var archiveEntry = {
+                id: 'archive-' + Date.now(),
+                label: currentLabel,
+                archivedAt: archivedAt,
+                offensive: loadPlayerStats(OFFENSIVE_STATS_KEY) || [],
+                defensive: loadPlayerStats(DEFENSIVE_STATS_KEY) || []
+            };
+            archives.unshift(archiveEntry);
+            saveSeasonArchives(archives);
+            setSelectedSeasonArchiveId(archiveEntry.id);
+            saveSeasonLabel(RECAP_SEASON_LABEL_KEY, currentLabel);
+
+            var nextSeasonLabel = getNextSeasonLabel(currentLabel);
+            saveSeasonLabel(CURRENT_SEASON_LABEL_KEY, nextSeasonLabel);
+            renderSeasonLabels();
+            renderSeasonArchiveSelect();
+            renderSeasonRecapStats();
+            var msg = document.getElementById('seasonStatsAdminMsg');
+            if (msg) {
+                msg.style.color = 'green';
+                msg.textContent = 'Season archived. Current season advanced to ' + nextSeasonLabel + '.';
+                setTimeout(function() { if (msg.textContent === 'Season archived. Current season advanced to ' + nextSeasonLabel + '.') msg.textContent = ''; }, 3000);
+            }
+        }
+
+        function renderSeasonRecapStats() {
+            var selectedArchive = getSelectedSeasonArchive();
+            ensureAllStatsFilterUI();
+            bindStatsHeaderSorting();
+            renderSeasonArchiveSelect();
+            renderStatsTable('recapOffensiveStatsBody', '__recapOffensiveVirtual__', offensiveCols, 'recapOffensive', false, false, selectedArchive ? selectedArchive.offensive : []);
+            renderStatsTable('recapDefensiveStatsBody', '__recapDefensiveVirtual__', defensiveCols, 'recapDefensive', false, false, selectedArchive ? selectedArchive.defensive : []);
+        }
+
+        function addStatsRow(bodyId, type) {
+            var key = type === 'offensive' ? OFFENSIVE_STATS_KEY : DEFENSIVE_STATS_KEY;
+            var cols = type === 'offensive' ? offensiveCols : defensiveCols;
+            var data = loadPlayerStats(key) || [];
+            data.push(cols.map(function() { return ''; }));
+            savePlayerStats(key, data);
+            renderAllStats();
+            markUnsaved();
+        }
+
+        function removeStatsRow(bodyId, key, rowIdx) {
+            var data = loadPlayerStats(key) || [];
+            if (data.length <= 1) { alert('Cannot remove the last row.'); return; }
+            data.splice(rowIdx, 1);
+            savePlayerStats(key, data);
+            renderAllStats();
+            markUnsaved();
+        }
+
+        function renderAllStats() {
+            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            var offBtn = document.getElementById('offensiveStatsAdminBtns');
+            var defBtn = document.getElementById('defensiveStatsAdminBtns');
+            var seasonPanel = document.getElementById('seasonStatsAdminPanel');
+            if (offBtn) offBtn.style.display = isAdmin ? 'block' : 'none';
+            if (defBtn) defBtn.style.display = isAdmin ? 'block' : 'none';
+            if (seasonPanel) seasonPanel.style.display = isAdmin ? 'block' : 'none';
+
+            var offThead = document.querySelector('#offensiveStatsTable thead tr');
+            var defThead = document.querySelector('#defensiveStatsTable thead tr');
+            if (isAdmin) {
+                if (offThead && !offThead.querySelector('.admin-remove-th')) {
+                    var th = document.createElement('th'); th.textContent = ''; th.className = 'admin-remove-th'; offThead.appendChild(th);
+                }
+                if (defThead && !defThead.querySelector('.admin-remove-th')) {
+                    var th2 = document.createElement('th'); th2.textContent = ''; th2.className = 'admin-remove-th'; defThead.appendChild(th2);
+                }
+            } else {
+                if (offThead) { var rmTh = offThead.querySelector('.admin-remove-th'); if (rmTh) rmTh.remove(); }
+                if (defThead) { var rmTh2 = defThead.querySelector('.admin-remove-th'); if (rmTh2) rmTh2.remove(); }
+            }
+
+            renderSeasonLabels();
+            bindSeasonRecapSelect();
+            ensureAllStatsFilterUI();
+            bindStatsHeaderSorting();
+            renderStatsTable('offensiveStatsBody', OFFENSIVE_STATS_KEY, offensiveCols, 'offensive', isAdmin, true);
+            renderStatsTable('defensiveStatsBody', DEFENSIVE_STATS_KEY, defensiveCols, 'defensive', isAdmin, true);
+            renderSeasonRecapStats();
+        }
+        renderLeagueAdminTables();
+        ensureLeagueScheduleResultsUI();
+        renderAllStats();
+
+        // page-wide edit state
+        let pageEditing = false;
+        let persistTimer = null;
+        let unsavedChanges = false;
+        function markUnsaved() {
+            unsavedChanges = true;
+            const btn = document.getElementById('saveChangesBtn');
+            if (btn) btn.style.background = '#e65100';
+            const msg = document.getElementById('saveMsg');
+            if (msg) msg.textContent = 'Unsaved changes';
+        }
+        function flushPersistSiteContent() {
+            if (persistTimer) {
+                clearTimeout(persistTimer);
+                persistTimer = null;
+            }
+            persistSiteContent();
+        }
+        function queuePersistSiteContent() {
+            if (!pageEditing) return;
+            markUnsaved();
+        }
+        function saveAllChanges() {
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            if (pageEditing) {
+                syncLeagueStandingsFromPublicTable();
+                syncLeagueScheduleFromPublicTable();
+                renderLeagueStandingsPublic();
+                renderLeagueSchedulePublic();
+            } else {
+                saveScheduleFromAdminForm();
+            }
+            persistSiteContent();
+            // also save payment links currently in inputs
+            var teamLink = document.getElementById('paypalTeamLink');
+            var freeLink = document.getElementById('paypalFreeAgentLink');
+            var cashAppLinkEl = document.getElementById('cashAppLink');
+            var venmoLinkEl = document.getElementById('venmoLink');
+            if (teamLink && freeLink) {
+                savePaymentLinks({
+                    team: teamLink.value,
+                    freeAgent: freeLink.value,
+                    cashApp: cashAppLinkEl ? cashAppLinkEl.value : '',
+                    venmo: venmoLinkEl ? venmoLinkEl.value : ''
+                });
+            }
+            unsavedChanges = false;
+            var btn = document.getElementById('saveChangesBtn');
+            if (btn) btn.style.background = '#4caf50';
+            var msg = document.getElementById('saveMsg');
+            if (msg) { msg.textContent = '✓ All changes saved!'; setTimeout(function(){ msg.textContent = ''; }, 3000); }
+        }
+        document.addEventListener('input', queuePersistSiteContent, true);
+        document.addEventListener('change', queuePersistSiteContent, true);
+        window.addEventListener('beforeunload', function(e) {
+            flushPersistSiteContent();
+            if (unsavedChanges && sessionStorage.getItem('adminLoggedIn') === 'true') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') flushPersistSiteContent();
+        });
+
+        function setAdminEditableText(enable) {
+            var editableSelector = 'header .logo span, header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
+            var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, form';
+
+            document.querySelectorAll(editableSelector).forEach(function(el) {
+                if (el.closest(protectedScopeSelector)) {
+                    el.setAttribute('contenteditable', 'false');
+                    return;
+                }
+
+                if (enable) {
+                    el.setAttribute('contenteditable', 'true');
+                } else if (el.getAttribute('contenteditable') === 'true') {
+                    el.removeAttribute('contenteditable');
+                }
+            });
+        }
+
+        function enablePageEdit(enable) {
+            // HARD GATE: never allow editing unless admin is logged in
+            if (!isAdminLoggedIn()) {
+                pageEditing = false;
+                lockdownForPublic();
+                return;
+            }
+            pageEditing = enable;
+            if (enable) {
+                setAdminEditableText(true);
+                document.body.classList.add('admin-editable');
+                // Protect all form controls and protected surfaces from contenteditable
+                document.querySelectorAll('form, input, select, textarea, canvas, .login-modal, #memberHeader, #adminHeader, #paymentForm, #leagueScheduleAdminPanel, #player-stats').forEach(function(el) {
+                    el.setAttribute('contenteditable', 'false');
+                });
+                document.querySelectorAll('#adminOnly input, #adminOnly select, #adminOnly textarea, #adminOnly button').forEach(function(el) {
+                    el.disabled = false;
+                });
+                document.querySelectorAll('#leagueScheduleAdminPanel input, #leagueScheduleAdminPanel select, #leagueScheduleAdminPanel textarea, #leagueScheduleAdminPanel button').forEach(function(el) {
+                    el.disabled = false;
+                });
+                document.querySelectorAll('#adminOnly .team-logo-input').forEach(function(el) {
+                    el.style.display = '';
+                });
+                enforceNonEditableAdminUI();
+                const btn = document.getElementById('togglePageEditBtn');
+                if (btn) btn.textContent = 'Disable Editing';
+            } else {
+                pageEditing = false;
+                setAdminEditableText(false);
+                document.querySelectorAll('[contenteditable]').forEach(function(el) { el.removeAttribute('contenteditable'); });
+                document.body.classList.remove('admin-editable');
+                document.querySelectorAll('#adminOnly input, #adminOnly select, #adminOnly textarea, #adminOnly button').forEach(function(el) {
+                    el.disabled = false;
+                });
+                document.querySelectorAll('#leagueScheduleAdminPanel input, #leagueScheduleAdminPanel select, #leagueScheduleAdminPanel textarea, #leagueScheduleAdminPanel button').forEach(function(el) {
+                    el.disabled = false;
+                });
+                document.querySelectorAll('#adminOnly .team-logo-input').forEach(function(el) {
+                    el.style.display = '';
+                });
+                const btn = document.getElementById('togglePageEditBtn');
+                if (btn) btn.textContent = 'Enable Editing';
+                persistSiteContent();
+            }
+        }
+        function togglePageEdit() {
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            enablePageEdit(!pageEditing);
+        }
+
+        // --- end Documents functions ---
+
+        // Page navigation for all anchor links with hash hrefs
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                // Close mobile/scrolled nav overlay if open
+                var navLinks = document.querySelector('header .nav-links');
+                if (navLinks) navLinks.classList.remove('nav-open');
+                var hamburger = document.getElementById('navHamburger');
+                if (hamburger) hamburger.textContent = '\u2630';
+                const id = this.getAttribute('href').substring(1);
+                if (id) showPage(id);
+            });
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const adminAccount = getMatchingAdminAccount(username, password);
+
+            if (adminAccount) {
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                sessionStorage.setItem('adminUsername', adminAccount.username);
+                // show feedback inside modal
+                const msgEl = document.getElementById('loginError');
+                if (msgEl) {
+                    msgEl.style.color = 'green';
+                    msgEl.textContent = 'Successfully logged in as admin';
+                }
+                // delay hiding so message is visible briefly
+                setTimeout(() => {
+                    showAdminView();
+                }, 800);
+            } else {
+                const msgEl = document.getElementById('loginError');
+                if (msgEl) {
+                    msgEl.style.color = 'red';
+                    msgEl.textContent = 'Invalid username or password';
+                }
+            }
+        });
+
+        function showAdminView() {
+            // notify user explicitly
+            alert('Successfully logged in as admin');
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('adminHeader').style.display = 'block';
+            ensureAdminBrandingUI();
+            bindAdminBrandingControls();
+            // display username if available
+            const adminNameEl = document.getElementById('adminNameDisplay');
+            const stored = sessionStorage.getItem('adminUsername');
+            if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+            document.getElementById('adminOnly').classList.add('visible');
+            // show admin nav items
+            document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
+            // enable full-page editing
+            enablePageEdit(true);
+            // refresh admin tables
+            renderUsersTableForAdmin();
+            renderDocsAdmin && renderDocsAdmin();
+            renderLeagueAdminTables && renderLeagueAdminTables();
+            renderAllStats && renderAllStats();
+            renderAdminPaymentRequests && renderAdminPaymentRequests();
+            renderPayPalSettings && renderPayPalSettings();
+            bindPayPalSettingsControls && bindPayPalSettingsControls();
+            populateCtaButtonEditor && populateCtaButtonEditor();
+            bindCtaButtonControls && bindCtaButtonControls();
+            var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+            if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
+            showPage('documentsAdmin');
+            persistSiteContent();
+        }
+
+        function logout() {
+            flushPersistSiteContent();
+            sessionStorage.removeItem('adminLoggedIn');
+            sessionStorage.removeItem('adminUsername');
+            // Full public lockdown — removes ALL editing artifacts
+            lockdownForPublic();
+            var scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
+            if (scheduleAdminPanel) scheduleAdminPanel.classList.remove('visible');
+            renderLeagueAdminTables && renderLeagueAdminTables();
+            // Re-render tables in public (non-admin) mode
+            renderAllStats && renderAllStats();
+            // Clear login form and reset to step 1
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('adminPickStep').style.display = 'block';
+            document.getElementById('adminPasswordStep').style.display = 'none';
+            showPage('home');
+        }
+
+        // Logo upload handling (admin-only)
+
+        // =====================================================
+        // PHASE 2, 3, 5: New Features & Accessibility
+        // =====================================================
+        
+        // Back to Top Button
+        (function() {
+            var backToTopBtn = document.getElementById('backToTop');
+            if (!backToTopBtn) return;
+            
+            function toggleBackToTop() {
+                if (window.pageYOffset > 300) {
+                    backToTopBtn.classList.add('visible');
+                } else {
+                    backToTopBtn.classList.remove('visible');
+                }
+            }
+            
+            window.addEventListener('scroll', toggleBackToTop);
+            
+            backToTopBtn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        })();
+        
+        // Active Navigation Highlighting
+        (function() {
+            var sections = document.querySelectorAll('section[id], main[id]');
+            var navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+            
+            function highlightActiveNav() {
+                var scrollPos = window.pageYOffset + 100;
+                
+                sections.forEach(function(section) {
+                    var top = section.offsetTop;
+                    var bottom = top + section.offsetHeight;
+                    var id = section.getAttribute('id');
+                    
+                    if (scrollPos >= top && scrollPos < bottom) {
+                        navLinks.forEach(function(link) {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href') === '#' + id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }
+            
+            window.addEventListener('scroll', highlightActiveNav);
+            highlightActiveNav();
+        })();
+        
+        // =====================================================
+        // PHASE 6: Security Warnings & Input Sanitization
+        // =====================================================
+        
+        /* SECURITY WARNING:
+         * This application stores passwords in plaintext in localStorage.
+         * This is NOT secure for production use. Passwords should NEVER be
+         * stored in plaintext. For a production application:
+         * 
+         * 1. Use proper backend authentication (OAuth, JWT, etc.)
+         * 2. Hash passwords with bcrypt or similar on the server
+         * 3. Use HTTPS for all communications
+         * 4. Implement proper session management
+         * 5. Add CSRF protection
+         * 6. Use secure, httpOnly cookies
+         * 
+         * This implementation is for demonstration/prototype purposes only.
+         */
+        
+        // XSS Protection: HTML sanitization helper
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        // Input validation helper
+        function validateInput(value, type) {
+            if (!value || typeof value !== 'string') return false;
+            
+            switch(type) {
+                case 'email':
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+                case 'username':
+                    return /^[a-zA-Z0-9_]{3,20}$/.test(value);
+                case 'text':
+                    return value.length > 0 && value.length < 1000;
+                default:
+                    return true;
+            }
+        }
+        
+        // =====================================================
+        // Search & Filter Functionality for Stats Tables
+        // =====================================================
+        
+        function addTableControls(tableId, options) {
+            options = options || {};
+            var table = document.getElementById(tableId);
+            if (!table) return;
+            
+            var wrapper = document.createElement('div');
+            wrapper.className = 'table-controls';
+            
+            // Search box
+            if (options.search !== false) {
+                var searchBox = document.createElement('input');
+                searchBox.type = 'text';
+                searchBox.className = 'search-box';
+                searchBox.placeholder = 'Search players...';
+                searchBox.setAttribute('aria-label', 'Search players');
+                
+                searchBox.addEventListener('input', function() {
+                    filterTable(table, this.value, filterDropdown ? filterDropdown.value : '');
+                });
+                
+                wrapper.appendChild(searchBox);
+            }
+            
+            // Filter dropdown
+            var filterDropdown = null;
+            if (options.filter && options.filterOptions) {
+                filterDropdown = document.createElement('select');
+                filterDropdown.className = 'filter-dropdown';
+                filterDropdown.setAttribute('aria-label', 'Filter by team');
+                
+                var defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'All Teams';
+                filterDropdown.appendChild(defaultOption);
+                
+                options.filterOptions.forEach(function(opt) {
+                    var option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    filterDropdown.appendChild(option);
+                });
+                
+                filterDropdown.addEventListener('change', function() {
+                    filterTable(table, searchBox ? searchBox.value : '', this.value);
+                });
+                
+                wrapper.appendChild(filterDropdown);
+            }
+            
+            // Export button
+            if (options.export !== false) {
+                var exportBtn = document.createElement('button');
+                exportBtn.className = 'export-btn';
+                exportBtn.innerHTML = '<span class="icon-download"></span>Export to CSV';
+                exportBtn.setAttribute('aria-label', 'Export table to CSV');
+                
+                exportBtn.addEventListener('click', function() {
+                    exportTableToCSV(table, options.filename || 'data.csv');
+                });
+                
+                wrapper.appendChild(exportBtn);
+            }
+            
+            table.parentNode.insertBefore(wrapper, table);
+            
+            // Wrap table for horizontal scrolling on mobile
+            if (!table.parentNode.classList.contains('responsive-table-wrapper')) {
+                var tableWrapper = document.createElement('div');
+                tableWrapper.className = 'responsive-table-wrapper';
+                table.parentNode.insertBefore(tableWrapper, table);
+                tableWrapper.appendChild(table);
+            }
+            
+            // Add zebra striping class
+            if (options.zebra !== false) {
+                table.classList.add('zebra');
+            }
+        }
+        
+        function filterTable(table, searchText, filterValue) {
+            var tbody = table.querySelector('tbody');
+            if (!tbody) return;
+            
+            var rows = tbody.querySelectorAll('tr');
+            searchText = searchText.toLowerCase();
+            
+            rows.forEach(function(row) {
+                var text = row.textContent.toLowerCase();
+                var matchesSearch = !searchText || text.includes(searchText);
+                var matchesFilter = !filterValue || text.includes(filterValue.toLowerCase());
+                
+                if (matchesSearch && matchesFilter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        function exportTableToCSV(table, filename) {
+            var csv = [];
+            var rows = table.querySelectorAll('tr');
+            
+            for (var i = 0; i < rows.length; i++) {
+                var row = [];
+                var cols = rows[i].querySelectorAll('td, th');
+                
+                for (var j = 0; j < cols.length; j++) {
+                    var text = cols[j].textContent.replace(/"/g, '""');
+                    row.push('"' + text + '"');
+                }
+                
+                csv.push(row.join(','));
+            }
+            
+            var csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            var downloadLink = document.createElement('a');
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+        
+        // =====================================================
+        // Loading Indicator
+        // =====================================================
+        
+        function showLoading(message) {
+            var overlay = document.querySelector('.loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'loading-overlay';
+                overlay.innerHTML = '<div class="spinner"></div>';
+                if (message) {
+                    var msg = document.createElement('p');
+                    msg.style.color = 'white';
+                    msg.style.marginTop = '20px';
+                    msg.textContent = message;
+                    overlay.appendChild(msg);
+                }
+                document.body.appendChild(overlay);
+            }
+            setTimeout(function() {
+                overlay.classList.add('visible');
+            }, 10);
+            return overlay;
+        }
+        
+        function hideLoading() {
+            var overlay = document.querySelector('.loading-overlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+                setTimeout(function() {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                }, 300);
+            }
+        }
+        
+        // =====================================================
+        // Confirmation Dialog
+        // =====================================================
+        
+        function confirmAction(message, onConfirm, onCancel) {
+            var dialog = document.createElement('div');
+            dialog.className = 'confirm-dialog';
+            dialog.innerHTML = '<h3>Confirm Action</h3><p>' + sanitizeHTML(message) + '</p><div class="button-group"><button class="confirm-yes">Yes</button><button class="confirm-no">No</button></div>';
+            
+            document.body.appendChild(dialog);
+            setTimeout(function() { dialog.classList.add('visible'); }, 10);
+            
+            dialog.querySelector('.confirm-yes').addEventListener('click', function() {
+                dialog.classList.remove('visible');
+                setTimeout(function() {
+                    if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+                }, 300);
+                if (onConfirm) onConfirm();
+            });
+            
+            dialog.querySelector('.confirm-no').addEventListener('click', function() {
+                dialog.classList.remove('visible');
+                setTimeout(function() {
+                    if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+                }, 300);
+                if (onCancel) onCancel();
+            });
+        }
+        
+        // =====================================================
+        // Form Validation Enhancement
+        // =====================================================
+        
+        function enhanceFormValidation(formId) {
+            var form = document.getElementById(formId);
+            if (!form) return;
+            
+            var inputs = form.querySelectorAll('input[required], textarea[required], select[required]');
+            
+            inputs.forEach(function(input) {
+                input.addEventListener('blur', function() {
+                    validateField(this);
+                });
+                
+                input.addEventListener('input', function() {
+                    if (this.classList.contains('error')) {
+                        validateField(this);
+                    }
+                });
+            });
+            
+            form.addEventListener('submit', function(e) {
+                var isValid = true;
+                inputs.forEach(function(input) {
+                    if (!validateField(input)) {
+                        isValid = false;
+                    }
+                });
+                
+                if (!isValid) {
+                    e.preventDefault();
+                }
+            });
+        }
+        
+        function validateField(field) {
+            var value = field.value.trim();
+            var isValid = true;
+            var errorMsg = '';
+            
+            if (field.hasAttribute('required') && !value) {
+                isValid = false;
+                errorMsg = 'This field is required';
+            } else if (field.type === 'email' && value && !validateInput(value, 'email')) {
+                isValid = false;
+                errorMsg = 'Please enter a valid email address';
+            }
+            
+            if (isValid) {
+                field.classList.remove('error');
+                field.classList.add('success');
+            } else {
+                field.classList.remove('success');
+                field.classList.add('error');
+            }
+            
+            var existingError = field.parentNode.querySelector('.error-message');
+            if (existingError) {
+                existingError.textContent = errorMsg;
+            } else if (!isValid) {
+                var errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = errorMsg;
+                field.parentNode.insertBefore(errorDiv, field.nextSibling);
+            }
+            
+            return isValid;
+        }
+        
+        // =====================================================
+        // Initialize Enhanced Features
+        // =====================================================
+        
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initEnhancements);
+        } else {
+            initEnhancements();
+        }
+        
+        function initEnhancements() {
+            // Add table controls to stats tables (if they exist)
+            setTimeout(function() {
+                // Try to find stats tables and add controls
+                var statsTables = document.querySelectorAll('.stats-table, #playerStatsTable, #teamStatsTable');
+                statsTables.forEach(function(table, index) {
+                    if (table.id) {
+                        addTableControls(table.id, {
+                            search: true,
+                            filter: true,
+                            filterOptions: [], // Will be populated dynamically
+                            export: true,
+                            zebra: true,
+                            filename: 'stats-' + index + '.csv'
+                        });
+                    }
+                });
+                
+                // Enhance forms
+                enhanceFormValidation('loginForm');
+                enhanceFormValidation('memberRegisterForm');
+                enhanceFormValidation('memberLoginForm');
+            }, 1000);
+        }
