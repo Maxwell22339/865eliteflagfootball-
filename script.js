@@ -99,6 +99,8 @@
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
+        const NAV_ICON_MENU = '\u2630';
+        const NAV_ICON_CLOSE = '\u2715';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
             freeAgent: DEFAULT_PAYPAL_URL,
@@ -149,8 +151,9 @@
                 navLinks.classList.remove('nav-open');
             }
             if (hamburger && navLinks) {
-                hamburger.textContent = navLinks.classList.contains('nav-open') ? '\u2715' : '\u2630';
+                hamburger.textContent = navLinks.classList.contains('nav-open') ? NAV_ICON_CLOSE : NAV_ICON_MENU;
             }
+            // Force-close auth dropdown whenever auth/nav state is synchronized.
             toggleLoginDropdown(false);
         }
 
@@ -873,13 +876,13 @@
             hamburger.id = 'navHamburger';
             hamburger.className = 'nav-hamburger';
             hamburger.setAttribute('aria-label', 'Toggle navigation');
-            hamburger.textContent = '\u2630'; // ☰
+            hamburger.textContent = NAV_ICON_MENU;
             nav.appendChild(hamburger);
             hamburger.addEventListener('click', function() {
                 var navLinks = document.querySelector('header .nav-links');
                 if (navLinks) {
                     var isOpen = navLinks.classList.toggle('nav-open');
-                    hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
+                    hamburger.textContent = isOpen ? NAV_ICON_CLOSE : NAV_ICON_MENU;
                 }
             });
         }
@@ -1559,7 +1562,7 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = '\u2630';
+                    if (hamburger) hamburger.textContent = NAV_ICON_MENU;
                     showAdminLoginModal();
                     toggleLoginDropdown(false);
                 }
@@ -1576,7 +1579,7 @@
                     var navLinks = document.querySelector('header .nav-links');
                     if (navLinks) navLinks.classList.remove('nav-open');
                     var hamburger = document.getElementById('navHamburger');
-                    if (hamburger) hamburger.textContent = '\u2630';
+                    if (hamburger) hamburger.textContent = NAV_ICON_MENU;
                     showPage(id);
                     return;
                 }
