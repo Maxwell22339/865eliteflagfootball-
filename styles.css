@@ -14,6 +14,9 @@
 
         :root {
             --hero-photo: none;
+            --hamburger-color: #ff9d2f;
+            --hamburger-hover-border: #ffb04f;
+            --hamburger-hover-color: #ffc67a;
         }
 
         header {
@@ -1249,7 +1252,7 @@
             display: block;
             background: rgba(255, 111, 0, 0.08);
             border: 2px solid rgba(255, 111, 0, 0.95);
-            color: #ff9d2f;
+            color: var(--hamburger-color);
             font-size: 1.4rem;
             cursor: pointer;
             padding: 4px 12px;
@@ -1263,8 +1266,8 @@
         }
         .nav-hamburger:hover {
             background: rgba(255,111,0,0.2);
-            border-color: #ffb04f;
-            color: #ffc67a;
+            border-color: var(--hamburger-hover-border);
+            color: var(--hamburger-hover-color);
             transform: translateY(-1px);
         }
 
