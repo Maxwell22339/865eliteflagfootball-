@@ -253,6 +253,19 @@
         section {
             padding: 80px 20px;
         }
+        
+        /* Mobile: reduce section padding */
+        @media (max-width: 768px) {
+            section {
+                padding: 50px 15px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            section {
+                padding: 40px 12px;
+            }
+        }
 
         h2 {
             font-size: 2.5rem;
