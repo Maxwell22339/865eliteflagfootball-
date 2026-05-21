@@ -140,16 +140,16 @@
             var hamburger = document.getElementById('navHamburger');
 
             if (loginMenuItem) {
-                loginMenuItem.style.display = isAuthenticated ? 'none' : '';
+                loginMenuItem.toggleAttribute('hidden', isAuthenticated);
             }
             if (loginAdminBtn) {
-                loginAdminBtn.style.display = isAdmin ? 'none' : '';
+                loginAdminBtn.toggleAttribute('hidden', isAdmin);
             }
             if (isAuthenticated && navLinks) {
                 navLinks.classList.remove('nav-open');
             }
-            if (hamburger && navLinks && !navLinks.classList.contains('nav-open')) {
-                hamburger.textContent = '\u2630';
+            if (hamburger && navLinks) {
+                hamburger.textContent = navLinks.classList.contains('nav-open') ? '\u2715' : '\u2630';
             }
             toggleLoginDropdown(false);
         }
