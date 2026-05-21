@@ -135,8 +135,10 @@
             return sessionStorage.getItem('adminLoggedIn') === 'true' && !!sessionStorage.getItem('adminGithubToken');
         }
 
-        function getAdminGithubToken() {
-            return sessionStorage.getItem('adminGithubToken') || '';
+        function clearAdminSession() {
+            sessionStorage.removeItem('adminLoggedIn');
+            sessionStorage.removeItem('adminUsername');
+            sessionStorage.removeItem('adminGithubToken');
         }
 
         async function githubApiFetch(path, token) {
@@ -1605,9 +1607,7 @@
                 const token = sessionStorage.getItem('adminGithubToken') || '';
                 const verification = await verifyGitHubAdmin(stored || '', token);
                 if (!verification.ok) {
-                    sessionStorage.removeItem('adminLoggedIn');
-                    sessionStorage.removeItem('adminUsername');
-                    sessionStorage.removeItem('adminGithubToken');
+                    clearAdminSession();
                     lockdownForPublic();
                     renderAllStats && renderAllStats();
                     updateFooterAdminState();
@@ -1638,9 +1638,7 @@
                 showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
             } else {
                 // Non-admin: full lockdown — no editing visible anywhere
-                sessionStorage.removeItem('adminLoggedIn');
-                sessionStorage.removeItem('adminUsername');
-                sessionStorage.removeItem('adminGithubToken');
+                clearAdminSession();
                 lockdownForPublic();
                 renderAllStats && renderAllStats();
             }
@@ -3662,9 +3660,7 @@
         function logout() {
             saveAllChanges();
             flushPersistSiteContent();
-            sessionStorage.removeItem('adminLoggedIn');
-            sessionStorage.removeItem('adminUsername');
-            sessionStorage.removeItem('adminGithubToken');
+            clearAdminSession();
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
             updateFooterAdminState();
