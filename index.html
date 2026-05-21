@@ -4117,7 +4117,14 @@
             try {
                 var saved = JSON.parse(localStorage.getItem(STATS_TEAM_LOGOS_KEY) || '{}');
                 if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
-                return saved;
+                return Object.keys(saved).reduce(function(acc, key) {
+                    if (typeof key !== 'string') return acc;
+                    var normalizedKey = normalizeTeamNameKey(key);
+                    var value = saved[key];
+                    if (!normalizedKey || typeof value !== 'string') return acc;
+                    acc[normalizedKey] = value;
+                    return acc;
+                }, {});
             } catch (e) {
                 return {};
             }
@@ -4161,7 +4168,7 @@
             return '<div class="stats-team-admin-editor">' +
                 '<input type="text" value="' + safeName + '" data-statskey="' + statsKey + '" data-row="' + rowIndex + '" data-col="0" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;" placeholder="Team name">' +
                 '<div class="stats-team-admin-preview">' + previewMarkup + '<span style="font-size:0.75rem;color:#bbb;">Logo</span></div>' +
-                '<input type="file" accept="image/*" class="stats-team-admin-upload stats-team-logo-upload" data-statskey="' + statsKey + '" data-row="' + rowIndex + '">' +
+                '<input type="file" accept="image/*" aria-label="Upload team logo" class="stats-team-admin-upload stats-team-logo-upload" data-statskey="' + statsKey + '" data-row="' + rowIndex + '">' +
             '</div>';
         }
 
@@ -4975,7 +4982,7 @@
                                 renderAllStats();
                                 markUnsaved();
                             }).catch(function() {
-                                alert('Unable to process the selected image. Please try a different team logo.');
+                                alert('Unable to process the selected image. Please use a valid JPG, PNG, or GIF file and try again.');
                             });
                         };
                         reader.readAsDataURL(file);
