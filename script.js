@@ -86,11 +86,12 @@
             });
         }
 
-        // --- Admin credentials ---
-        const ADMIN_ACCOUNTS = [
-            { username: 'TFick123', password: 'IowaTennessee' },
-            { username: 'Maxwell22339', password: 'Daush+1115' }
-        ];
+        // --- Admin auth via GitHub ---
+        const GITHUB_API_BASE = 'https://api.github.com';
+        const GITHUB_REPO_OWNER = 'Maxwell22339';
+        const GITHUB_REPO_NAME = '865eliteflagfootball-';
+        const REQUIRED_ADMIN_PERMISSIONS = ['admin', 'maintain', 'write'];
+        const ADMIN_SESSION_TTL_MS = 30 * 60 * 1000;
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
@@ -133,13 +134,98 @@
         ];
 
         function isAdminLoggedIn() {
-            return sessionStorage.getItem('adminLoggedIn') === 'true';
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return false;
+            const token = sessionStorage.getItem('adminGithubToken') || '';
+            const authAt = Number(sessionStorage.getItem('adminAuthAt') || '0');
+            if (!token || !authAt || (Date.now() - authAt) > ADMIN_SESSION_TTL_MS) {
+                clearAdminSession();
+                return false;
+            }
+            return true;
         }
 
-        function getMatchingAdminAccount(username, password) {
-            return ADMIN_ACCOUNTS.find(function(account) {
-                return account.username === username && account.password === password;
-            }) || null;
+        function clearAdminSession() {
+            sessionStorage.removeItem('adminLoggedIn');
+            sessionStorage.removeItem('adminUsername');
+            sessionStorage.removeItem('adminGithubToken');
+            sessionStorage.removeItem('adminAuthAt');
+        }
+
+        async function githubApiFetch(path, token) {
+            return fetch(GITHUB_API_BASE + path, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+        }
+
+        async function verifyGitHubAdmin(username, token) {
+            const trimmedUsername = (username || '').trim();
+            const trimmedToken = (token || '').trim();
+            if (!trimmedUsername || !trimmedToken) {
+                return { ok: false, message: 'GitHub username and token are required.' };
+            }
+
+            let userResponse;
+            try {
+                userResponse = await githubApiFetch('/user', trimmedToken);
+            } catch (err) {
+                return { ok: false, message: 'Network error while contacting GitHub.' };
+            }
+            if (!userResponse.ok) {
+                if (userResponse.status === 401) {
+                    return { ok: false, message: 'Invalid GitHub token.' };
+                }
+                return { ok: false, message: 'Unable to verify GitHub identity right now.' };
+            }
+            const userData = await userResponse.json();
+            const githubLogin = (userData && userData.login ? userData.login : '').trim();
+            if (!githubLogin || githubLogin.toLowerCase() !== trimmedUsername.toLowerCase()) {
+                return { ok: false, message: 'GitHub username does not match this token.' };
+            }
+
+            const permissionPath = '/repos/' + encodeURIComponent(GITHUB_REPO_OWNER) + '/' + encodeURIComponent(GITHUB_REPO_NAME) + '/collaborators/' + encodeURIComponent(githubLogin) + '/permission';
+            let permissionResponse;
+            try {
+                permissionResponse = await githubApiFetch(permissionPath, trimmedToken);
+            } catch (err) {
+                return { ok: false, message: 'Network error while checking repository permissions.' };
+            }
+            if (!permissionResponse.ok) {
+                return { ok: false, message: 'GitHub account is not authorized for admin access.' };
+            }
+            const permissionData = await permissionResponse.json();
+            const permission = permissionData && permissionData.permission ? permissionData.permission : '';
+            if (!REQUIRED_ADMIN_PERMISSIONS.includes(permission)) {
+                return { ok: false, message: 'GitHub account requires write access to this repository.' };
+            }
+
+            return { ok: true, username: githubLogin };
+        }
+
+        function resetToPublicView(activePageId) {
+            clearAdminSession();
+            lockdownForPublic();
+            if (renderAllStats) renderAllStats();
+            updateFooterAdminState();
+            updateNavQuickSelectOptions(activePageId || (window.location.hash ? window.location.hash.substring(1) : 'home'));
+            ensureNavHamburger();
+            updateHeaderScrollState();
+        }
+
+        function showAdminAuthNotice(message) {
+            const footerMsg = document.getElementById('footerAdminLoginMsg');
+            if (footerMsg) {
+                footerMsg.style.color = '#ffb366';
+                footerMsg.textContent = message || '';
+            }
+            const modalMsg = document.getElementById('loginError');
+            if (modalMsg) {
+                modalMsg.style.color = '#ff6f61';
+                modalMsg.textContent = message || '';
+            }
         }
 
         function isMemberLoggedIn() {
@@ -225,29 +311,11 @@
         }
 
         function populateFooterAdminSelector() {
-            const selector = document.getElementById('footerAdminUsername');
-            if (!selector) return;
-            const selectedValue = selector.value;
-            selector.innerHTML = '';
-
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = 'Select Admin';
-            placeholder.disabled = true;
-            selector.appendChild(placeholder);
-
-            ADMIN_ACCOUNTS.forEach(function(account) {
-                const option = document.createElement('option');
-                option.value = account.username;
-                option.textContent = account.username;
-                selector.appendChild(option);
-            });
-
-            if (selectedValue && ADMIN_ACCOUNTS.some(function(account) { return account.username === selectedValue; })) {
-                selector.value = selectedValue;
-            } else {
-                selector.value = '';
-                placeholder.selected = true;
+            const usernameInput = document.getElementById('footerAdminGithubUsername');
+            if (!usernameInput) return;
+            const currentAdmin = sessionStorage.getItem('adminUsername') || '';
+            if (!usernameInput.value && currentAdmin) {
+                usernameInput.value = currentAdmin;
             }
         }
 
@@ -738,7 +806,7 @@
             if (!saveBtn || !teamInput || !freeInput || !adminEmailInput || !publicKeyInput || !serviceIdInput || !templateIdInput || saveBtn.dataset.bound) return;
             saveBtn.dataset.bound = 'true';
             saveBtn.addEventListener('click', function() {
-                if (sessionStorage.getItem('adminLoggedIn') !== 'true') {
+                if (!isAdminLoggedIn()) {
                     if (msg) {
                         msg.style.color = '#e65100';
                         msg.textContent = 'Admin login required to save payment settings.';
@@ -834,7 +902,7 @@
             var saveBtn = document.getElementById('saveCtaBtnSettings');
             if (!saveBtn) return;
             saveBtn.onclick = function() {
-                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                if (!isAdminLoggedIn()) return;
                 var textInput = document.getElementById('ctaBtnTextInput');
                 var linkInput = document.getElementById('ctaBtnLinkInput');
                 var msgEl = document.getElementById('ctaBtnMsg');
@@ -880,7 +948,7 @@
 
             if (changeLogoBtn) {
                 changeLogoBtn.onclick = function() {
-                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!isAdminLoggedIn()) return;
                     var currentLogoInput = document.getElementById('logoUploadInput');
                     if (currentLogoInput) currentLogoInput.click();
                 };
@@ -889,7 +957,7 @@
             if (logoUploadInput) {
                 logoUploadInput.onchange = function() {
                     const file = this.files && this.files[0];
-                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!file || !isAdminLoggedIn()) return;
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
@@ -912,7 +980,7 @@
 
             if (changeHeroBackgroundBtn) {
                 changeHeroBackgroundBtn.onclick = function() {
-                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!isAdminLoggedIn()) return;
                     var currentBackgroundInput = document.getElementById('heroBackgroundUploadInput');
                     if (currentBackgroundInput) currentBackgroundInput.click();
                 };
@@ -921,7 +989,7 @@
             if (heroBackgroundUploadInput) {
                 heroBackgroundUploadInput.onchange = function() {
                     const file = this.files && this.files[0];
-                    if (!file || sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!file || !isAdminLoggedIn()) return;
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
@@ -1128,7 +1196,7 @@
 
         function persistSiteContent() {
             try {
-                if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                if (!isAdminLoggedIn()) return;
                 const container = document.getElementById('siteContent');
                 if (!container) return;
                 // Clone and strip ALL admin artifacts before saving
@@ -1574,13 +1642,21 @@
         }
 
         // --- UI: show saved logo and check auth states on load ---
-        window.addEventListener('load', function() {
+        window.addEventListener('load', async function() {
             renderDocumentsList();
             // admin
-            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+            if (isAdminLoggedIn()) {
                 const stored = sessionStorage.getItem('adminUsername');
+                const token = sessionStorage.getItem('adminGithubToken') || '';
+                const verification = await verifyGitHubAdmin(stored || '', token);
+                if (!verification.ok) {
+                    resetToPublicView(window.location.hash ? window.location.hash.substring(1) : 'home');
+                    showAdminAuthNotice('Admin session expired or permissions changed. Please sign in again.');
+                    return;
+                }
+                sessionStorage.setItem('adminUsername', verification.username);
                 const adminNameEl = document.getElementById('adminNameDisplay');
-                if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
+                if (adminNameEl) adminNameEl.textContent = verification.username ? '(' + verification.username + ')' : '';
                 setAdminHeaderVisible(true);
                 document.getElementById('adminOnly').classList.add('visible');
                 const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
@@ -1600,8 +1676,7 @@
                 showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
             } else {
                 // Non-admin: full lockdown — no editing visible anywhere
-                lockdownForPublic();
-                renderAllStats && renderAllStats();
+                resetToPublicView(window.location.hash ? window.location.hash.substring(1) : 'home');
             }
             applySavedBranding();
             applySavedHeroBackground();
@@ -1676,16 +1751,11 @@
         function showAdminLoginModal() {
             const lm = document.getElementById('loginModal');
             if (!lm) return;
-            // Always start at step 1 (pick admin)
-            const pickStep = document.getElementById('adminPickStep');
-            const passStep = document.getElementById('adminPasswordStep');
-            const usernameEl = document.getElementById('username');
-            const passwordEl = document.getElementById('password');
+            const usernameEl = document.getElementById('adminGithubUsername');
+            const tokenEl = document.getElementById('adminGithubToken');
             const errorEl = document.getElementById('loginError');
-            if (pickStep) pickStep.style.display = 'block';
-            if (passStep) passStep.style.display = 'none';
             if (usernameEl) usernameEl.value = '';
-            if (passwordEl) passwordEl.value = '';
+            if (tokenEl) tokenEl.value = '';
             if (errorEl) errorEl.textContent = '';
             lm.classList.remove('hidden');
             lm.style.display = 'flex';
@@ -1737,28 +1807,6 @@
                 return;
             }
 
-            var pickBtn = e.target.closest('.admin-pick-btn');
-            if (pickBtn) {
-                const adminName = pickBtn.getAttribute('data-admin');
-                document.getElementById('username').value = adminName;
-                document.getElementById('adminPickedName').textContent = adminName;
-                document.getElementById('adminPickStep').style.display = 'none';
-                document.getElementById('adminPasswordStep').style.display = 'block';
-                document.getElementById('password').value = '';
-                document.getElementById('loginError').textContent = '';
-                document.getElementById('password').focus();
-                return;
-            }
-
-            if (e.target.closest('#adminBackBtn')) {
-                document.getElementById('adminPasswordStep').style.display = 'none';
-                document.getElementById('adminPickStep').style.display = 'block';
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
-                document.getElementById('loginError').textContent = '';
-                return;
-            }
-
             if (e.target.closest('#navQuickSelectPanel') || e.target.closest('#navHamburger')) {
                 e.stopPropagation();
                 return;
@@ -1786,34 +1834,56 @@
             setNavQuickSelectOpen(false);
             showPage(targetPage);
         });
-        function handleFooterAdminLoginSubmit(e) {
+        async function authenticateAdminViaGitHub(username, token, messageEl, successMessage) {
+            if (messageEl) {
+                messageEl.style.color = '#ffb366';
+                messageEl.textContent = 'Verifying GitHub credentials...';
+            }
+            try {
+                const verification = await verifyGitHubAdmin(username, token);
+                if (!verification.ok) {
+                    if (messageEl) {
+                        messageEl.style.color = '#ff6f61';
+                        messageEl.textContent = verification.message || 'Authentication failed.';
+                    }
+                    return false;
+                }
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                sessionStorage.setItem('adminUsername', verification.username);
+                sessionStorage.setItem('adminGithubToken', token.trim());
+                sessionStorage.setItem('adminAuthAt', String(Date.now()));
+                if (messageEl) {
+                    messageEl.style.color = '#7dffb3';
+                    messageEl.textContent = successMessage || 'Signed in successfully';
+                }
+                showAdminView();
+                return true;
+            } catch (err) {
+                if (messageEl) {
+                    messageEl.style.color = '#ff6f61';
+                    messageEl.textContent = 'GitHub verification failed. Please try again.';
+                }
+                return false;
+            }
+        }
+
+        async function handleFooterAdminLoginSubmit(e) {
             e.preventDefault();
             const form = e && e.target && e.target.id === 'footerAdminLoginForm'
                 ? e.target
                 : document.getElementById('footerAdminLoginForm');
             if (!form) return;
-            const usernameInput = form.querySelector('#footerAdminUsername') || document.getElementById('footerAdminUsername');
-            const passwordInput = form.querySelector('#footerAdminPassword') || document.getElementById('footerAdminPassword');
+            const usernameInput = form.querySelector('#footerAdminGithubUsername') || document.getElementById('footerAdminGithubUsername');
+            const tokenInput = form.querySelector('#footerAdminGithubToken') || document.getElementById('footerAdminGithubToken');
             const formMessage = form.querySelector('#footerAdminLoginMsg') || document.getElementById('footerAdminLoginMsg');
             const username = usernameInput ? usernameInput.value.trim() : '';
-            const password = passwordInput ? passwordInput.value : '';
+            const token = tokenInput ? tokenInput.value.trim() : '';
             if (formMessage) {
                 formMessage.style.color = '#ff6f61';
                 formMessage.textContent = '';
             }
-            const adminAccount = getMatchingAdminAccount(username, password);
-            if (!adminAccount) {
-                if (formMessage) formMessage.textContent = 'Invalid admin selection or password';
-                return;
-            }
-            sessionStorage.setItem('adminLoggedIn', 'true');
-            sessionStorage.setItem('adminUsername', adminAccount.username);
-            if (formMessage) {
-                formMessage.style.color = '#7dffb3';
-                formMessage.textContent = 'Signed in successfully';
-            }
-            if (passwordInput) passwordInput.value = '';
-            showAdminView();
+            const didLogin = await authenticateAdminViaGitHub(username, token, formMessage, 'Signed in successfully via GitHub');
+            if (didLogin && tokenInput) tokenInput.value = '';
         }
         document.getElementById('siteContent')?.addEventListener('click', function(e) {
             const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
@@ -3396,7 +3466,7 @@
         }
 
         function renderAllStats() {
-            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            var isAdmin = isAdminLoggedIn();
             var offBtn = document.getElementById('offensiveStatsAdminBtns');
             var defBtn = document.getElementById('defensiveStatsAdminBtns');
             var seasonPanel = document.getElementById('seasonStatsAdminPanel');
@@ -3453,7 +3523,7 @@
             markUnsaved();
         }
         function saveAllChanges() {
-            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            if (!isAdminLoggedIn()) return;
             if (pageEditing) {
                 syncLeagueStandingsFromPublicTable();
                 syncLeagueScheduleFromPublicTable();
@@ -3486,7 +3556,7 @@
         document.addEventListener('change', queuePersistSiteContent, true);
         window.addEventListener('beforeunload', function(e) {
             flushPersistSiteContent();
-            if (unsavedChanges && sessionStorage.getItem('adminLoggedIn') === 'true') {
+            if (unsavedChanges && isAdminLoggedIn()) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -3560,39 +3630,21 @@
             }
         }
         function togglePageEdit() {
-            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            if (!isAdminLoggedIn()) return;
             enablePageEdit(!pageEditing);
         }
 
         // --- end Documents functions ---
 
-        function handleAdminLoginSubmit(e) {
+        async function handleAdminLoginSubmit(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            const adminAccount = getMatchingAdminAccount(username, password);
-
-            if (adminAccount) {
-                sessionStorage.setItem('adminLoggedIn', 'true');
-                sessionStorage.setItem('adminUsername', adminAccount.username);
-                // show feedback inside modal
-                const msgEl = document.getElementById('loginError');
-                if (msgEl) {
-                    msgEl.style.color = 'green';
-                    msgEl.textContent = 'Successfully logged in as admin';
-                }
-                // delay hiding so message is visible briefly
-                setTimeout(() => {
-                    showAdminView();
-                }, 800);
-            } else {
-                const msgEl = document.getElementById('loginError');
-                if (msgEl) {
-                    msgEl.style.color = 'red';
-                    msgEl.textContent = 'Invalid username or password';
-                }
-            }
+            const usernameEl = document.getElementById('adminGithubUsername');
+            const tokenEl = document.getElementById('adminGithubToken');
+            const msgEl = document.getElementById('loginError');
+            const username = usernameEl ? usernameEl.value.trim() : '';
+            const token = tokenEl ? tokenEl.value.trim() : '';
+            const didLogin = await authenticateAdminViaGitHub(username, token, msgEl, 'Successfully logged in as admin via GitHub');
+            if (didLogin && tokenEl) tokenEl.value = '';
         }
 
         document.addEventListener('submit', function(e) {
@@ -3645,8 +3697,7 @@
         function logout() {
             saveAllChanges();
             flushPersistSiteContent();
-            sessionStorage.removeItem('adminLoggedIn');
-            sessionStorage.removeItem('adminUsername');
+            clearAdminSession();
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
             updateFooterAdminState();
@@ -3655,20 +3706,21 @@
             renderLeagueAdminTables && renderLeagueAdminTables();
             // Re-render tables in public (non-admin) mode
             renderAllStats && renderAllStats();
-            // Clear login form and reset to step 1
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('loginError').textContent = '';
-            document.getElementById('adminPickStep').style.display = 'block';
-            document.getElementById('adminPasswordStep').style.display = 'none';
+            // Clear login form values
+            var modalUser = document.getElementById('adminGithubUsername');
+            if (modalUser) modalUser.value = '';
+            var modalToken = document.getElementById('adminGithubToken');
+            if (modalToken) modalToken.value = '';
+            var modalMsg = document.getElementById('loginError');
+            if (modalMsg) modalMsg.textContent = '';
             var footerMsg = document.getElementById('footerAdminLoginMsg');
             if (footerMsg) {
                 footerMsg.style.color = '#ffb366';
                 footerMsg.textContent = '';
             }
-            var footerUser = document.getElementById('footerAdminUsername');
+            var footerUser = document.getElementById('footerAdminGithubUsername');
             if (footerUser) footerUser.value = '';
-            var footerPw = document.getElementById('footerAdminPassword');
+            var footerPw = document.getElementById('footerAdminGithubToken');
             if (footerPw) footerPw.value = '';
             updateNavQuickSelectOptions('home');
             showPage('home');
@@ -4193,7 +4245,7 @@
             if (saveBtn && !saveBtn.dataset.bound) {
                 saveBtn.dataset.bound = '1';
                 saveBtn.addEventListener('click', function() {
-                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!isAdminLoggedIn()) return;
                     var dateInput = document.getElementById('countdownDateInput');
                     var labelInput = document.getElementById('countdownLabelInput');
                     var val = dateInput ? dateInput.value : '';
@@ -4209,7 +4261,7 @@
             if (clearBtn && !clearBtn.dataset.bound) {
                 clearBtn.dataset.bound = '1';
                 clearBtn.addEventListener('click', function() {
-                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!isAdminLoggedIn()) return;
                     try { localStorage.removeItem(COUNTDOWN_DATE_KEY); } catch (e) {}
                     var dateInput = document.getElementById('countdownDateInput');
                     var labelInput = document.getElementById('countdownLabelInput');
@@ -4281,7 +4333,7 @@
         function updateGalleryNavVisibility(hasImages) {
             var navItem = document.getElementById('navGallery');
             if (!navItem) return;
-            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            var isAdmin = isAdminLoggedIn();
             navItem.style.display = (hasImages || isAdmin) ? '' : 'none';
         }
 
@@ -4295,7 +4347,7 @@
                 updateGalleryNavVisibility(false);
                 return;
             }
-            var isAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            var isAdmin = isAdminLoggedIn();
             var promises = meta.map(function(item) {
                 return idbGet('gallery_img_' + item.id).then(function(dataUrl) {
                     return { item: item, dataUrl: dataUrl };
@@ -4395,7 +4447,7 @@
             if (uploadBtn && !uploadBtn.dataset.bound) {
                 uploadBtn.dataset.bound = '1';
                 uploadBtn.addEventListener('click', function() {
-                    if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+                    if (!isAdminLoggedIn()) return;
                     var fileInput = document.getElementById('galleryUploadInput');
                     var captionInput = document.getElementById('galleryCaption');
                     var msgEl = document.getElementById('galleryUploadMsg');
@@ -4438,7 +4490,7 @@
             try { return JSON.parse(localStorage.getItem(PLAYOFF_BRACKET_KEY) || '[]'); } catch (e) { return []; }
         }
         function savePlayoffBracket() {
-            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return;
+            if (!isAdminLoggedIn()) return;
             var rounds = collectPlayoffRounds();
             try { localStorage.setItem(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
             renderPlayoffBracket();
@@ -4656,7 +4708,7 @@
             setTimeout(function() {
                 initGallery();
                 // Populate admin-only editors
-                if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+                if (isAdminLoggedIn()) {
                     populatePlayoffEditor();
                     populateCountdownEditor();
                 }
@@ -4671,7 +4723,7 @@
             initFAQ();
             initNewsletter();
             initGallery();
-            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+            if (isAdminLoggedIn()) {
                 populatePlayoffEditor();
                 populateCountdownEditor();
                 // Show gallery admin panel
