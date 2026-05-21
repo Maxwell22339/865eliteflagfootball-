@@ -2382,9 +2382,9 @@
         window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
 
         function normalizeVenmoLink(value) {
-            var raw = (value || '').trim();
+            const raw = (value || '').trim();
             if (!raw) return '';
-            var normalized = raw.replace(/^@+/, '');
+            let normalized = raw.replace(/^@+/, '');
 
             if (!/^https?:\/\//i.test(normalized)) {
                 if (/^venmo\.com\//i.test(normalized)) {
@@ -2399,7 +2399,7 @@
             }
 
             try {
-                var parsed = new URL(normalized);
+                const parsed = new URL(normalized);
                 if (!/(\.|^)venmo\.com$/i.test(parsed.hostname)) return '';
                 return parsed.href;
             } catch (err) {
