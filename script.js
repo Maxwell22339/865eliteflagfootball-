@@ -828,25 +828,23 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            var hamburger = document.getElementById('navHamburger');
-            if (!hamburger) {
-                hamburger = document.createElement('button');
-                hamburger.id = 'navHamburger';
-                hamburger.className = 'nav-hamburger';
-                hamburger.setAttribute('aria-label', 'Toggle navigation');
-                hamburger.textContent = '\u2630'; // ☰
-                nav.appendChild(hamburger);
-            }
-            if (!hamburger.dataset.navInit) {
-                hamburger.dataset.navInit = '1';
-                hamburger.addEventListener('click', function() {
-                    var navLinks = document.querySelector('header .nav-links');
-                    if (navLinks) {
-                        var isOpen = navLinks.classList.toggle('nav-open');
-                        hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
-                    }
-                });
-            }
+            // Always remove any existing hamburger (e.g. one restored from saved HTML that
+            // lacks a click listener because data-nav-init was persisted without the handler).
+            var existing = document.getElementById('navHamburger');
+            if (existing) existing.remove();
+            var hamburger = document.createElement('button');
+            hamburger.id = 'navHamburger';
+            hamburger.className = 'nav-hamburger';
+            hamburger.setAttribute('aria-label', 'Toggle navigation');
+            hamburger.textContent = '\u2630'; // ☰
+            nav.appendChild(hamburger);
+            hamburger.addEventListener('click', function() {
+                var navLinks = document.querySelector('header .nav-links');
+                if (navLinks) {
+                    var isOpen = navLinks.classList.toggle('nav-open');
+                    hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ : ☰
+                }
+            });
         }
 
         async function restoreSiteContent() {
@@ -953,6 +951,9 @@
                 if (seasonPanelClone) seasonPanelClone.style.display = 'none';
                 // Remove admin-only column headers from stats
                 clone.querySelectorAll('.admin-remove-th').forEach(function(el) { el.remove(); });
+                // Remove dynamically-created hamburger so it is always re-created by JS with fresh listeners
+                var hamburgerClone = clone.querySelector('#navHamburger');
+                if (hamburgerClone) hamburgerClone.remove();
                 // Reset dynamic payment methods panel — re-rendered on load
                 var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
                 if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
