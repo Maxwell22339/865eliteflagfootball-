@@ -19,5 +19,9 @@ Requirements for admin access:
 - The token owner must match the entered GitHub username
 - The GitHub account must have `write`, `maintain`, or `admin` permission on this repository
 - Use a token with minimum permissions and short expiration.
-  - Classic PAT: grant only what is needed (typically `read:user` + `repo` for collaborator permission checks).
-  - Fine-grained PAT: limit to this repository and include permissions needed to read collaborator permissions.
+  - Fine-grained PAT is preferred: limit access to this repository only, and grant only permissions needed to read user identity and collaborator permissions.
+  - Classic PATs may require broader scopes; if used, create a dedicated short-lived token and rotate it often.
+
+Security note:
+- The token is stored in `sessionStorage` only for the active browser session and is used solely for GitHub verification calls.
+- Treat this site as a trusted admin environment, and enforce a strict Content Security Policy when deploying to reduce XSS risk.

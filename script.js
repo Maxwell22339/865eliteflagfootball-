@@ -90,6 +90,8 @@
         const GITHUB_API_BASE = 'https://api.github.com';
         const GITHUB_REPO_OWNER = 'Maxwell22339';
         const GITHUB_REPO_NAME = '865eliteflagfootball-';
+        const REQUIRED_ADMIN_PERMISSIONS = ['admin', 'maintain', 'write'];
+        const ADMIN_SESSION_TTL_MS = 30 * 60 * 1000;
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
@@ -132,13 +134,21 @@
         ];
 
         function isAdminLoggedIn() {
-            return sessionStorage.getItem('adminLoggedIn') === 'true' && !!sessionStorage.getItem('adminGithubToken');
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') return false;
+            const token = sessionStorage.getItem('adminGithubToken') || '';
+            const authAt = Number(sessionStorage.getItem('adminAuthAt') || '0');
+            if (!token || !authAt || (Date.now() - authAt) > ADMIN_SESSION_TTL_MS) {
+                clearAdminSession();
+                return false;
+            }
+            return true;
         }
 
         function clearAdminSession() {
             sessionStorage.removeItem('adminLoggedIn');
             sessionStorage.removeItem('adminUsername');
             sessionStorage.removeItem('adminGithubToken');
+            sessionStorage.removeItem('adminAuthAt');
         }
 
         async function githubApiFetch(path, token) {
@@ -158,7 +168,12 @@
                 return { ok: false, message: 'GitHub username and token are required.' };
             }
 
-            const userResponse = await githubApiFetch('/user', trimmedToken);
+            let userResponse;
+            try {
+                userResponse = await githubApiFetch('/user', trimmedToken);
+            } catch (err) {
+                return { ok: false, message: 'Network error while contacting GitHub.' };
+            }
             if (!userResponse.ok) {
                 if (userResponse.status === 401) {
                     return { ok: false, message: 'Invalid GitHub token.' };
@@ -172,13 +187,18 @@
             }
 
             const permissionPath = '/repos/' + encodeURIComponent(GITHUB_REPO_OWNER) + '/' + encodeURIComponent(GITHUB_REPO_NAME) + '/collaborators/' + encodeURIComponent(githubLogin) + '/permission';
-            const permissionResponse = await githubApiFetch(permissionPath, trimmedToken);
+            let permissionResponse;
+            try {
+                permissionResponse = await githubApiFetch(permissionPath, trimmedToken);
+            } catch (err) {
+                return { ok: false, message: 'Network error while checking repository permissions.' };
+            }
             if (!permissionResponse.ok) {
                 return { ok: false, message: 'GitHub account is not authorized for admin access.' };
             }
             const permissionData = await permissionResponse.json();
             const permission = permissionData && permissionData.permission ? permissionData.permission : '';
-            if (!['admin', 'maintain', 'write'].includes(permission)) {
+            if (!REQUIRED_ADMIN_PERMISSIONS.includes(permission)) {
                 return { ok: false, message: 'GitHub account requires write access to this repository.' };
             }
 
@@ -1817,6 +1837,7 @@
                 sessionStorage.setItem('adminLoggedIn', 'true');
                 sessionStorage.setItem('adminUsername', verification.username);
                 sessionStorage.setItem('adminGithubToken', token.trim());
+                sessionStorage.setItem('adminAuthAt', String(Date.now()));
                 if (messageEl) {
                     messageEl.style.color = '#7dffb3';
                     messageEl.textContent = successMessage || 'Signed in successfully';
