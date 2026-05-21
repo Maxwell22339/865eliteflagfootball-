@@ -4626,7 +4626,9 @@
                 const cells = Array.from(tr.querySelectorAll('td')).map(function(td) {
                     return td.innerText.trim();
                 });
-                const offset = cells.length >= 6 ? 1 : 0;
+                const firstCell = tr.querySelector('td:first-child');
+                const hasLogoColumn = !!(firstCell && firstCell.querySelector('.standings-logo-cell, .stats-team-logo, .stats-team-logo-placeholder, img'));
+                const offset = hasLogoColumn ? 1 : 0;
                 if (cells.length < (5 + offset)) return null;
                 return {
                     team: cells[0 + offset] || '',
