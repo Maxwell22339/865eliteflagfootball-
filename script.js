@@ -133,9 +133,9 @@
         }
 
         function syncAuthNavigationUI() {
-            var isAdmin = isAdminLoggedIn();
-            var isMember = isMemberLoggedIn();
-            var isAuthenticated = isAdmin || isMember;
+            var isAdminAuthenticated = isAdminLoggedIn();
+            var isMemberAuthenticated = isMemberLoggedIn();
+            var isAuthenticated = isAdminAuthenticated || isMemberAuthenticated;
             var loginMenuItem = document.querySelector('.login-menu-item');
             var loginAdminBtn = document.getElementById('loginDropdownAdmin');
             var navLinks = document.querySelector('header .nav-links');
@@ -145,7 +145,7 @@
                 loginMenuItem.toggleAttribute('hidden', isAuthenticated);
             }
             if (loginAdminBtn) {
-                loginAdminBtn.toggleAttribute('hidden', isAdmin);
+                loginAdminBtn.toggleAttribute('hidden', isAdminAuthenticated);
             }
             if (isAuthenticated && navLinks) {
                 navLinks.classList.remove('nav-open');
@@ -197,7 +197,7 @@
             }
         }
 
-        function applyMemberSessionHeader() {
+        function applyMemberSessionUI() {
             var username = sessionStorage.getItem('memberUsername');
             if (!username) return null;
             var isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
@@ -1454,7 +1454,7 @@
             renderPaymentMethodsInfo();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
-                const memberSession = applyMemberSessionHeader();
+                const memberSession = applyMemberSessionUI();
                 if (memberSession) {
                     if (!memberSession.isGuest) {
                         showPage('myProfile');
@@ -1821,7 +1821,7 @@
 
         // Member view / profile
         function showMemberView() {
-            const memberSession = applyMemberSessionHeader();
+            const memberSession = applyMemberSessionUI();
             if (!memberSession) return;
             if (memberSession.isGuest) {
                 showPage('guestArea');
