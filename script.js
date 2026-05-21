@@ -224,6 +224,33 @@
             }
         }
 
+        function populateFooterAdminSelector() {
+            const selector = document.getElementById('footerAdminUsername');
+            if (!selector) return;
+            const selectedValue = selector.value;
+            selector.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select Admin';
+            placeholder.disabled = true;
+            selector.appendChild(placeholder);
+
+            ADMIN_ACCOUNTS.forEach(function(account) {
+                const option = document.createElement('option');
+                option.value = account.username;
+                option.textContent = account.username;
+                selector.appendChild(option);
+            });
+
+            if (selectedValue && ADMIN_ACCOUNTS.some(function(account) { return account.username === selectedValue; })) {
+                selector.value = selectedValue;
+            } else {
+                selector.value = '';
+                placeholder.selected = true;
+            }
+        }
+
         function showPage(id) {
             if (id && id.startsWith('#')) id = id.substring(1);
             if (ALL_PAGE_IDS.indexOf(id) === -1 || !canAccessPage(id)) {
@@ -1573,6 +1600,7 @@
             applySavedBranding();
             applySavedHeroBackground();
             applySavedCtaButton();
+            populateFooterAdminSelector();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
             ensureAdminBrandingUI();
@@ -1753,7 +1781,7 @@
         });
         document.getElementById('footerAdminLoginForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            const username = document.getElementById('footerAdminUsername').value;
+            const username = document.getElementById('footerAdminUsername').value.trim();
             const password = document.getElementById('footerAdminPassword').value;
             const formMessage = document.getElementById('footerAdminLoginMsg');
             if (formMessage) {
