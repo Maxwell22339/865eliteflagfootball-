@@ -190,7 +190,7 @@
                     <li role="none"><a href="#playoff" role="menuitem">Playoff Bracket</a></li>
                     <li role="none"><a href="#player-stats" role="menuitem">Season Stats</a></li>
                     <li role="none"><a href="#season-recap" role="menuitem">Season Recap</a></li>
-                    <li role="none"><a href="#gallery" role="menuitem">Gallery</a></li>
+                    <li role="none" id="navGallery"><a href="#gallery" role="menuitem">Gallery</a></li>
                     <li role="none"><a href="#payments" role="menuitem">Sign Up</a></li>
                     <li role="none"><a href="#documentsPublic" role="menuitem">Documents</a></li>
                     <li role="none"><a href="#faq" role="menuitem">FAQ</a></li>
@@ -200,14 +200,15 @@
                     <li role="none" class="dark-mode-toggle-item">
                         <button id="darkModeToggle" class="dark-mode-btn" aria-label="Toggle light mode" title="Toggle light/dark mode">🌙</button>
                     </li>
+                    <li role="none" class="login-menu-item">
+                        <div class="login-menu">
+                            <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
+                            <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
+                                <button id="loginDropdownAdmin" class="dropdown-item" role="menuitem">Admin Login</button>
+                            </div>
+                        </div>
+                    </li>
                 </ul>
-                <!-- Login menu is outside nav-links so it remains visible on mobile and when scrolled -->
-                <div class="login-menu">
-                    <button id="loginMenuBtn" class="cta-button small" aria-haspopup="true" aria-expanded="false" aria-label="Login menu">Login ▾</button>
-                    <div id="loginDropdown" class="login-dropdown hidden" role="menu" aria-label="Login options" style="display:none">
-                        <button id="loginDropdownAdmin" class="dropdown-item" role="menuitem">Admin Login</button>
-                    </div>
-                </div>
             </nav>
         </div>
     </header>
