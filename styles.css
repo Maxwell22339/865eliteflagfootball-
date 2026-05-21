@@ -271,7 +271,7 @@
         .hero-content h1 {
             font-size: clamp(3rem, 6vw, 5rem);
             margin-bottom: 1rem;
-            line-height: 0.95;
+            line-height: 1.02;
             text-shadow: 0 12px 28px rgba(0,0,0,0.45);
             text-transform: uppercase;
             letter-spacing: 2px;
@@ -1451,7 +1451,9 @@
         /* Mobile: always show hamburger, hide nav row */
         @media (max-width: 900px) {
             .nav-hamburger { 
-                display: block;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
             }
             .nav-links { display: none; }
         }
