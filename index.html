@@ -1747,7 +1747,7 @@
                     </div>
                     <div>
                         <label for="venmoLink">Venmo Link</label>
-                        <input id="venmoLink" type="url" placeholder="https://venmo.com/u/YourVenmoHandle or @YourVenmoHandle">
+                        <input id="venmoLink" type="text" placeholder="https://venmo.com/u/YourVenmoHandle or @YourVenmoHandle">
                     </div>
                 </div>
                 <div style="margin-top:12px;">
@@ -2384,7 +2384,7 @@
         function normalizeVenmoLink(value) {
             const raw = (value || '').trim();
             if (!raw) return '';
-            let normalized = raw.replace(/^@+/, '');
+            let normalized = raw.replace(/^@/, '');
 
             if (!/^https?:\/\//i.test(normalized)) {
                 if (/^venmo\.com\//i.test(normalized)) {
@@ -2400,7 +2400,8 @@
 
             try {
                 const parsed = new URL(normalized);
-                if (!/(\.|^)venmo\.com$/i.test(parsed.hostname)) return '';
+                const host = (parsed.hostname || '').toLowerCase();
+                if (host !== 'venmo.com' && host !== 'www.venmo.com') return '';
                 return parsed.href;
             } catch (err) {
                 return '';
