@@ -4107,7 +4107,7 @@
         }
 
         function normalizeTeamNameKey(name) {
-            return String(name || '').trim().toLowerCase();
+            return String(name || '').trim().replace(/\s+/g, ' ');
         }
 
         function loadStatsTeamLogos() {
@@ -4128,7 +4128,8 @@
             var key = normalizeTeamNameKey(teamName);
             if (!key) return '';
             var logos = loadStatsTeamLogos();
-            return String(logos[key] || '');
+            var legacyKey = key.toLowerCase();
+            return String(logos[key] || logos[legacyKey] || '');
         }
 
         function setStatsTeamLogo(teamName, logoDataUrl) {
@@ -4971,6 +4972,8 @@
                                 setStatsTeamLogo(teamName, compressed);
                                 renderAllStats();
                                 markUnsaved();
+                            }).catch(function() {
+                                alert('Unable to process the selected image. Please try a different team logo.');
                             });
                         };
                         reader.readAsDataURL(file);
