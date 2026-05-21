@@ -153,7 +153,7 @@
             if (hamburger && navLinks) {
                 hamburger.textContent = navLinks.classList.contains('nav-open') ? NAV_ICON_CLOSE : NAV_ICON_MENU;
             }
-            // Force-close auth dropdown whenever auth/nav state is synchronized.
+            // Guard is intentional because this helper can run before all function declarations are initialized.
             if (typeof toggleLoginDropdown === 'function') toggleLoginDropdown(false);
         }
 
@@ -199,7 +199,7 @@
 
         function applyMemberSessionUI() {
             var username = sessionStorage.getItem('memberUsername');
-            if (!username) return null;
+            if (!username) return { exists: false, username: null, isGuest: false };
             var isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
             var memberHeader = document.getElementById('memberHeader');
             if (memberHeader) memberHeader.style.display = 'block';
@@ -209,7 +209,7 @@
                 var navProfile = document.getElementById('navProfile');
                 if (navProfile) navProfile.classList.add('visible');
             }
-            return { username: username, isGuest: isGuest };
+            return { exists: true, username: username, isGuest: isGuest };
         }
 
         function clearMemberSessionUI() {
@@ -1455,7 +1455,7 @@
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                 const memberSession = applyMemberSessionUI();
-                if (memberSession) {
+                if (memberSession.exists) {
                     if (!memberSession.isGuest) {
                         showPage('myProfile');
                         renderMyProfile && renderMyProfile();
@@ -1822,7 +1822,7 @@
         // Member view / profile
         function showMemberView() {
             const memberSession = applyMemberSessionUI();
-            if (!memberSession) return;
+            if (!memberSession.exists) return;
             if (memberSession.isGuest) {
                 showPage('guestArea');
             } else {
