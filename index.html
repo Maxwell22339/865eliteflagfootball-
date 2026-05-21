@@ -875,6 +875,55 @@
             background: #13203c;
         }
 
+        .stats-team-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 120px;
+        }
+
+        .stats-team-logo {
+            width: 34px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid #ff8f00;
+            background: #fff;
+        }
+
+        .stats-team-logo-placeholder {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid #ff8f00;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #ffcc80;
+            background: rgba(255, 111, 0, 0.18);
+        }
+
+        .stats-team-admin-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+        }
+
+        .stats-team-admin-preview {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-team-admin-upload {
+            font-size: 0.8rem;
+            padding: 4px;
+        }
+
         .doc-actions button {
             background: #ff6f00;
             color: white;
@@ -3985,6 +4034,7 @@
         const DEFENSIVE_STATS_KEY = 'defensivePlayerStats_v1';
         const RECAP_OFFENSIVE_STATS_KEY = 'recapOffensivePlayerStats_v1';
         const RECAP_DEFENSIVE_STATS_KEY = 'recapDefensivePlayerStats_v1';
+        const STATS_TEAM_LOGOS_KEY = 'statsTeamLogos_v1';
         const CURRENT_SEASON_LABEL_KEY = 'currentSeasonLabel_v1';
         const RECAP_SEASON_LABEL_KEY = 'recapSeasonLabel_v1';
         const SEASON_ARCHIVES_KEY = 'seasonArchives_v1';
@@ -4054,6 +4104,62 @@
             return cols.map(function(_, index) {
                 return row && row[index] !== undefined ? row[index] : '';
             });
+        }
+
+        function normalizeTeamNameKey(name) {
+            return String(name || '').trim().toLowerCase();
+        }
+
+        function loadStatsTeamLogos() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(STATS_TEAM_LOGOS_KEY) || '{}');
+                if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+                return saved;
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveStatsTeamLogos(logos) {
+            localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+        }
+
+        function getStatsTeamLogo(teamName) {
+            var key = normalizeTeamNameKey(teamName);
+            if (!key) return '';
+            var logos = loadStatsTeamLogos();
+            return String(logos[key] || '');
+        }
+
+        function setStatsTeamLogo(teamName, logoDataUrl) {
+            var key = normalizeTeamNameKey(teamName);
+            if (!key) return;
+            var logos = loadStatsTeamLogos();
+            logos[key] = String(logoDataUrl || '');
+            saveStatsTeamLogos(logos);
+        }
+
+        function renderStatsTeamCell(teamName) {
+            var safeName = escapeHtml(teamName || '\u2014');
+            var logo = getStatsTeamLogo(teamName);
+            var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
+            var logoMarkup = logo
+                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">'
+                : '<div class="stats-team-logo-placeholder">' + initials + '</div>';
+            return '<div class="stats-team-cell">' + logoMarkup + '<span>' + safeName + '</span></div>';
+        }
+
+        function buildStatsTeamAdminEditor(statsKey, rowIndex, teamName) {
+            var safeName = escapeHtml(teamName || '');
+            var currentLogo = getStatsTeamLogo(teamName);
+            var previewMarkup = currentLogo
+                ? '<img class="stats-team-logo" src="' + escapeHtml(currentLogo) + '" alt="' + (safeName || 'Team') + ' logo preview">'
+                : '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
+            return '<div class="stats-team-admin-editor">' +
+                '<input type="text" value="' + safeName + '" data-statskey="' + statsKey + '" data-row="' + rowIndex + '" data-col="0" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;" placeholder="Team name">' +
+                '<div class="stats-team-admin-preview">' + previewMarkup + '<span style="font-size:0.75rem;color:#bbb;">Logo</span></div>' +
+                '<input type="file" accept="image/*" class="stats-team-admin-upload stats-team-logo-upload" data-statskey="' + statsKey + '" data-row="' + rowIndex + '">' +
+            '</div>';
         }
 
         function handleStatsFilterInput(input) {
@@ -4813,9 +4919,17 @@
                 html += '<tr>';
                 row.forEach(function(cell, cIdx) {
                     if (isAdmin) {
-                        html += '<td><input type="text" value="' + (cell || '') + '" data-statskey="' + key + '" data-row="' + rIdx + '" data-col="' + cIdx + '" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;"></td>';
+                        if (cIdx === 0) {
+                            html += '<td>' + buildStatsTeamAdminEditor(key, rIdx, cell || '') + '</td>';
+                        } else {
+                            html += '<td><input type="text" value="' + (cell || '') + '" data-statskey="' + key + '" data-row="' + rIdx + '" data-col="' + cIdx + '" style="width:100%;text-align:center;border:1px solid #ddd;padding:4px;"></td>';
+                        }
                     } else {
-                        html += '<td>' + (cell || '\u2014') + '</td>';
+                        if (cIdx === 0) {
+                            html += '<td>' + renderStatsTeamCell(cell || '') + '</td>';
+                        } else {
+                            html += '<td>' + (cell || '\u2014') + '</td>';
+                        }
                     }
                 });
                 if (isAdmin) {
@@ -4833,6 +4947,33 @@
                         var k = this.dataset.statskey;
                         var d = loadPlayerStats(k) || [];
                         if (d[r]) { d[r][c] = this.value; savePlayerStats(k, d); markUnsaved(); }
+                    });
+                });
+
+                tbody.querySelectorAll('.stats-team-logo-upload').forEach(function(inp) {
+                    inp.addEventListener('change', function() {
+                        var file = this.files && this.files[0];
+                        if (!file) return;
+                        var r = Number(this.dataset.row);
+                        var k = this.dataset.statskey;
+                        var d = loadPlayerStats(k) || [];
+                        var teamName = d[r] ? String(d[r][0] || '').trim() : '';
+                        if (!teamName) {
+                            alert('Please enter the team name before uploading a team photo.');
+                            this.value = '';
+                            return;
+                        }
+                        var reader = new FileReader();
+                        reader.onload = function(ev) {
+                            var dataUrl = ev && ev.target ? ev.target.result : '';
+                            if (!dataUrl) return;
+                            compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(compressed) {
+                                setStatsTeamLogo(teamName, compressed);
+                                renderAllStats();
+                                markUnsaved();
+                            });
+                        };
+                        reader.readAsDataURL(file);
                     });
                 });
             }
