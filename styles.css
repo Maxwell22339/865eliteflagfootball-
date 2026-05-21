@@ -147,7 +147,7 @@
         }
 
         /* Login menu (top-right) */
-        .login-menu { position: relative; isolation: isolate; }
+        .login-menu { position: relative; isolation: isolate; flex-shrink: 0; z-index: 401; }
         .login-dropdown {
             position: absolute;
             right: 0;
@@ -1257,6 +1257,14 @@
             z-index: 400;
         }
 
+        /* Keep the Login button visible and fixed when header is scrolled (desktop) */
+        header.scrolled .login-menu {
+            position: fixed;
+            top: 14px;
+            right: 70px;
+            z-index: 401;
+        }
+
         /* Mobile: always show hamburger, hide nav row */
         @media (max-width: 900px) {
             .nav-hamburger { 
@@ -1270,6 +1278,10 @@
             header.scrolled .nav-hamburger {
                 top: 10px;
                 right: 12px;
+            }
+            header.scrolled .login-menu {
+                top: 10px;
+                right: 62px;
             }
         }
 
