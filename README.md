@@ -18,4 +18,6 @@ Requirements for admin access:
 - A GitHub Personal Access Token entered in the admin login form
 - The token owner must match the entered GitHub username
 - The GitHub account must have `write`, `maintain`, or `admin` permission on this repository
-- Use a token with minimum permissions and short expiration (recommended: `read:user` and repository access only for this repo)
+- Use a token with minimum permissions and short expiration.
+  - Classic PAT: grant only what is needed (typically `read:user` + `repo` for collaborator permission checks).
+  - Fine-grained PAT: limit to this repository and include permissions needed to read collaborator permissions.

@@ -178,11 +178,21 @@
             }
             const permissionData = await permissionResponse.json();
             const permission = permissionData && permissionData.permission ? permissionData.permission : '';
-            if (['admin', 'maintain', 'write'].indexOf(permission) === -1) {
+            if (!['admin', 'maintain', 'write'].includes(permission)) {
                 return { ok: false, message: 'GitHub account requires write access to this repository.' };
             }
 
             return { ok: true, username: githubLogin };
+        }
+
+        function resetToPublicView(activePageId) {
+            clearAdminSession();
+            lockdownForPublic();
+            renderAllStats && renderAllStats();
+            updateFooterAdminState();
+            updateNavQuickSelectOptions(activePageId || (window.location.hash ? window.location.hash.substring(1) : 'home'));
+            ensureNavHamburger();
+            updateHeaderScrollState();
         }
 
         function isMemberLoggedIn() {
@@ -1607,13 +1617,7 @@
                 const token = sessionStorage.getItem('adminGithubToken') || '';
                 const verification = await verifyGitHubAdmin(stored || '', token);
                 if (!verification.ok) {
-                    clearAdminSession();
-                    lockdownForPublic();
-                    renderAllStats && renderAllStats();
-                    updateFooterAdminState();
-                    updateNavQuickSelectOptions(window.location.hash ? window.location.hash.substring(1) : 'home');
-                    ensureNavHamburger();
-                    updateHeaderScrollState();
+                    resetToPublicView(window.location.hash ? window.location.hash.substring(1) : 'home');
                     return;
                 }
                 sessionStorage.setItem('adminUsername', verification.username);
@@ -1638,9 +1642,7 @@
                 showPage(ALL_PAGE_IDS.indexOf(h) !== -1 ? h : 'documentsAdmin');
             } else {
                 // Non-admin: full lockdown — no editing visible anywhere
-                clearAdminSession();
-                lockdownForPublic();
-                renderAllStats && renderAllStats();
+                resetToPublicView(window.location.hash ? window.location.hash.substring(1) : 'home');
             }
             applySavedBranding();
             applySavedHeroBackground();
