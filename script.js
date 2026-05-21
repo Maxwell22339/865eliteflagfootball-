@@ -154,7 +154,7 @@
                 hamburger.textContent = navLinks.classList.contains('nav-open') ? NAV_ICON_CLOSE : NAV_ICON_MENU;
             }
             // Force-close auth dropdown whenever auth/nav state is synchronized.
-            toggleLoginDropdown(false);
+            if (typeof toggleLoginDropdown === 'function') toggleLoginDropdown(false);
         }
 
         function canAccessPage(id) {
