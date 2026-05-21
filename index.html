@@ -1747,7 +1747,7 @@
                     </div>
                     <div>
                         <label for="venmoLink">Venmo Link</label>
-                        <input id="venmoLink" type="url" placeholder="https://venmo.com/u/YourVenmoHandle">
+                        <input id="venmoLink" type="text" placeholder="https://venmo.com/u/YourVenmoHandle or @YourVenmoHandle">
                     </div>
                 </div>
                 <div style="margin-top:12px;">
@@ -2381,6 +2381,33 @@
 
         window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
 
+        function normalizeVenmoLink(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            let normalized = raw.replace(/^@/, '');
+
+            if (!/^https?:\/\//i.test(normalized)) {
+                if (/^venmo\.com\//i.test(normalized)) {
+                    normalized = 'https://' + normalized;
+                } else if (/^u\/[A-Za-z0-9_-]+$/.test(normalized)) {
+                    normalized = 'https://venmo.com/' + normalized;
+                } else if (/^[A-Za-z0-9_-]+$/.test(normalized)) {
+                    normalized = 'https://venmo.com/u/' + normalized;
+                } else {
+                    return '';
+                }
+            }
+
+            try {
+                const parsed = new URL(normalized);
+                const host = (parsed.hostname || '').toLowerCase();
+                if (host !== 'venmo.com' && host !== 'www.venmo.com') return '';
+                return parsed.href;
+            } catch (err) {
+                return '';
+            }
+        }
+
         function loadPaymentLinks() {
             try {
                 const saved = JSON.parse(localStorage.getItem(PAYMENT_LINKS_KEY) || '{}');
@@ -2388,7 +2415,7 @@
                     team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
                     freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
                     cashApp: (saved.cashApp || '').trim(),
-                    venmo: (saved.venmo || '').trim()
+                    venmo: normalizeVenmoLink(saved.venmo || '')
                 };
                 PAYMENT_LINKS = {
                     team: normalizedLinks.team,
@@ -2465,7 +2492,7 @@
                 team: (links.team || DEFAULT_PAYPAL_URL).trim(),
                 freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
                 cashApp: (links.cashApp || '').trim(),
-                venmo: (links.venmo || '').trim()
+                venmo: normalizeVenmoLink(links.venmo || '')
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             renderPaymentMethodsInfo();
@@ -2550,6 +2577,7 @@
                     cashApp: cashAppInput ? cashAppInput.value : '',
                     venmo: venmoInput ? venmoInput.value : ''
                 });
+                if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
                 savePaymentNotificationSettings({
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: publicKeyInput.value,
