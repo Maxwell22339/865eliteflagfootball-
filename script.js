@@ -1455,7 +1455,6 @@
             loadPaymentLinks();
             const method = (document.getElementById('payMethod') || {}).value || '';
             const linkWrap = document.getElementById('payMethodLinkWrap');
-            const linkEl = document.getElementById('payMethodLink');
             const submitBtn = document.getElementById('paySubmitBtn');
             const usernameWrap = document.getElementById('paymentUsernameWrap');
             const usernameInput = document.getElementById('paymentUsername');
@@ -1468,8 +1467,7 @@
             } else {
                 if (submitBtn) submitBtn.textContent = 'Continue To Payment';
             }
-            if (linkWrap && linkEl) {
-                linkEl.removeAttribute('href');
+            if (linkWrap) {
                 linkWrap.style.display = 'none';
             }
             if (usernameWrap) {
