@@ -644,14 +644,14 @@
             if (PAYMENT_LINKS.cashApp) {
                 var caBadge = document.createElement('span');
                 caBadge.textContent = '$ CashApp';
-                caBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                caBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;font-size:1rem;';
                 list.appendChild(caBadge);
                 hasItem = true;
             }
             if (PAYMENT_LINKS.venmo) {
                 var vBadge = document.createElement('span');
                 vBadge.textContent = '@ Venmo';
-                vBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                vBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;font-size:1rem;';
                 list.appendChild(vBadge);
                 hasItem = true;
             }
@@ -1456,19 +1456,12 @@
             const method = (document.getElementById('payMethod') || {}).value || '';
             const linkWrap = document.getElementById('payMethodLinkWrap');
             const linkEl = document.getElementById('payMethodLink');
-            const infoEl = document.getElementById('payMethodInfo');
             const submitBtn = document.getElementById('paySubmitBtn');
             const usernameWrap = document.getElementById('paymentUsernameWrap');
             const usernameInput = document.getElementById('paymentUsername');
-            let url = '';
-            let label = '';
             if (method === 'cashapp') {
-                url = PAYMENT_LINKS.cashApp || '';
-                label = 'Open CashApp Payment Link';
                 if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp';
             } else if (method === 'venmo') {
-                url = PAYMENT_LINKS.venmo || '';
-                label = 'Open Venmo Payment Link';
                 if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo';
             } else if (method === 'paypal') {
                 if (submitBtn) submitBtn.textContent = 'Continue To PayPal';
@@ -1477,6 +1470,7 @@
             }
             if (linkWrap && linkEl) {
                 linkEl.removeAttribute('href');
+                linkEl.setAttribute('aria-hidden', 'true');
                 linkWrap.style.display = 'none';
             }
             if (usernameWrap) {
