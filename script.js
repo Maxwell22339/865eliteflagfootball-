@@ -644,18 +644,14 @@
             if (PAYMENT_LINKS.cashApp) {
                 var caBadge = document.createElement('span');
                 caBadge.textContent = '$ CashApp';
-                caBadge.setAttribute('role', 'img');
-                caBadge.setAttribute('aria-label', 'CashApp available after form submission');
-                caBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;font-size:1rem;';
+                caBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;font-size:1rem;cursor:default;';
                 list.appendChild(caBadge);
                 hasItem = true;
             }
             if (PAYMENT_LINKS.venmo) {
                 var vBadge = document.createElement('span');
                 vBadge.textContent = '@ Venmo';
-                vBadge.setAttribute('role', 'img');
-                vBadge.setAttribute('aria-label', 'Venmo available after form submission');
-                vBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;font-size:1rem;';
+                vBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;font-size:1rem;cursor:default;';
                 list.appendChild(vBadge);
                 hasItem = true;
             }
