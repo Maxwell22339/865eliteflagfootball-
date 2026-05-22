@@ -642,26 +642,18 @@
             list.innerHTML = '';
             var hasItem = false;
             if (PAYMENT_LINKS.cashApp) {
-                var aCA = document.createElement('a');
-                if (setSafeExternalHref(aCA, PAYMENT_LINKS.cashApp, ['cash.app', 'www.cash.app'])) {
-                    aCA.target = '_blank';
-                    aCA.rel = 'noopener noreferrer';
-                    aCA.textContent = '$ CashApp';
-                    aCA.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
-                    list.appendChild(aCA);
-                    hasItem = true;
-                }
+                var caBadge = document.createElement('span');
+                caBadge.textContent = '$ CashApp';
+                caBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a3a1a;border:1px solid #00c244;border-radius:6px;padding:10px 18px;color:#00c244;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(caBadge);
+                hasItem = true;
             }
             if (PAYMENT_LINKS.venmo) {
-                var aV = document.createElement('a');
-                if (setSafeExternalHref(aV, PAYMENT_LINKS.venmo, ['venmo.com', 'www.venmo.com'])) {
-                    aV.target = '_blank';
-                    aV.rel = 'noopener noreferrer';
-                    aV.textContent = '@ Venmo';
-                    aV.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
-                    list.appendChild(aV);
-                    hasItem = true;
-                }
+                var vBadge = document.createElement('span');
+                vBadge.textContent = '@ Venmo';
+                vBadge.style.cssText = 'display:inline-flex;align-items:center;gap:8px;background:#1a1a3a;border:1px solid #3d95ce;border-radius:6px;padding:10px 18px;color:#3d95ce;font-weight:700;text-decoration:none;font-size:1rem;';
+                list.appendChild(vBadge);
+                hasItem = true;
             }
             panel.style.display = hasItem ? 'block' : 'none';
         }
@@ -1484,21 +1476,8 @@
                 if (submitBtn) submitBtn.textContent = 'Continue To Payment';
             }
             if (linkWrap && linkEl) {
-                if ((method === 'cashapp' || method === 'venmo') && url) {
-                    if (infoEl) infoEl.style.display = 'none';
-                    var allowedHosts = method === 'cashapp'
-                        ? ['cash.app', 'www.cash.app']
-                        : ['venmo.com', 'www.venmo.com'];
-                    if (setSafeExternalHref(linkEl, url, allowedHosts)) {
-                        linkEl.textContent = label;
-                        linkEl.style.display = 'inline';
-                        linkWrap.style.display = 'block';
-                    } else {
-                        linkWrap.style.display = 'none';
-                    }
-                } else {
-                    linkWrap.style.display = 'none';
-                }
+                linkEl.removeAttribute('href');
+                linkWrap.style.display = 'none';
             }
             if (usernameWrap) {
                 const needsUsername = method === 'cashapp' || method === 'venmo';
