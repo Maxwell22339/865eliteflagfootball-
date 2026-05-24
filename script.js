@@ -97,13 +97,15 @@
         const CTA_BUTTON_KEY = 'heroCtaButton_v1';
         const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
         const DEFAULT_ADMIN_NOTIFICATION_EMAIL = '865eliteflagfootball@gmail.com';
+        const DEFAULT_CASHAPP_URL = 'https://cash.app/$Tfick123';
+        const DEFAULT_VENMO_URL = 'https://venmo.com/u/Tfick123';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
             freeAgent: DEFAULT_PAYPAL_URL,
-            cashApp: '',
-            venmo: ''
+            cashApp: DEFAULT_CASHAPP_URL,
+            venmo: DEFAULT_VENMO_URL
         };
         let PAYMENT_NOTIFICATION_SETTINGS = {
             adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
@@ -614,8 +616,8 @@
                 const normalizedLinks = {
                     team: (saved.team || DEFAULT_PAYPAL_URL).trim(),
                     freeAgent: (saved.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                    cashApp: normalizeCashAppLink(saved.cashApp || ''),
-                    venmo: normalizeVenmoLink(saved.venmo || '')
+                    cashApp: DEFAULT_CASHAPP_URL,
+                    venmo: DEFAULT_VENMO_URL
                 };
                 PAYMENT_LINKS = {
                     team: normalizedLinks.team,
@@ -629,7 +631,12 @@
                     localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
                 }
             } catch (err) {
-                PAYMENT_LINKS = { team: DEFAULT_PAYPAL_URL, freeAgent: DEFAULT_PAYPAL_URL, cashApp: '', venmo: '' };
+                PAYMENT_LINKS = {
+                    team: DEFAULT_PAYPAL_URL,
+                    freeAgent: DEFAULT_PAYPAL_URL,
+                    cashApp: DEFAULT_CASHAPP_URL,
+                    venmo: DEFAULT_VENMO_URL
+                };
                 localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             }
         }
@@ -685,8 +692,8 @@
             PAYMENT_LINKS = {
                 team: (links.team || DEFAULT_PAYPAL_URL).trim(),
                 freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
-                cashApp: normalizeCashAppLink(links.cashApp || ''),
-                venmo: normalizeVenmoLink(links.venmo || '')
+                cashApp: DEFAULT_CASHAPP_URL,
+                venmo: DEFAULT_VENMO_URL
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             renderPaymentMethodsInfo();
@@ -771,6 +778,7 @@
                     cashApp: cashAppInput ? cashAppInput.value : '',
                     venmo: venmoInput ? venmoInput.value : ''
                 });
+                if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
                 if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
                 savePaymentNotificationSettings({
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
@@ -802,6 +810,8 @@
             if (freeInput) freeInput.value = PAYMENT_LINKS.freeAgent || '';
             if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
             if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
+            if (cashAppInput) cashAppInput.readOnly = true;
+            if (venmoInput) venmoInput.readOnly = true;
             if (adminEmailInput) adminEmailInput.value = DEFAULT_ADMIN_NOTIFICATION_EMAIL;
             if (publicKeyInput) publicKeyInput.value = PAYMENT_NOTIFICATION_SETTINGS.publicKey || '';
             if (serviceIdInput) serviceIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.serviceId || '';
