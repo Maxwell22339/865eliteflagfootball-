@@ -542,60 +542,6 @@
 
         window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
 
-        function normalizeVenmoLink(value) {
-            const raw = (value || '').trim();
-            if (!raw) return '';
-            let normalized = raw.replace(/^@/, '');
-
-            if (!/^https?:\/\//i.test(normalized)) {
-                if (/^venmo\.com\//i.test(normalized)) {
-                    normalized = 'https://' + normalized;
-                } else if (/^u\/[A-Za-z0-9_-]+$/.test(normalized)) {
-                    normalized = 'https://venmo.com/' + normalized;
-                } else if (/^[A-Za-z0-9_-]+$/.test(normalized)) {
-                    normalized = 'https://venmo.com/u/' + normalized;
-                } else {
-                    return '';
-                }
-            }
-
-            try {
-                const parsed = new URL(normalized);
-                const host = (parsed.hostname || '').toLowerCase();
-                if (host !== 'venmo.com' && host !== 'www.venmo.com') return '';
-                return parsed.href;
-            } catch (err) {
-                return '';
-            }
-        }
-
-        function normalizeCashAppLink(value) {
-            const raw = (value || '').trim();
-            if (!raw) return '';
-            let normalized = raw;
-
-            if (!/^https?:\/\//i.test(normalized)) {
-                if (/^cash\.app\/\$/i.test(normalized)) {
-                    normalized = 'https://' + normalized;
-                } else if (/^\$[A-Za-z0-9_]+$/.test(normalized)) {
-                    normalized = 'https://cash.app/' + normalized;
-                } else if (/^[A-Za-z0-9_]+$/.test(normalized)) {
-                    normalized = 'https://cash.app/$' + normalized;
-                } else {
-                    return '';
-                }
-            }
-
-            try {
-                const parsed = new URL(normalized);
-                const host = (parsed.hostname || '').toLowerCase();
-                if (host !== 'cash.app' && host !== 'www.cash.app') return '';
-                return parsed.href;
-            } catch (err) {
-                return '';
-            }
-        }
-
         function setSafeExternalHref(linkEl, url, allowedHosts) {
             if (!linkEl) return false;
             try {
@@ -778,8 +724,6 @@
                     cashApp: cashAppInput ? cashAppInput.value : '',
                     venmo: venmoInput ? venmoInput.value : ''
                 });
-                if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
-                if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
                 savePaymentNotificationSettings({
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: publicKeyInput.value,
