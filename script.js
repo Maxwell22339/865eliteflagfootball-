@@ -635,9 +635,11 @@
         }
 
         function savePaymentLinks(links) {
+            const teamLink = links && links.team ? links.team : DEFAULT_PAYPAL_URL;
+            const freeAgentLink = links && links.freeAgent ? links.freeAgent : DEFAULT_PAYPAL_URL;
             PAYMENT_LINKS = {
-                team: (links.team || DEFAULT_PAYPAL_URL).trim(),
-                freeAgent: (links.freeAgent || DEFAULT_PAYPAL_URL).trim(),
+                team: teamLink.trim(),
+                freeAgent: freeAgentLink.trim(),
                 cashApp: DEFAULT_CASHAPP_URL,
                 venmo: DEFAULT_VENMO_URL
             };
@@ -752,8 +754,8 @@
             const templateIdInput = document.getElementById('emailjsTemplateId');
             if (teamInput) teamInput.value = PAYMENT_LINKS.team || '';
             if (freeInput) freeInput.value = PAYMENT_LINKS.freeAgent || '';
-            if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
-            if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
+            if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp;
+            if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo;
             if (cashAppInput) cashAppInput.readOnly = true;
             if (venmoInput) venmoInput.readOnly = true;
             if (adminEmailInput) adminEmailInput.value = DEFAULT_ADMIN_NOTIFICATION_EMAIL;
