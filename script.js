@@ -720,10 +720,10 @@
                 }
                 savePaymentLinks({
                     team: teamInput.value,
-                    freeAgent: freeInput.value,
-                    cashApp: cashAppInput ? cashAppInput.value : '',
-                    venmo: venmoInput ? venmoInput.value : ''
+                    freeAgent: freeInput.value
                 });
+                if (cashAppInput) cashAppInput.value = PAYMENT_LINKS.cashApp || '';
+                if (venmoInput) venmoInput.value = PAYMENT_LINKS.venmo || '';
                 savePaymentNotificationSettings({
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: publicKeyInput.value,
