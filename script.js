@@ -2039,6 +2039,40 @@
             };
             reader.readAsDataURL(file);
         });
+        var standingsAdminPanel = document.getElementById('leagueStandingsAdminPanel');
+        standingsAdminPanel?.addEventListener('change', function(e) {
+            const input = e.target;
+            if (!input.classList || !input.classList.contains('standings-admin-logo-upload')) return;
+
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const row = input.closest('tr');
+            const teamInput = row ? row.querySelector('input[data-key="team"]') : null;
+            const teamName = teamInput ? String(teamInput.value || '').trim() : '';
+            if (!teamName) {
+                alert('Please enter a team name before uploading a logo.');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const dataUrl = ev && ev.target ? ev.target.result : '';
+                if (!dataUrl) return;
+                compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
+                    setStatsTeamLogo(teamName, compressed);
+                    const preview = row ? row.querySelector('.standings-admin-logo-preview') : null;
+                    if (preview) preview.innerHTML = renderStandingsTeamLogo(teamName);
+                    renderLeagueStandingsPublic();
+                    markUnsaved();
+                }).catch(function(error) {
+                    console.error('Failed to process standings team logo upload.', error);
+                    alert('Unable to process the selected image. Please select a valid image file and try again.');
+                });
+            };
+            reader.readAsDataURL(file);
+        });
         document.getElementById('guestLogoutBtn')?.addEventListener('click', memberLogout);
 
         // Render profile for logged-in member
@@ -2862,6 +2896,20 @@
             return '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
         }
 
+        function buildStandingsTeamAdminEditor(teamName) {
+            var safeName = escapeHtml(teamName || '');
+            var previewMarkup = teamName
+                ? renderStandingsTeamLogo(teamName)
+                : '<div class="stats-team-logo-placeholder">--</div>';
+            return '<div class="standings-admin-team-editor">' +
+                '<input type="text" data-key="team" value="' + safeName + '" placeholder="Team name">' +
+                '<div class="standings-admin-logo-controls">' +
+                    '<div class="standings-admin-logo-preview">' + previewMarkup + '</div>' +
+                    '<input type="file" accept="image/*" aria-label="Upload team logo" class="standings-admin-logo-upload">' +
+                '</div>' +
+            '</div>';
+        }
+
         function syncLeagueScheduleFromPublicTable() {
             const tbody = document.getElementById('leagueScheduleBody');
             if (!tbody) return;
@@ -2939,7 +2987,11 @@
             editableRows.forEach(function(row, rowIdx) {
                 html += '<tr>';
                 fields.forEach(function(field) {
-                    html += '<td><input type="text" data-key="' + field.key + '" value="' + escapeHtml(row[field.key] || '') + '" placeholder="' + escapeHtml(field.placeholder) + '"></td>';
+                    if (type === 'standings' && field.key === 'team') {
+                        html += '<td>' + buildStandingsTeamAdminEditor(row[field.key] || '') + '</td>';
+                    } else {
+                        html += '<td><input type="text" data-key="' + field.key + '" value="' + escapeHtml(row[field.key] || '') + '" placeholder="' + escapeHtml(field.placeholder) + '"></td>';
+                    }
                 });
                 html += '<td><button type="button" class="cta-button small" style="background:#c62828;" onclick="removeLeagueAdminRow(\'' + type + '\',' + rowIdx + ')">Remove</button></td>';
                 html += '</tr>';
@@ -3000,6 +3052,7 @@
         function renderLeagueAdminTables() {
             renderLeagueStandingsPublic();
             renderLeagueSchedulePublic();
+            renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, loadLeagueStandings(), 'standings');
             renderLeagueScheduleAdminTable(loadLeagueSchedule());
         }
 
