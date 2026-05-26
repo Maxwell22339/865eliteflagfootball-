@@ -2896,7 +2896,7 @@
             return '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
         }
 
-        function buildStandingsTeamAdminEditor(rowIndex, teamName) {
+        function buildStandingsTeamAdminEditor(teamName) {
             var safeName = escapeHtml(teamName || '');
             var previewMarkup = teamName
                 ? renderStandingsTeamLogo(teamName)
@@ -2905,7 +2905,7 @@
                 '<input type="text" data-key="team" value="' + safeName + '" placeholder="Team name">' +
                 '<div class="standings-admin-logo-controls">' +
                     '<div class="standings-admin-logo-preview">' + previewMarkup + '</div>' +
-                    '<input type="file" accept="image/*" aria-label="Upload team logo" class="standings-admin-logo-upload" data-row="' + rowIndex + '">' +
+                    '<input type="file" accept="image/*" aria-label="Upload team logo" class="standings-admin-logo-upload">' +
                 '</div>' +
             '</div>';
         }
@@ -2988,7 +2988,7 @@
                 html += '<tr>';
                 fields.forEach(function(field) {
                     if (type === 'standings' && field.key === 'team') {
-                        html += '<td>' + buildStandingsTeamAdminEditor(rowIdx, row[field.key] || '') + '</td>';
+                        html += '<td>' + buildStandingsTeamAdminEditor(row[field.key] || '') + '</td>';
                     } else {
                         html += '<td><input type="text" data-key="' + field.key + '" value="' + escapeHtml(row[field.key] || '') + '" placeholder="' + escapeHtml(field.placeholder) + '"></td>';
                     }
