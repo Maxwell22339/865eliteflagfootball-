@@ -2065,7 +2065,8 @@
                     if (preview) preview.innerHTML = renderStandingsTeamLogo(teamName);
                     renderLeagueStandingsPublic();
                     markUnsaved();
-                }).catch(function() {
+                }).catch(function(error) {
+                    console.error('Failed to process standings team logo upload.', error);
                     alert('Unable to process the selected image. Please use a valid JPG, PNG, or GIF file and try again.');
                 });
             };
@@ -2896,10 +2897,13 @@
 
         function buildStandingsTeamAdminEditor(rowIndex, teamName) {
             var safeName = escapeHtml(teamName || '');
+            var previewMarkup = teamName
+                ? renderStandingsTeamLogo(teamName)
+                : '<div class="stats-team-logo-placeholder">--</div>';
             return '<div class="standings-admin-team-editor">' +
                 '<input type="text" data-key="team" value="' + safeName + '" placeholder="Team name">' +
                 '<div class="standings-admin-logo-controls">' +
-                    '<div class="standings-admin-logo-preview">' + renderStandingsTeamLogo(teamName || 'TBD') + '</div>' +
+                    '<div class="standings-admin-logo-preview">' + previewMarkup + '</div>' +
                     '<input type="file" accept="image/*" aria-label="Upload team logo" class="standings-admin-logo-upload" data-row="' + rowIndex + '">' +
                 '</div>' +
             '</div>';
