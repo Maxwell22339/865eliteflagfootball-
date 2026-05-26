@@ -2039,7 +2039,8 @@
             };
             reader.readAsDataURL(file);
         });
-        document.addEventListener('change', function(e) {
+        var standingsAdminPanel = document.getElementById('leagueStandingsAdminPanel');
+        standingsAdminPanel?.addEventListener('change', function(e) {
             const input = e.target;
             if (!input.classList || !input.classList.contains('standings-admin-logo-upload')) return;
 
@@ -2050,7 +2051,7 @@
             const teamInput = row ? row.querySelector('input[data-key="team"]') : null;
             const teamName = teamInput ? String(teamInput.value || '').trim() : '';
             if (!teamName) {
-                alert('Please enter the team name before uploading a team logo.');
+                alert('Please enter a team name before uploading a logo.');
                 input.value = '';
                 return;
             }
@@ -2067,7 +2068,7 @@
                     markUnsaved();
                 }).catch(function(error) {
                     console.error('Failed to process standings team logo upload.', error);
-                    alert('Unable to process the selected image. Please use a valid JPG, PNG, or GIF file and try again.');
+                    alert('Unable to process the selected image. Please select a valid image file and try again.');
                 });
             };
             reader.readAsDataURL(file);
