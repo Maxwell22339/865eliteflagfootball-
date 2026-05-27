@@ -1207,7 +1207,7 @@
             const normalized = String(status || '').toLowerCase();
             const validStatuses = ['pending', 'denied', 'approved'];
             if (validStatuses.includes(normalized)) return normalized;
-            return 'approved';
+            return 'pending';
         }
         function loadMembers() {
             try {
