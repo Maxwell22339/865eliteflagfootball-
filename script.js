@@ -1984,7 +1984,7 @@
             const user = members.find(m => m.username === username && m.passwordHash === pwHash);
             if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
             if (user.status === 'pending') { document.getElementById('memberAuthError').textContent = 'Your registration is pending admin approval.'; return; }
-            if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an admin.'; return; }
+            if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an admin to request a new registration review.'; return; }
             sessionStorage.setItem('memberLoggedIn', 'true');
             sessionStorage.setItem('memberUsername', username);
             hideMemberModal();
@@ -2144,9 +2144,10 @@
             const tbody = document.getElementById('usersTbody');
             if (!tbody) return;
             const members = loadMembers();
+            const usersTableColumnCount = document.querySelectorAll('.users-table thead th').length || 7;
             tbody.innerHTML = '';
             if (members.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + usersTableColumnCount + '" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
                 return;
             }
             function statusBadge(status) {
