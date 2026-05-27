@@ -1680,8 +1680,16 @@
                         if (!items[idx]) return;
                         items[idx].status = 'approved';
                         items[idx].reviewedAt = new Date().toISOString();
-                        await savePaymentRequests(items);
-                        logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx });
+                        try {
+                            const saved = await savePaymentRequests(items);
+                            if (!saved) {
+                                alert('Marked approved locally, but Supabase sync failed. Check console for details.');
+                            }
+                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved });
+                        } catch (err) {
+                            alert('Failed to save approval update. Please try again.');
+                            logPaymentSignupEvent('error', 'Failed saving admin approval update.', err);
+                        }
                     });
                 });
 
@@ -1692,8 +1700,16 @@
                         if (!items[idx]) return;
                         items[idx].status = 'denied';
                         items[idx].reviewedAt = new Date().toISOString();
-                        await savePaymentRequests(items);
-                        logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx });
+                        try {
+                            const saved = await savePaymentRequests(items);
+                            if (!saved) {
+                                alert('Marked denied locally, but Supabase sync failed. Check console for details.');
+                            }
+                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved });
+                        } catch (err) {
+                            alert('Failed to save denial update. Please try again.');
+                            logPaymentSignupEvent('error', 'Failed saving admin denial update.', err);
+                        }
                     });
                 });
             } catch (err) {
@@ -2057,6 +2073,9 @@
                 submittedAt: submittedAt
             });
             const savedToSupabase = await savePaymentRequests(requests);
+            const syncWarning = !savedToSupabase
+                ? 'Signup was saved locally on this device, but cloud sync failed.'
+                : '';
             if (!savedToSupabase) {
                 logPaymentSignupEvent('warn', 'Signup persisted locally but not to Supabase.', { submittedAt: submittedAt, email: email });
             } else {
@@ -2089,16 +2108,16 @@
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = notificationResult.sent
-                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.'
-                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.';
+                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '')
+                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '');
                 }
                 return;
             }
             if (msg) {
-                msg.style.color = 'green';
+                msg.style.color = syncWarning ? '#e65100' : 'green';
                 msg.textContent = notificationResult.sent
-                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.'
-                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
+                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.' + (syncWarning ? ' ' + syncWarning : '')
+                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.' + (syncWarning ? ' ' + syncWarning : '');
             }
             logPaymentSignupEvent('info', 'Signup submission completed successfully.', { method: method, redirect: link });
             window.open(link, '_blank', 'noopener,noreferrer');
