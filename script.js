@@ -2144,7 +2144,8 @@
             const tbody = document.getElementById('usersTbody');
             if (!tbody) return;
             const members = loadMembers();
-            const usersTableColumnCount = document.querySelectorAll('.users-table thead th').length || 7;
+            const usersTable = tbody.closest('table');
+            const usersTableColumnCount = usersTable ? usersTable.querySelectorAll('thead th').length : 7;
             tbody.innerHTML = '';
             if (members.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="' + usersTableColumnCount + '" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
