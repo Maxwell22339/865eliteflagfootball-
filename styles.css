@@ -13,7 +13,7 @@
         }
 
         :root {
-            --hero-photo: none;
+            --hero-photo: url('assets/images/865-elite-background.jpeg');
             --header-offset: 108px;
             --hamburger-color: #ff9d2f;
             --hamburger-hover-border: #ffb04f;

@@ -999,6 +999,8 @@
             if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
         }
 
+        const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
+
         async function applySavedBranding() {
             try {
                 const savedLogo = await idbGet(SITE_LOGO_KEY);
@@ -1010,10 +1012,13 @@
                         icon.type = 'image/png';
                     }
                 }
+                // If no saved logo, the HTML src (assets/images/865-elite-logo.png) is already correct.
             } catch (err) {
                 // Ignore branding restore errors.
             }
         }
+
+        const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
 
         async function applySavedHeroBackground() {
             try {
@@ -1021,10 +1026,10 @@
                 if (savedBackground) {
                     document.documentElement.style.setProperty('--hero-photo', 'url("' + savedBackground + '")');
                 } else {
-                    document.documentElement.style.setProperty('--hero-photo', 'none');
+                    document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
                 }
             } catch (err) {
-                document.documentElement.style.setProperty('--hero-photo', 'none');
+                document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
             }
         }
 
