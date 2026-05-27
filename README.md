@@ -23,7 +23,8 @@ window.__865EliteSupabaseConfig = {
   url: 'https://YOUR_PROJECT_REF.supabase.co',
   anonKey: 'YOUR_SUPABASE_ANON_KEY',
   dataTable: 'league_site_data',
-  galleryKey: 'gallery'
+  galleryKey: 'gallery',
+  paymentRequestsKey: 'payment_requests'
 };
 ```
 
@@ -62,6 +63,29 @@ for update
 to anon, authenticated
 using (key = 'gallery')
 with check (key = 'gallery');
+
+-- Payment signup metadata row policies
+drop policy if exists "payment requests select" on public.league_site_data;
+create policy "payment requests select"
+on public.league_site_data
+for select
+to anon, authenticated
+using (key = 'payment_requests');
+
+drop policy if exists "payment requests insert" on public.league_site_data;
+create policy "payment requests insert"
+on public.league_site_data
+for insert
+to anon, authenticated
+with check (key = 'payment_requests');
+
+drop policy if exists "payment requests update" on public.league_site_data;
+create policy "payment requests update"
+on public.league_site_data
+for update
+to anon, authenticated
+using (key = 'payment_requests')
+with check (key = 'payment_requests');
 
 -- Storage bucket
 insert into storage.buckets (id, name, public)

@@ -100,6 +100,7 @@
         const DEFAULT_CASHAPP_URL = 'https://cash.app/$Tfick123';
         const DEFAULT_VENMO_URL = 'https://venmo.com/u/Tfick123';
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
+        const PAYMENT_REQUESTS_KEY = 'paymentRequests';
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
@@ -1339,14 +1340,145 @@
             }
         }
 
-        function loadPaymentRequests() {
-            try { return JSON.parse(localStorage.getItem('paymentRequests') || '[]'); }
-            catch (err) { return []; }
+        function logPaymentSignupEvent(type, details, extra) {
+            if (type === 'error') {
+                console.error('[Signup][Payments] ' + details, extra || '');
+                return;
+            }
+            if (type === 'warn') {
+                console.warn('[Signup][Payments] ' + details, extra || '');
+                return;
+            }
+            console.log('[Signup][Payments] ' + details, extra || '');
         }
-        function savePaymentRequests(list) {
-            localStorage.setItem('paymentRequests', JSON.stringify(list));
+
+        function logPaymentSupabaseError(type, message, error) {
+            console.error('[Signup][Supabase][' + type + '] ' + message, error || '');
+            var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
+            if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
+                console.error('[Signup][Supabase][RLS] Check RLS SELECT/INSERT/UPDATE policies for payment requests key.', error || '');
+            }
+        }
+
+        function normalizePaymentRequest(item) {
+            if (!item || typeof item !== 'object') return null;
+            return {
+                name: String(item.name || '').trim(),
+                email: String(item.email || '').trim(),
+                type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
+                method: item.method === 'cashapp' || item.method === 'venmo' ? item.method : 'paypal',
+                teamName: String(item.teamName || '').trim(),
+                teamMembers: String(item.teamMembers || '').trim(),
+                teamYears: String(item.teamYears || '').trim(),
+                offPosition: String(item.offPosition || '').trim(),
+                defPosition: String(item.defPosition || '').trim(),
+                experience: String(item.experience || '').trim(),
+                paymentUsername: String(item.paymentUsername || '').trim(),
+                status: String(item.status || 'pending').toLowerCase() === 'approved'
+                    ? 'approved'
+                    : (String(item.status || 'pending').toLowerCase() === 'denied' ? 'denied' : 'pending'),
+                submittedAt: item.submittedAt ? String(item.submittedAt) : '',
+                reviewedAt: item.reviewedAt ? String(item.reviewedAt) : ''
+            };
+        }
+
+        function normalizePaymentRequestList(list) {
+            if (!Array.isArray(list)) return [];
+            return list.map(normalizePaymentRequest).filter(Boolean);
+        }
+
+        function loadPaymentRequests() {
+            try {
+                return normalizePaymentRequestList(JSON.parse(localStorage.getItem(PAYMENT_REQUESTS_KEY) || '[]'));
+            } catch (err) {
+                logPaymentSignupEvent('error', 'Failed to read cached payment requests from localStorage.', err);
+                return [];
+            }
+        }
+
+        async function fetchPaymentRequestsFromSupabase() {
+            var client = getGallerySupabaseClient();
+            if (!client) {
+                logPaymentSignupEvent('warn', 'Supabase client unavailable; using local signup data only.');
+                return null;
+            }
+            var config = getGallerySupabaseConfig();
+            var authOk = await verifyGallerySupabaseAuth(client);
+            if (!authOk) return null;
+            try {
+                var response = await client
+                    .from(config.dataTable)
+                    .select('value')
+                    .eq('key', config.paymentRequestsKey)
+                    .maybeSingle();
+                if (response.error) {
+                    logPaymentSupabaseError('Select', 'Failed to fetch payment requests from table "' + config.dataTable + '".', response.error);
+                    return null;
+                }
+                return normalizePaymentRequestList(response.data && response.data.value);
+            } catch (err) {
+                logPaymentSupabaseError('Select', 'Unexpected failure while fetching payment requests.', err);
+                return null;
+            }
+        }
+
+        async function persistPaymentRequestsToSupabase(list) {
+            var client = getGallerySupabaseClient();
+            if (!client) return false;
+            var config = getGallerySupabaseConfig();
+            var authOk = await verifyGallerySupabaseAuth(client);
+            if (!authOk) return false;
+            try {
+                var response = await client
+                    .from(config.dataTable)
+                    .upsert(
+                        { key: config.paymentRequestsKey, value: normalizePaymentRequestList(list) },
+                        { onConflict: 'key' }
+                    );
+                if (response.error) {
+                    logPaymentSupabaseError('Upsert', 'Failed to save payment requests to table "' + config.dataTable + '".', response.error);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                logPaymentSupabaseError('Upsert', 'Unexpected failure while saving payment requests.', err);
+                return false;
+            }
+        }
+
+        async function syncPaymentRequestsFromSupabase() {
+            var remoteRequests = await fetchPaymentRequestsFromSupabase();
+            if (remoteRequests === null) return { synced: false, source: 'local' };
+            try {
+                localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(remoteRequests));
+            } catch (err) {
+                logPaymentSignupEvent('error', 'Fetched payment requests, but failed caching them locally.', err);
+            }
             renderAdminPaymentRequests();
             renderAdminSignupNotifications();
+            logPaymentSignupEvent('info', 'Loaded payment requests from Supabase.', { count: remoteRequests.length });
+            return { synced: true, source: 'supabase', count: remoteRequests.length };
+        }
+
+        function savePaymentRequests(list, options) {
+            var normalized = normalizePaymentRequestList(list);
+            var skipRemote = !!(options && options.skipRemote);
+            try {
+                localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(normalized));
+            } catch (err) {
+                logPaymentSignupEvent('error', 'Failed to cache payment requests locally.', err);
+            }
+            renderAdminPaymentRequests();
+            renderAdminSignupNotifications();
+            if (skipRemote) return Promise.resolve(true);
+            return persistPaymentRequestsToSupabase(normalized).then(function(saved) {
+                if (saved) {
+                    logPaymentSignupEvent('info', 'Payment requests persisted to Supabase.', { count: normalized.length });
+                } else {
+                    logPaymentSignupEvent('warn', 'Payment requests saved locally but failed to persist to Supabase.');
+                }
+                return saved;
+            });
         }
 
         function renderAdminSignupNotifications() {
@@ -1482,85 +1614,107 @@
 
 
         function renderAdminPaymentRequests() {
-            const tbody = document.getElementById('adminPaymentsTbody');
-            if (!tbody) return;
-            const items = loadPaymentRequests();
-            tbody.innerHTML = '';
-            if (!items.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
-                return;
-            }
-            items.forEach((p, idx) => {
-                const tr = document.createElement('tr');
-                const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
-                const positionInfo = p.offPosition
-                    ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
-                    : (p.position ? 'Position: ' + p.position : '');
-                const details = p.type === 'freeAgent'
-                    ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
-                    : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
-                const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
-                const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
-                const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
-
-                function appendCell(text, styleText) {
-                    const cell = document.createElement('td');
-                    cell.textContent = text;
-                    if (styleText) cell.style.cssText = styleText;
-                    tr.appendChild(cell);
-                    return cell;
+            try {
+                const tbody = document.getElementById('adminPaymentsTbody');
+                if (!tbody) return;
+                const items = loadPaymentRequests();
+                tbody.innerHTML = '';
+                if (!items.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                    return;
                 }
+                items.forEach((p, idx) => {
+                    const tr = document.createElement('tr');
+                    const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                    const positionInfo = p.offPosition
+                        ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
+                        : (p.position ? 'Position: ' + p.position : '');
+                    const details = p.type === 'freeAgent'
+                        ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
+                        : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
+                    const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
+                    const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
+                    const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
 
-                appendCell(p.name || '');
-                appendCell(p.email || '');
-                appendCell(label);
-                appendCell(details);
-                appendCell(payInfo || 'N/A');
-                appendCell(p.status || 'pending', 'font-weight:700; color:' + (p.status === 'approved' ? '#2e7d32' : '#e65100') + ';');
-                appendCell(submitted);
+                    function appendCell(text, styleText) {
+                        const cell = document.createElement('td');
+                        cell.textContent = text;
+                        if (styleText) cell.style.cssText = styleText;
+                        tr.appendChild(cell);
+                        return cell;
+                    }
 
-                const actionsCell = document.createElement('td');
-                const approveBtn = document.createElement('button');
-                approveBtn.dataset.action = 'approvePayment';
-                approveBtn.dataset.idx = String(idx);
-                approveBtn.className = 'cta-button small';
-                approveBtn.style.marginRight = '6px';
-                approveBtn.textContent = 'Approve';
-                actionsCell.appendChild(approveBtn);
+                    appendCell(p.name || '');
+                    appendCell(p.email || '');
+                    appendCell(label);
+                    appendCell(details);
+                    appendCell(payInfo || 'N/A');
+                    appendCell(p.status || 'pending', 'font-weight:700; color:' + (p.status === 'approved' ? '#2e7d32' : '#e65100') + ';');
+                    appendCell(submitted);
 
-                const denyBtn = document.createElement('button');
-                denyBtn.dataset.action = 'denyPayment';
-                denyBtn.dataset.idx = String(idx);
-                denyBtn.className = 'cta-button small';
-                denyBtn.style.background = '#777';
-                denyBtn.textContent = 'Deny';
-                actionsCell.appendChild(denyBtn);
+                    const actionsCell = document.createElement('td');
+                    const approveBtn = document.createElement('button');
+                    approveBtn.dataset.action = 'approvePayment';
+                    approveBtn.dataset.idx = String(idx);
+                    approveBtn.className = 'cta-button small';
+                    approveBtn.style.marginRight = '6px';
+                    approveBtn.textContent = 'Approve';
+                    actionsCell.appendChild(approveBtn);
 
-                tr.appendChild(actionsCell);
-                tbody.appendChild(tr);
-            });
+                    const denyBtn = document.createElement('button');
+                    denyBtn.dataset.action = 'denyPayment';
+                    denyBtn.dataset.idx = String(idx);
+                    denyBtn.className = 'cta-button small';
+                    denyBtn.style.background = '#777';
+                    denyBtn.textContent = 'Deny';
+                    actionsCell.appendChild(denyBtn);
 
-            tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const idx = Number(this.dataset.idx);
-                    const items = loadPaymentRequests();
-                    if (!items[idx]) return;
-                    items[idx].status = 'approved';
-                    items[idx].reviewedAt = new Date().toISOString();
-                    savePaymentRequests(items);
+                    tr.appendChild(actionsCell);
+                    tbody.appendChild(tr);
                 });
-            });
 
-            tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const idx = Number(this.dataset.idx);
-                    const items = loadPaymentRequests();
-                    if (!items[idx]) return;
-                    items[idx].status = 'denied';
-                    items[idx].reviewedAt = new Date().toISOString();
-                    savePaymentRequests(items);
+                tbody.querySelectorAll('button[data-action="approvePayment"]').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const idx = Number(this.dataset.idx);
+                        const items = loadPaymentRequests();
+                        if (!items[idx]) return;
+                        items[idx].status = 'approved';
+                        items[idx].reviewedAt = new Date().toISOString();
+                        try {
+                            const saved = await savePaymentRequests(items);
+                            if (!saved) {
+                                alert('Marked approved locally, but Supabase sync failed. Check console for details.');
+                            }
+                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved });
+                        } catch (err) {
+                            alert('Failed to save approval update. Please try again.');
+                            logPaymentSignupEvent('error', 'Failed saving admin approval update.', err);
+                        }
+                    });
                 });
-            });
+
+                tbody.querySelectorAll('button[data-action="denyPayment"]').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const idx = Number(this.dataset.idx);
+                        const items = loadPaymentRequests();
+                        if (!items[idx]) return;
+                        items[idx].status = 'denied';
+                        items[idx].reviewedAt = new Date().toISOString();
+                        try {
+                            const saved = await savePaymentRequests(items);
+                            if (!saved) {
+                                alert('Marked denied locally, but Supabase sync failed. Check console for details.');
+                            }
+                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved });
+                        } catch (err) {
+                            alert('Failed to save denial update. Please try again.');
+                            logPaymentSignupEvent('error', 'Failed saving admin denial update.', err);
+                        }
+                    });
+                });
+            } catch (err) {
+                logPaymentSignupEvent('error', 'Failed to render admin signup/payment table.', err);
+            }
         }
 
         // Simple password hashing (SHA-256) with fallback
@@ -1576,6 +1730,9 @@
         // --- UI: show saved logo and check auth states on load ---
         window.addEventListener('load', function() {
             renderDocumentsList();
+            syncPaymentRequestsFromSupabase().catch(function(err) {
+                logPaymentSignupEvent('error', 'Initial signup sync from Supabase failed.', err);
+            });
             const hasMemberSession = sessionStorage.getItem('memberLoggedIn') === 'true';
             if (hasMemberSession && sessionStorage.getItem('adminLoggedIn') === 'true') {
                 clearAdminSession();
@@ -1863,6 +2020,7 @@
                 link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
             }
             const msg = document.getElementById('paymentMsg');
+            logPaymentSignupEvent('info', 'Signup form submit received.', { type: type, method: method, email: email });
 
             if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
                 if (msg) {
@@ -1914,7 +2072,15 @@
                 status: 'pending',
                 submittedAt: submittedAt
             });
-            savePaymentRequests(requests);
+            const savedToSupabase = await savePaymentRequests(requests);
+            const syncWarning = !savedToSupabase
+                ? 'Signup was saved locally on this device, but cloud sync failed.'
+                : '';
+            if (!savedToSupabase) {
+                logPaymentSignupEvent('warn', 'Signup persisted locally but not to Supabase.', { submittedAt: submittedAt, email: email });
+            } else {
+                logPaymentSignupEvent('info', 'Signup persisted to Supabase.', { submittedAt: submittedAt, email: email });
+            }
 
             const notificationResult = await sendAdminPaymentNotification({
                 name,
@@ -1931,6 +2097,9 @@
                 paypalLink: link,
                 submittedAt: submittedAt
             });
+            if (!notificationResult.sent) {
+                logPaymentSignupEvent('warn', 'Admin payment notification was not sent.', notificationResult);
+            }
 
             const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
             const methodLabel = methodLabels[method] || 'Payment';
@@ -1939,17 +2108,18 @@
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = notificationResult.sent
-                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.'
-                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.';
+                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '')
+                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '');
                 }
                 return;
             }
             if (msg) {
-                msg.style.color = 'green';
+                msg.style.color = syncWarning ? '#e65100' : 'green';
                 msg.textContent = notificationResult.sent
-                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.'
-                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
+                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.' + (syncWarning ? ' ' + syncWarning : '')
+                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.' + (syncWarning ? ' ' + syncWarning : '');
             }
+            logPaymentSignupEvent('info', 'Signup submission completed successfully.', { method: method, redirect: link });
             window.open(link, '_blank', 'noopener,noreferrer');
         }
         document.getElementById('siteContent')?.addEventListener('submit', function(e) {
@@ -4425,7 +4595,8 @@
                 url: String(config.url || '').trim(),
                 anonKey: String(config.anonKey || '').trim(),
                 dataTable: String(config.dataTable || 'league_site_data').trim(),
-                galleryKey: String(config.galleryKey || 'gallery').trim()
+                galleryKey: String(config.galleryKey || 'gallery').trim(),
+                paymentRequestsKey: String(config.paymentRequestsKey || 'payment_requests').trim()
             };
         }
 
