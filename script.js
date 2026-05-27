@@ -1090,13 +1090,14 @@
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
             const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
-            const applyPermanentBrandingPhoto = function(logoPhoto, backgroundPhoto) {
+            const applyBrandingAssets = function(logoPhoto, backgroundPhoto) {
                 document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
                 document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
                 const icon = document.querySelector('link[rel="icon"]');
                 if (icon) {
                     icon.href = logoPhoto;
-                    icon.type = 'image/jpeg';
+                    const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
+                    icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
                 }
                 idbSet(SITE_LOGO_KEY, logoPhoto);
                 idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
@@ -1127,7 +1128,7 @@
                         ]).then(function(images) {
                             const logoPhoto = images[0];
                             const backgroundPhoto = images[1];
-                            applyPermanentBrandingPhoto(logoPhoto, backgroundPhoto);
+                            applyBrandingAssets(logoPhoto, backgroundPhoto);
                         });
                     };
                     reader.readAsDataURL(file);
@@ -1157,7 +1158,7 @@
                         ]).then(function(images) {
                             const logoPhoto = images[0];
                             const backgroundPhoto = images[1];
-                            applyPermanentBrandingPhoto(logoPhoto, backgroundPhoto);
+                            applyBrandingAssets(logoPhoto, backgroundPhoto);
                         });
                     };
                     reader.readAsDataURL(file);
