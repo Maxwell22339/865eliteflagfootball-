@@ -1203,15 +1203,31 @@
         // logo/image support removed — header shows text only.
 
         // --- Members persistence (localStorage) ---
+        function normalizeMemberStatus(status) {
+            const normalized = String(status || '').toLowerCase();
+            if (normalized === 'pending' || normalized === 'denied' || normalized === 'approved') return normalized;
+            return 'approved';
+        }
         function loadMembers() {
             try {
-                return JSON.parse(localStorage.getItem('members') || '[]');
+                const parsed = JSON.parse(localStorage.getItem('members') || '[]');
+                if (!Array.isArray(parsed)) return [];
+                return parsed.map(function(member) {
+                    return Object.assign({}, member, {
+                        status: normalizeMemberStatus(member && member.status)
+                    });
+                });
             } catch (err) {
                 return [];
             }
         }
         function saveMembers(list) {
-            safeLocalStorageSet('members', JSON.stringify(list));
+            const normalized = (Array.isArray(list) ? list : []).map(function(member) {
+                return Object.assign({}, member, {
+                    status: normalizeMemberStatus(member && member.status)
+                });
+            });
+            safeLocalStorageSet('members', JSON.stringify(normalized));
             renderUsersTableForAdmin();
         }
 
@@ -1537,6 +1553,7 @@
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
                 setAdminHeaderVisible(true);
                 document.getElementById('adminOnly').classList.add('visible');
+                document.querySelectorAll('.admin-only').forEach(function(el) { el.classList.add('visible'); });
                 const scheduleAdminPanel = document.getElementById('leagueScheduleAdminPanel');
                 if (scheduleAdminPanel) scheduleAdminPanel.classList.add('visible');
                 document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
@@ -1898,6 +1915,7 @@
         document.getElementById('memberRegisterForm').addEventListener('submit', async function(e){
             e.preventDefault();
             document.getElementById('memberAuthError').textContent = '';
+            document.getElementById('memberAuthError').style.color = '#ff6f61';
             const username = document.getElementById('regUsername').value.trim();
             const password = document.getElementById('regPassword').value;
             const confirm = document.getElementById('regPasswordConfirm').value;
@@ -1919,7 +1937,16 @@
             if (members.find(m => m.username.toLowerCase() === username.toLowerCase())) { document.getElementById('memberAuthError').textContent = 'Username already taken'; return; }
 
             const pwHash = await hashPw(password);
-            const user = { username, passwordHash: pwHash, firstName, lastName, email, team };
+            const user = {
+                username,
+                passwordHash: pwHash,
+                firstName,
+                lastName,
+                email,
+                team,
+                status: 'pending',
+                submittedAt: new Date().toISOString()
+            };
 
             // capture signature
             let sigData = null;
@@ -1938,23 +1965,26 @@
 
             members.push(user);
             saveMembers(members);
-
-            // auto-login the new member (replace guest session)
-            sessionStorage.setItem('memberLoggedIn', 'true');
-            sessionStorage.setItem('memberUsername', username);
-            hideMemberModal();
-            showMemberView();
+            document.getElementById('memberRegisterForm').reset();
+            if (regCtx && regCanvas) regCtx.clearRect(0, 0, regCanvas.width, regCanvas.height);
+            document.getElementById('memberAuthError').style.color = '#2e7d32';
+            document.getElementById('memberAuthError').textContent = 'Registration submitted and pending admin approval.';
+            document.getElementById('memberRegisterForm').style.display = 'none';
+            document.getElementById('memberLoginForm').style.display = 'block';
         });
 
         // Member login
         document.getElementById('memberLoginForm').addEventListener('submit', async function(e){
             e.preventDefault();
+            document.getElementById('memberAuthError').style.color = '#ff6f61';
             const username = document.getElementById('memberLoginUsername').value.trim();
             const password = document.getElementById('memberLoginPassword').value;
             const members = loadMembers();
             const pwHash = await hashPw(password);
             const user = members.find(m => m.username === username && m.passwordHash === pwHash);
             if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
+            if (user.status === 'pending') { document.getElementById('memberAuthError').textContent = 'Your registration is pending admin approval.'; return; }
+            if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an admin.'; return; }
             sessionStorage.setItem('memberLoggedIn', 'true');
             sessionStorage.setItem('memberUsername', username);
             hideMemberModal();
@@ -2116,17 +2146,29 @@
             const members = loadMembers();
             tbody.innerHTML = '';
             if (members.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
                 return;
             }
+            function statusBadge(status) {
+                if (status === 'approved') return '<span style="font-weight:700; color:#2e7d32;">Approved</span>';
+                if (status === 'denied') return '<span style="font-weight:700; color:#c62828;">Denied</span>';
+                return '<span style="font-weight:700; color:#e65100;">Pending</span>';
+            }
             members.forEach((m, idx) => {
+                const status = normalizeMemberStatus(m.status);
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><input data-idx="${idx}" data-field="username" value="${m.username}" readonly></td>
                     <td><input data-idx="${idx}" data-field="firstName" value="${m.firstName || ''}"></td>
                     <td><input data-idx="${idx}" data-field="lastName" value="${m.lastName || ''}"></td>
                     <td><input data-idx="${idx}" data-field="email" value="${m.email || ''}"></td>
-                    <td style="display:flex; gap:8px; align-items:center;"><input data-idx="${idx}" data-field="team" value="${m.team || ''}"><button data-action="delete" data-idx="${idx}" style="background:#e65100;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Delete</button></td>
+                    <td><input data-idx="${idx}" data-field="team" value="${m.team || ''}"></td>
+                    <td>${statusBadge(status)}</td>
+                    <td style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        ${status !== 'approved' ? '<button data-action="approveMember" data-idx="' + idx + '" style="background:#2e7d32;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Approve</button>' : ''}
+                        ${status !== 'denied' ? '<button data-action="denyMember" data-idx="' + idx + '" style="background:#777;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Deny</button>' : ''}
+                        <button data-action="delete" data-idx="${idx}" style="background:#e65100;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;">Delete</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2145,6 +2187,26 @@
                     const idx = Number(this.dataset.idx);
                     const members = loadMembers();
                     members.splice(idx, 1);
+                    saveMembers(members);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="approveMember"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const members = loadMembers();
+                    if (!members[idx]) return;
+                    members[idx].status = 'approved';
+                    members[idx].reviewedAt = new Date().toISOString();
+                    saveMembers(members);
+                });
+            });
+            tbody.querySelectorAll('button[data-action="denyMember"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = Number(this.dataset.idx);
+                    const members = loadMembers();
+                    if (!members[idx]) return;
+                    members[idx].status = 'denied';
+                    members[idx].reviewedAt = new Date().toISOString();
                     saveMembers(members);
                 });
             });
@@ -3624,6 +3686,7 @@
             if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
             updateFooterAdminState();
             document.getElementById('adminOnly').classList.add('visible');
+            document.querySelectorAll('.admin-only').forEach(function(el) { el.classList.add('visible'); });
             // show admin nav items
             document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.add('visible'));
             // enable full-page editing
