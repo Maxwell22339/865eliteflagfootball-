@@ -1981,6 +1981,9 @@
                         } else {
                             console.log("[Supabase] Admin authenticated for cloud sync");
                         }
+                    })
+                    .catch(function(err) {
+                        console.error("[Supabase] Auth request error:", err);
                     });
             }
             showAdminView();
@@ -3868,6 +3871,9 @@
                             } else {
                                 console.log("[Supabase] Admin authenticated for cloud sync");
                             }
+                        })
+                        .catch(function(err) {
+                            console.error("[Supabase] Auth request error:", err);
                         });
                 }
                 // delay hiding so message is visible briefly
