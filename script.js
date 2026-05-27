@@ -114,6 +114,144 @@
             templateId: ''
         };
 
+        // =====================================================
+        // Supabase Backend Integration
+        // =====================================================
+
+        // localStorage keys to sync via Supabase shared_state (excludes large binary data)
+        var SUPABASE_SYNC_KEYS = [
+            'leagueStandings_v1',
+            'leagueSchedule_v1',
+            'offensivePlayerStats_v1',
+            'defensivePlayerStats_v1',
+            'recapOffensivePlayerStats_v1',
+            'recapDefensivePlayerStats_v1',
+            'heroCtaButton_v1',
+            'paypalPaymentLinks_v1',
+            'galleryMeta_v1',
+            'playoffBracket_v1',
+            'seasonArchives_v1',
+            'currentSeasonLabel_v1',
+            'countdownDate_v1',
+            'statsTeamLogos_v1'
+        ];
+
+        async function adminLogin(email, password) {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+            if (error) {
+                alert("Login failed: " + error.message);
+                return false;
+            }
+            alert("Admin logged in");
+            return true;
+        }
+
+        async function adminLogout() {
+            await supabaseClient.auth.signOut();
+            alert("Logged out");
+        }
+
+        async function getCurrentAdminUser() {
+            const { data } = await supabaseClient.auth.getUser();
+            return data?.user || null;
+        }
+
+        async function loadLeagueData() {
+            const { data, error } = await supabaseClient
+                .from("shared_state")
+                .select("data")
+                .eq("id", "v1")
+                .single();
+            if (error) {
+                console.error("Load failed:", error);
+                return {};
+            }
+            return data.data || {};
+        }
+
+        async function saveLeagueData(newData) {
+            const { error } = await supabaseClient
+                .from("shared_state")
+                .update({
+                    data: newData,
+                    updated_at: new Date().toISOString()
+                })
+                .eq("id", "v1");
+            if (error) {
+                alert("Save failed: " + error.message);
+                console.error("Save failed:", error);
+                return false;
+            }
+            alert("Saved successfully");
+            return true;
+        }
+
+        // Helper: collect all syncable state from localStorage into one object
+        function collectSupabaseState() {
+            var state = {};
+            SUPABASE_SYNC_KEYS.forEach(function(key) {
+                try {
+                    var raw = localStorage.getItem(key);
+                    if (raw !== null) {
+                        try { state[key] = JSON.parse(raw); } catch (e) { state[key] = raw; }
+                    }
+                } catch (e) {}
+            });
+            return state;
+        }
+
+        // Helper: write Supabase data into localStorage and re-render the page
+        function hydrateFromSupabaseData(data) {
+            if (!data || typeof data !== 'object') return;
+            SUPABASE_SYNC_KEYS.forEach(function(key) {
+                if (data[key] !== undefined) {
+                    try {
+                        var val = typeof data[key] === 'string' ? data[key] : JSON.stringify(data[key]);
+                        localStorage.setItem(key, val);
+                        console.log('[Supabase] Hydrated', key);
+                    } catch (e) {
+                        console.error('[Supabase] Failed to hydrate', key, e);
+                    }
+                }
+            });
+            // Re-render all affected sections with freshly loaded data
+            if (typeof renderLeagueStandingsPublic === 'function') renderLeagueStandingsPublic();
+            if (typeof renderLeagueSchedulePublic === 'function') renderLeagueSchedulePublic();
+            if (typeof renderLeagueAdminTables === 'function') renderLeagueAdminTables();
+            if (typeof renderAllStats === 'function') renderAllStats();
+            if (typeof applySavedCtaButton === 'function') applySavedCtaButton();
+            if (typeof renderPlayoffBracket === 'function') renderPlayoffBracket();
+            if (typeof renderGallery === 'function') renderGallery();
+            if (typeof renderPayPalSettings === 'function') renderPayPalSettings();
+            if (typeof renderCountdownTimer === 'function') renderCountdownTimer();
+            if (typeof renderLatestResultsWidget === 'function') renderLatestResultsWidget();
+        }
+
+        // Debounced helper: push current localStorage state to Supabase (no alert)
+        var _supabaseSaveTimer = null;
+        function triggerSupabaseSave() {
+            if (typeof isAdminLoggedIn === 'function' && !isAdminLoggedIn()) return;
+            if (typeof supabaseClient === 'undefined') return;
+            clearTimeout(_supabaseSaveTimer);
+            _supabaseSaveTimer = setTimeout(function() {
+                var state = collectSupabaseState();
+                supabaseClient
+                    .from("shared_state")
+                    .update({ data: state, updated_at: new Date().toISOString() })
+                    .eq("id", "v1")
+                    .then(function(result) {
+                        if (result.error) {
+                            console.error("[Supabase] Save failed:", result.error);
+                        } else {
+                            console.log("[Supabase] Saved successfully");
+                        }
+                    });
+            }, 500);
+        }
+
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
             'documentsAdmin','documentsPublic','guestArea','myProfile','contact','gallery','playoff','faq'];
@@ -1643,6 +1781,19 @@
             updateNavQuickSelectOptions(window.location.hash ? window.location.hash.substring(1) : 'home');
             ensureNavHamburger();
             updateHeaderScrollState();
+            // Load shared league state from Supabase and hydrate the page
+            if (typeof supabaseClient !== 'undefined') {
+                loadLeagueData().then(function(data) {
+                    if (data && Object.keys(data).length > 0) {
+                        console.log("[Supabase] Loaded league data from cloud");
+                        hydrateFromSupabaseData(data);
+                    } else {
+                        console.log("[Supabase] No cloud data found, using local state");
+                    }
+                }).catch(function(err) {
+                    console.error("[Supabase] Failed to load league data:", err);
+                });
+            }
         });
 
         // --- Admin login (existing) ---
@@ -1800,9 +1951,11 @@
             if (!form) return;
             const usernameInput = form.querySelector('#footerAdminUsername') || document.getElementById('footerAdminUsername');
             const passwordInput = form.querySelector('#footerAdminPassword') || document.getElementById('footerAdminPassword');
+            const emailInput = form.querySelector('#footerAdminEmail') || document.getElementById('footerAdminEmail');
             const formMessage = form.querySelector('#footerAdminLoginMsg') || document.getElementById('footerAdminLoginMsg');
             const username = usernameInput ? usernameInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
+            const email = emailInput ? emailInput.value.trim() : '';
             if (formMessage) {
                 formMessage.style.color = '#ff6f61';
                 formMessage.textContent = '';
@@ -1819,6 +1972,20 @@
                 formMessage.textContent = 'Signed in successfully';
             }
             if (passwordInput) passwordInput.value = '';
+            // Attempt Supabase auth for cloud sync (best-effort)
+            if (email && typeof supabaseClient !== 'undefined') {
+                supabaseClient.auth.signInWithPassword({ email: email, password: password })
+                    .then(function(result) {
+                        if (result.error) {
+                            console.warn("[Supabase] Auth failed (cloud sync unavailable):", result.error.message);
+                        } else {
+                            console.log("[Supabase] Admin authenticated for cloud sync");
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error("[Supabase] Auth request error:", err);
+                    });
+            }
             showAdminView();
         }
         document.getElementById('siteContent')?.addEventListener('click', function(e) {
@@ -2946,6 +3113,7 @@
 
         function saveLeagueCollection(key, rows) {
             localStorage.setItem(key, JSON.stringify(rows));
+            triggerSupabaseSave();
         }
 
         function loadLeagueStandings() {
@@ -3233,6 +3401,7 @@
         }
         function savePlayerStats(key, data) {
             localStorage.setItem(key, JSON.stringify(data));
+            triggerSupabaseSave();
         }
 
         function getStatsSortConfig(type) {
@@ -3590,6 +3759,7 @@
             if (btn) btn.style.background = '#4caf50';
             var msg = document.getElementById('saveMsg');
             if (msg) { msg.textContent = '✓ All changes saved!'; setTimeout(function(){ msg.textContent = ''; }, 3000); }
+            triggerSupabaseSave();
         }
         document.addEventListener('input', queuePersistSiteContent, true);
         document.addEventListener('change', queuePersistSiteContent, true);
@@ -3679,6 +3849,7 @@
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            const email = (document.getElementById('adminEmail') || {}).value || '';
 
             const adminAccount = getMatchingAdminAccount(username, password);
 
@@ -3690,6 +3861,20 @@
                 if (msgEl) {
                     msgEl.style.color = 'green';
                     msgEl.textContent = 'Successfully logged in as admin';
+                }
+                // Attempt Supabase auth for cloud sync (best-effort)
+                if (email && typeof supabaseClient !== 'undefined') {
+                    supabaseClient.auth.signInWithPassword({ email: email, password: password })
+                        .then(function(result) {
+                            if (result.error) {
+                                console.warn("[Supabase] Auth failed (cloud sync unavailable):", result.error.message);
+                            } else {
+                                console.log("[Supabase] Admin authenticated for cloud sync");
+                            }
+                        })
+                        .catch(function(err) {
+                            console.error("[Supabase] Auth request error:", err);
+                        });
                 }
                 // delay hiding so message is visible briefly
                 setTimeout(() => {
@@ -3757,6 +3942,12 @@
             saveAllChanges();
             flushPersistSiteContent();
             clearAdminSession();
+            // Sign out of Supabase session (cloud sync)
+            if (typeof supabaseClient !== 'undefined') {
+                supabaseClient.auth.signOut().catch(function(err) {
+                    console.warn("[Supabase] Sign out error:", err);
+                });
+            }
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
             updateFooterAdminState();
@@ -4392,6 +4583,7 @@
         }
         function saveGalleryMeta(list) {
             try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(list)); } catch (e) {}
+            triggerSupabaseSave();
         }
 
         function updateGalleryNavVisibility(hasImages) {
@@ -4557,6 +4749,7 @@
             if (!isAdminLoggedIn()) return;
             var rounds = collectPlayoffRounds();
             try { localStorage.setItem(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
+            triggerSupabaseSave();
             renderPlayoffBracket();
             var msg = document.getElementById('playoffAdminMsg');
             if (msg) { msg.style.color = '#4caf50'; msg.textContent = 'Bracket saved!'; setTimeout(function() { msg.textContent = ''; }, 2500); }
