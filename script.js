@@ -999,16 +999,18 @@
             if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
         }
 
+        const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
+        const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
+
         async function applySavedBranding() {
             try {
                 const savedLogo = await idbGet(SITE_LOGO_KEY);
-                if (savedLogo) {
-                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
-                    const icon = document.querySelector('link[rel="icon"]');
-                    if (icon) {
-                        icon.href = savedLogo;
-                        icon.type = 'image/png';
-                    }
+                const logoSrc = savedLogo || STATIC_LOGO_URL;
+                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoSrc; });
+                const icon = document.querySelector('link[rel="icon"]');
+                if (icon) {
+                    icon.href = logoSrc;
+                    icon.type = savedLogo ? 'image/png' : 'image/png';
                 }
             } catch (err) {
                 // Ignore branding restore errors.
@@ -1021,10 +1023,10 @@
                 if (savedBackground) {
                     document.documentElement.style.setProperty('--hero-photo', 'url("' + savedBackground + '")');
                 } else {
-                    document.documentElement.style.setProperty('--hero-photo', 'none');
+                    document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
                 }
             } catch (err) {
-                document.documentElement.style.setProperty('--hero-photo', 'none');
+                document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
             }
         }
 
