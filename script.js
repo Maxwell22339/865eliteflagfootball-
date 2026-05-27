@@ -4386,12 +4386,220 @@
         // PHOTO GALLERY
         // =====================================================
         const GALLERY_META_KEY = 'galleryMeta_v1';
+        const GALLERY_STORAGE_BUCKET = 'gallery-images';
+        const GALLERY_STORAGE_FOLDER = 'uploads';
+        const GALLERY_STORAGE_CACHE_SECONDS = '3600';
+        var galleryMetaState = [];
+        var gallerySupabaseClient = null;
+        var gallerySupabaseInitialized = false;
+        var galleryIdCounter = 0;
+        var galleryEscapeListenerBound = false;
 
-        function loadGalleryMeta() {
-            try { return JSON.parse(localStorage.getItem(GALLERY_META_KEY) || '[]'); } catch (e) { return []; }
+        function loadGalleryMetaCache() {
+            try {
+                var parsed = JSON.parse(localStorage.getItem(GALLERY_META_KEY) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
         }
-        function saveGalleryMeta(list) {
-            try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(list)); } catch (e) {}
+
+        function saveGalleryMetaCache(list) {
+            try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch (e) {}
+        }
+
+        function getGallerySupabaseConfig() {
+            var config = window.__865EliteSupabaseConfig || {};
+            return {
+                url: String(config.url || '').trim(),
+                anonKey: String(config.anonKey || '').trim(),
+                dataTable: String(config.dataTable || 'league_site_data').trim(),
+                galleryKey: String(config.galleryKey || 'gallery').trim()
+            };
+        }
+
+        function logGallerySupabaseError(type, message, error) {
+            console.error('[Gallery][Supabase][' + type + '] ' + message, error || '');
+            var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
+            if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
+                console.error('[Gallery][Supabase][RLS] Check table and storage RLS policies for bucket "' + GALLERY_STORAGE_BUCKET + '".', error || '');
+            }
+        }
+
+        function getGallerySupabaseClient() {
+            if (gallerySupabaseInitialized) return gallerySupabaseClient;
+            gallerySupabaseInitialized = true;
+            var config = getGallerySupabaseConfig();
+            if (!config.url || !config.anonKey) {
+                logGallerySupabaseError('Auth', 'Missing Supabase URL or anon key in window.__865EliteSupabaseConfig.', null);
+                return null;
+            }
+            if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                logGallerySupabaseError('Auth', 'Supabase browser client library failed to load.', null);
+                return null;
+            }
+            gallerySupabaseClient = window.supabase.createClient(config.url, config.anonKey);
+            return gallerySupabaseClient;
+        }
+
+        function normalizeGalleryMetaItem(item) {
+            if (!item || typeof item !== 'object') return null;
+            var id = String(item.id || '').trim();
+            var url = String(item.url || item.publicUrl || '').trim();
+            var storagePath = String(item.storagePath || item.path || '').trim();
+            var caption = String(item.caption || '').trim();
+            var ts = Number(item.ts || item.createdAt || Date.now());
+            if (!id) id = generateGalleryId();
+            if (!url) return null;
+            return {
+                id: id,
+                url: url,
+                storagePath: storagePath,
+                caption: caption,
+                ts: Number.isFinite(ts) ? ts : Date.now()
+            };
+        }
+
+        async function verifyGallerySupabaseAuth(client) {
+            if (!client) {
+                logGallerySupabaseError('Auth', 'Supabase client is unavailable for gallery operations.', null);
+                return false;
+            }
+            if (!client.auth || typeof client.auth.getSession !== 'function') {
+                logGallerySupabaseError('Auth', 'Supabase auth client is unavailable for gallery operations.', null);
+                return false;
+            }
+            try {
+                var sessionResult = await client.auth.getSession();
+                if (sessionResult && sessionResult.error) {
+                    logGallerySupabaseError('Auth', 'Failed to verify Supabase auth session.', sessionResult.error);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                logGallerySupabaseError('Auth', 'Unexpected Supabase auth failure while reading session.', err);
+                return false;
+            }
+        }
+
+        async function fetchGalleryMetaFromSupabase() {
+            var client = getGallerySupabaseClient();
+            if (!client) return null;
+            var config = getGallerySupabaseConfig();
+            var authOk = await verifyGallerySupabaseAuth(client);
+            if (!authOk) return null;
+            try {
+                var response = await client
+                    .from(config.dataTable)
+                    .select('value')
+                    .eq('key', config.galleryKey)
+                    .maybeSingle();
+                if (response.error) {
+                    logGallerySupabaseError('Table', 'Failed to fetch gallery metadata from table "' + config.dataTable + '".', response.error);
+                    return null;
+                }
+                var value = response.data && response.data.value;
+                if (!Array.isArray(value)) return [];
+                return value.map(normalizeGalleryMetaItem).filter(Boolean);
+            } catch (err) {
+                logGallerySupabaseError('Table', 'Unexpected failure while fetching gallery metadata.', err);
+                return null;
+            }
+        }
+
+        async function saveGalleryMetaToSupabase(list) {
+            var client = getGallerySupabaseClient();
+            if (!client) return false;
+            var config = getGallerySupabaseConfig();
+            var authOk = await verifyGallerySupabaseAuth(client);
+            if (!authOk) return false;
+            try {
+                var response = await client
+                    .from(config.dataTable)
+                    .upsert(
+                        { key: config.galleryKey, value: list },
+                        { onConflict: 'key' }
+                    );
+                if (response.error) {
+                    logGallerySupabaseError('Table', 'Failed to save gallery metadata to table "' + config.dataTable + '".', response.error);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                logGallerySupabaseError('Table', 'Unexpected failure while saving gallery metadata.', err);
+                return false;
+            }
+        }
+
+        function getGalleryMeta() {
+            return Array.isArray(galleryMetaState) ? galleryMetaState.slice() : [];
+        }
+
+        function setGalleryMeta(list, options) {
+            var normalizedList = (Array.isArray(list) ? list : [])
+                .map(normalizeGalleryMetaItem)
+                .filter(Boolean)
+                .sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+            galleryMetaState = normalizedList;
+            saveGalleryMetaCache(normalizedList);
+            if (!(options && options.skipRender)) renderGallery();
+            return normalizedList;
+        }
+
+        async function hydrateGalleryMeta() {
+            var cloudMeta = await fetchGalleryMetaFromSupabase();
+            if (Array.isArray(cloudMeta)) {
+                setGalleryMeta(cloudMeta, { skipRender: true });
+                return;
+            }
+            setGalleryMeta(loadGalleryMetaCache(), { skipRender: true });
+        }
+
+        function sanitizeGalleryFileName(name) {
+            return String(name || 'image')
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '') || 'image';
+        }
+
+        function generateGalleryId() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return 'g_' + window.crypto.randomUUID();
+            }
+            galleryIdCounter += 1;
+            return 'g_' + Date.now() + '_' + galleryIdCounter + '_' + Math.random().toString(36).slice(2, 10);
+        }
+
+        async function uploadGalleryFileToSupabase(file, id) {
+            var client = getGallerySupabaseClient();
+            if (!client) return null;
+            var authOk = await verifyGallerySupabaseAuth(client);
+            if (!authOk) return null;
+            var safeName = sanitizeGalleryFileName(file && file.name);
+            var extension = '';
+            var extensionMatch = safeName.match(/(\.[a-z0-9]+)$/);
+            if (extensionMatch) extension = extensionMatch[1];
+            if (!extension) extension = '.jpg';
+            var storagePath = GALLERY_STORAGE_FOLDER + '/' + id + extension;
+            var uploadResponse = await client.storage
+                .from(GALLERY_STORAGE_BUCKET)
+                .upload(storagePath, file, {
+                    cacheControl: GALLERY_STORAGE_CACHE_SECONDS,
+                    upsert: true,
+                    contentType: file && file.type ? file.type : 'image/jpeg'
+                });
+            if (uploadResponse.error) {
+                logGallerySupabaseError('StorageUpload', 'Failed upload to storage bucket "' + GALLERY_STORAGE_BUCKET + '" at path "' + storagePath + '".', uploadResponse.error);
+                return null;
+            }
+            var publicUrlResponse = client.storage.from(GALLERY_STORAGE_BUCKET).getPublicUrl(storagePath);
+            var publicUrl = publicUrlResponse && publicUrlResponse.data ? publicUrlResponse.data.publicUrl : '';
+            if (!publicUrl) {
+                logGallerySupabaseError('StorageUpload', 'Upload succeeded but public URL could not be generated for "' + storagePath + '".', null);
+                return null;
+            }
+            return { storagePath: storagePath, url: publicUrl };
         }
 
         function updateGalleryNavVisibility(hasImages) {
@@ -4403,73 +4611,179 @@
 
         function renderGallery() {
             var grid = document.getElementById('galleryGrid');
-            var emptyEl = document.getElementById('galleryEmpty');
             if (!grid) return;
-            var meta = loadGalleryMeta();
+            var meta = getGalleryMeta();
             if (!meta.length) {
                 grid.innerHTML = '<p class="gallery-empty" id="galleryEmpty">No photos yet — check back soon!</p>';
                 updateGalleryNavVisibility(false);
                 return;
             }
             var isAdmin = isAdminLoggedIn();
-            var promises = meta.map(function(item) {
-                return idbGet('gallery_img_' + item.id).then(function(dataUrl) {
-                    return { item: item, dataUrl: dataUrl };
-                });
-            });
-            Promise.all(promises).then(function(results) {
-                grid.innerHTML = '';
-                results.forEach(function(r) {
-                    if (!r.dataUrl) return;
-                    var card = document.createElement('div');
-                    card.className = 'gallery-card';
-                    card.setAttribute('tabindex', '0');
-                    card.setAttribute('role', 'button');
-                    card.setAttribute('aria-label', 'View photo' + (r.item.caption ? ': ' + r.item.caption : ''));
+            grid.innerHTML = '';
+            meta.forEach(function(item) {
+                if (!item.url) return;
+                var card = document.createElement('div');
+                card.className = 'gallery-card';
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', 'View photo' + (item.caption ? ': ' + item.caption : ''));
 
-                    var img = document.createElement('img');
-                    img.src = r.dataUrl;
-                    img.alt = r.item.caption || 'Gallery photo';
-                    img.loading = 'lazy';
-                    card.appendChild(img);
+                var img = document.createElement('img');
+                img.src = item.url;
+                img.alt = item.caption || 'Gallery photo';
+                img.loading = 'lazy';
+                card.appendChild(img);
 
-                    if (r.item.caption) {
-                        var cap = document.createElement('div');
-                        cap.className = 'gallery-card-caption';
-                        cap.textContent = r.item.caption;
-                        card.appendChild(cap);
-                    }
-
-                    if (isAdmin) {
-                        var delBtn = document.createElement('button');
-                        delBtn.className = 'gallery-card-delete';
-                        delBtn.textContent = '×';
-                        delBtn.setAttribute('aria-label', 'Delete photo');
-                        delBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            deleteGalleryPhoto(r.item.id);
-                        });
-                        card.appendChild(delBtn);
-                    }
-
-                    card.addEventListener('click', function() { openGalleryLightbox(r.dataUrl, r.item.caption || ''); });
-                    card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGalleryLightbox(r.dataUrl, r.item.caption || ''); } });
-                    grid.appendChild(card);
-                });
-                if (!grid.children.length) {
-                    grid.innerHTML = '<p class="gallery-empty">No photos yet — check back soon!</p>';
-                    updateGalleryNavVisibility(false);
-                } else {
-                    updateGalleryNavVisibility(true);
+                if (item.caption) {
+                    var cap = document.createElement('div');
+                    cap.className = 'gallery-card-caption';
+                    cap.textContent = item.caption;
+                    card.appendChild(cap);
                 }
+
+                if (isAdmin) {
+                    var delBtn = document.createElement('button');
+                    delBtn.className = 'gallery-card-delete';
+                    delBtn.textContent = '×';
+                    delBtn.setAttribute('aria-label', 'Delete photo');
+                    delBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        deleteGalleryPhoto(item.id);
+                    });
+                    card.appendChild(delBtn);
+                }
+
+                card.addEventListener('click', function() { openGalleryLightbox(item.url, item.caption || ''); });
+                card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGalleryLightbox(item.url, item.caption || ''); } });
+                grid.appendChild(card);
             });
+            if (!grid.children.length) {
+                grid.innerHTML = '<p class="gallery-empty">No photos yet — check back soon!</p>';
+                updateGalleryNavVisibility(false);
+            } else {
+                updateGalleryNavVisibility(true);
+            }
         }
 
-        function deleteGalleryPhoto(id) {
-            var meta = loadGalleryMeta().filter(function(m) { return m.id !== id; });
-            saveGalleryMeta(meta);
-            idbSet('gallery_img_' + id, null).catch(function() {});
+        async function deleteGalleryPhoto(id) {
+            var meta = getGalleryMeta();
+            var itemToDelete = meta.find(function(m) { return m.id === id; });
+            var nextMeta = meta.filter(function(m) { return m.id !== id; });
+            setGalleryMeta(nextMeta);
+
+            var client = getGallerySupabaseClient();
+            if (client && itemToDelete && itemToDelete.storagePath) {
+                try {
+                    var removeResponse = await client.storage.from(GALLERY_STORAGE_BUCKET).remove([itemToDelete.storagePath]);
+                    if (removeResponse.error) {
+                        logGallerySupabaseError('StorageDelete', 'Failed to delete storage object "' + itemToDelete.storagePath + '".', removeResponse.error);
+                    }
+                } catch (err) {
+                    logGallerySupabaseError('StorageDelete', 'Unexpected storage deletion failure for "' + itemToDelete.storagePath + '".', err);
+                }
+            }
+
+            var persisted = await saveGalleryMetaToSupabase(nextMeta);
+            if (!persisted) {
+                logGallerySupabaseError('Table', 'Gallery metadata delete was cached locally but not synced to Supabase.', null);
+            }
+        }
+
+        async function uploadGalleryPhotos(files, caption, msgEl) {
+            var uploadTasks = files.map(function(file) {
+                var id = generateGalleryId();
+                return uploadGalleryFileToSupabase(file, id).then(function(uploadResult) {
+                    if (!uploadResult) throw new Error('Failed to upload file to Supabase Storage');
+                    return {
+                        id: id,
+                        caption: caption,
+                        storagePath: uploadResult.storagePath,
+                        url: uploadResult.url,
+                        ts: Date.now()
+                    };
+                });
+            });
+
+            var uploadResults = await Promise.allSettled(uploadTasks);
+            var failedUploads = uploadResults.filter(function(result) { return result.status === 'rejected'; });
+            if (failedUploads.length) {
+                var failedReasons = failedUploads.map(function(result) { return result.reason; });
+                logGallerySupabaseError('StorageUpload', 'One or more gallery uploads failed.', failedReasons);
+                var failedNames = files
+                    .filter(function(_, index) { return uploadResults[index].status === 'rejected'; })
+                    .map(function(file) { return file && file.name ? file.name : 'unknown'; })
+                    .join(', ');
+                if (msgEl) {
+                    msgEl.style.color = '#ff6f61';
+                    msgEl.textContent = 'Upload failed for: ' + failedNames + '. Check console for Supabase details.';
+                }
+                return false;
+            }
+            var uploadedItems = uploadResults.map(function(result) { return result.value; });
+
+            var nextMeta = uploadedItems.concat(getGalleryMeta());
+            setGalleryMeta(nextMeta);
+            var persisted = await saveGalleryMetaToSupabase(nextMeta);
+            if (!persisted) {
+                if (msgEl) {
+                    msgEl.style.color = '#ff6f61';
+                    msgEl.textContent = 'Photos uploaded, but Supabase metadata sync failed. They may not appear on other devices yet. Check console errors.';
+                }
+                return false;
+            }
+            return true;
+        }
+
+        async function refreshGalleryFromSupabaseAndRender() {
+            await hydrateGalleryMeta();
             renderGallery();
+        }
+
+        function initGallery() {
+            refreshGalleryFromSupabaseAndRender();
+
+            var closeBtn = document.getElementById('galleryLightboxClose');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = '1';
+                closeBtn.addEventListener('click', closeGalleryLightbox);
+            }
+            var lb = document.getElementById('galleryLightbox');
+            if (lb && !lb.dataset.bound) {
+                lb.dataset.bound = '1';
+                lb.addEventListener('click', function(e) { if (e.target === lb) closeGalleryLightbox(); });
+            }
+            if (!galleryEscapeListenerBound) {
+                galleryEscapeListenerBound = true;
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') closeGalleryLightbox();
+                });
+            }
+
+            var uploadBtn = document.getElementById('galleryUploadBtn');
+            if (uploadBtn && !uploadBtn.dataset.bound) {
+                uploadBtn.dataset.bound = '1';
+                uploadBtn.addEventListener('click', async function() {
+                    if (!isAdminLoggedIn()) return;
+                    var fileInput = document.getElementById('galleryUploadInput');
+                    var captionInput = document.getElementById('galleryCaption');
+                    var msgEl = document.getElementById('galleryUploadMsg');
+                    var files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+                    if (!files.length) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select at least one image.'; } return; }
+                    var caption = captionInput ? captionInput.value.trim() : '';
+                    if (msgEl) { msgEl.style.color = '#ff8f00'; msgEl.textContent = 'Uploading…'; }
+                    uploadBtn.disabled = true;
+                    try {
+                        var success = await uploadGalleryPhotos(files, caption, msgEl);
+                        if (success) {
+                            if (fileInput) fileInput.value = '';
+                            if (captionInput) captionInput.value = '';
+                            if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = files.length + ' photo(s) uploaded!'; setTimeout(function() { msgEl.textContent = ''; }, 3000); }
+                        }
+                    } finally {
+                        uploadBtn.disabled = false;
+                    }
+                });
+            }
         }
 
         function openGalleryLightbox(src, caption) {
@@ -4488,61 +4802,6 @@
             var lb = document.getElementById('galleryLightbox');
             if (lb) lb.style.display = 'none';
             document.body.style.overflow = '';
-        }
-
-        function initGallery() {
-            renderGallery();
-
-            var closeBtn = document.getElementById('galleryLightboxClose');
-            if (closeBtn && !closeBtn.dataset.bound) {
-                closeBtn.dataset.bound = '1';
-                closeBtn.addEventListener('click', closeGalleryLightbox);
-            }
-            var lb = document.getElementById('galleryLightbox');
-            if (lb && !lb.dataset.bound) {
-                lb.dataset.bound = '1';
-                lb.addEventListener('click', function(e) { if (e.target === lb) closeGalleryLightbox(); });
-            }
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') closeGalleryLightbox();
-            });
-
-            var uploadBtn = document.getElementById('galleryUploadBtn');
-            if (uploadBtn && !uploadBtn.dataset.bound) {
-                uploadBtn.dataset.bound = '1';
-                uploadBtn.addEventListener('click', function() {
-                    if (!isAdminLoggedIn()) return;
-                    var fileInput = document.getElementById('galleryUploadInput');
-                    var captionInput = document.getElementById('galleryCaption');
-                    var msgEl = document.getElementById('galleryUploadMsg');
-                    var files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
-                    if (!files.length) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select at least one image.'; } return; }
-                    var caption = captionInput ? captionInput.value.trim() : '';
-                    var meta = loadGalleryMeta();
-                    var promises = files.map(function(file) {
-                        return new Promise(function(resolve) {
-                            var reader = new FileReader();
-                            reader.onload = function(e) {
-                                var dataUrl = e.target.result;
-                                compressImageDataUrl(dataUrl, 1200, 900, 0.75).then(function(compressed) {
-                                    var id = 'g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-                                    meta.push({ id: id, caption: caption, ts: Date.now() });
-                                    idbSet('gallery_img_' + id, compressed).then(resolve);
-                                });
-                            };
-                            reader.readAsDataURL(file);
-                        });
-                    });
-                    if (msgEl) { msgEl.style.color = '#ff8f00'; msgEl.textContent = 'Uploading…'; }
-                    Promise.all(promises).then(function() {
-                        saveGalleryMeta(meta);
-                        if (fileInput) fileInput.value = '';
-                        if (captionInput) captionInput.value = '';
-                        renderGallery();
-                        if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = files.length + ' photo(s) uploaded!'; setTimeout(function() { msgEl.textContent = ''; }, 3000); }
-                    });
-                });
-            }
         }
 
         // =====================================================
