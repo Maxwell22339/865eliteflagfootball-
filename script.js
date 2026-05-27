@@ -63,7 +63,10 @@
             return openIDB().then(function(db) {
                 return new Promise(function(resolve, reject) {
                     var req = db.transaction('blobs', 'readwrite').objectStore('blobs').put(value, key);
-                    req.onsuccess = function() { resolve(true); };
+                    req.onsuccess = function() {
+                        if (isSharedIdbKey(key)) scheduleSharedStatePush('idb:' + key);
+                        resolve(true);
+                    };
                     req.onerror = function(e) { reject(e.target.error); };
                 });
             }).catch(function() { return false; });
@@ -113,6 +116,301 @@
             serviceId: '',
             templateId: ''
         };
+        const FIREBASE_CONFIG = (window.__865EliteFirebaseConfig && typeof window.__865EliteFirebaseConfig === 'object')
+            ? window.__865EliteFirebaseConfig
+            : {};
+        const FIREBASE_ADMIN_EMAILS = (window.__865EliteFirebaseAdminEmails && typeof window.__865EliteFirebaseAdminEmails === 'object')
+            ? window.__865EliteFirebaseAdminEmails
+            : {};
+        const SHARED_STATE_META_KEY = 'sharedStateMeta_v1';
+        const SHARED_STATE_DB_PATH = 'sharedState/v1';
+        const SHARED_STATE_CLIENT_ID = 'client-' + Math.random().toString(36).slice(2) + '-' + Date.now();
+        const SHARED_LOCAL_STORAGE_KEYS = [
+            PAYMENT_LINKS_KEY,
+            PAYMENT_NOTIFICATION_SETTINGS_KEY,
+            CTA_BUTTON_KEY,
+            'leagueStandings_v1',
+            'leagueSchedule_v1',
+            'offensivePlayerStats_v1',
+            'defensivePlayerStats_v1',
+            'recapOffensivePlayerStats_v1',
+            'recapDefensivePlayerStats_v1',
+            'statsTeamLogos_v1',
+            'currentSeasonLabel_v1',
+            'recapSeasonLabel_v1',
+            'seasonArchives_v1',
+            'selectedSeasonArchive_v1',
+            'playoffBracket_v1',
+            'countdownDate_v1'
+        ];
+        const SHARED_IDB_KEYS = [
+            PAGE_CONTENT_KEY,
+            SITE_LOGO_KEY,
+            HOME_HERO_BACKGROUND_KEY,
+            'documents'
+        ];
+        let firebaseAppInstance = null;
+        let firebaseAuthInstance = null;
+        let firebaseDbInstance = null;
+        let sharedStateReady = false;
+        let sharedStateListening = false;
+        let sharedStateApplyingRemote = false;
+        let sharedStatePushTimer = null;
+        let sharedStateLastRemoteUpdatedAt = 0;
+
+        function hasFirebaseConfig() {
+            const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'appId'];
+            return required.every(function(key) {
+                return !!String(FIREBASE_CONFIG[key] || '').trim();
+            });
+        }
+
+        function isSharedLocalStorageKey(key) {
+            return SHARED_LOCAL_STORAGE_KEYS.indexOf(String(key || '')) !== -1;
+        }
+
+        function isSharedIdbKey(key) {
+            return SHARED_IDB_KEYS.indexOf(String(key || '')) !== -1;
+        }
+
+        function getSharedStateMeta() {
+            try {
+                var parsed = JSON.parse(localStorage.getItem(SHARED_STATE_META_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (err) {
+                return {};
+            }
+        }
+
+        function setSharedStateMeta(meta) {
+            try {
+                localStorage.setItem(SHARED_STATE_META_KEY, JSON.stringify(meta || {}));
+            } catch (err) {
+                // Ignore metadata cache writes.
+            }
+        }
+
+        function getConfiguredAdminEmail(username) {
+            if (!username) return '';
+            return String(FIREBASE_ADMIN_EMAILS[username] || '').trim().toLowerCase();
+        }
+
+        function getAllowedAdminEmailSet() {
+            var set = {};
+            Object.keys(FIREBASE_ADMIN_EMAILS || {}).forEach(function(key) {
+                var value = String(FIREBASE_ADMIN_EMAILS[key] || '').trim().toLowerCase();
+                if (value) set[value] = true;
+            });
+            return set;
+        }
+
+        function isFirebaseAdminUser(user) {
+            if (!user || !user.email) return false;
+            var email = String(user.email || '').trim().toLowerCase();
+            var allowed = getAllowedAdminEmailSet();
+            return !!allowed[email];
+        }
+
+        function isSharedBackendEnabled() {
+            return !!(window.firebase && hasFirebaseConfig());
+        }
+
+        function ensureFirebaseInitialized() {
+            if (!isSharedBackendEnabled()) return false;
+            try {
+                if (!firebaseAppInstance) {
+                    firebaseAppInstance = firebase.apps && firebase.apps.length
+                        ? firebase.apps[0]
+                        : firebase.initializeApp(FIREBASE_CONFIG);
+                }
+                if (!firebaseAuthInstance) firebaseAuthInstance = firebase.auth();
+                if (!firebaseDbInstance) firebaseDbInstance = firebase.database();
+                sharedStateReady = true;
+                return true;
+            } catch (err) {
+                sharedStateReady = false;
+                return false;
+            }
+        }
+
+        function canWriteSharedState() {
+            if (!sharedStateReady) return false;
+            if (!isAdminLoggedIn()) return false;
+            if (!firebaseAuthInstance || !firebaseAuthInstance.currentUser) return false;
+            return isFirebaseAdminUser(firebaseAuthInstance.currentUser);
+        }
+
+        async function collectSharedStateSnapshot() {
+            var localValues = {};
+            SHARED_LOCAL_STORAGE_KEYS.forEach(function(key) {
+                var val = localStorage.getItem(key);
+                if (val !== null) localValues[key] = val;
+            });
+            var idbValues = {};
+            for (var i = 0; i < SHARED_IDB_KEYS.length; i++) {
+                var idbKey = SHARED_IDB_KEYS[i];
+                var data = await idbGet(idbKey);
+                if (data !== undefined && data !== null) idbValues[idbKey] = data;
+            }
+            return {
+                localStorage: localValues,
+                indexedDb: idbValues
+            };
+        }
+
+        async function applyRemoteSharedState(state, refreshUi) {
+            if (!state || typeof state !== 'object') return;
+            var local = state.localStorage && typeof state.localStorage === 'object' ? state.localStorage : {};
+            var idb = state.indexedDb && typeof state.indexedDb === 'object' ? state.indexedDb : {};
+            sharedStateApplyingRemote = true;
+            try {
+                SHARED_LOCAL_STORAGE_KEYS.forEach(function(key) {
+                    if (Object.prototype.hasOwnProperty.call(local, key)) {
+                        localStorage.setItem(key, local[key]);
+                    }
+                });
+                for (var i = 0; i < SHARED_IDB_KEYS.length; i++) {
+                    var idbKey = SHARED_IDB_KEYS[i];
+                    if (Object.prototype.hasOwnProperty.call(idb, idbKey)) {
+                        await idbSet(idbKey, idb[idbKey]);
+                    }
+                }
+                var updatedAt = Number(state.updatedAt || 0);
+                if (updatedAt > 0) {
+                    sharedStateLastRemoteUpdatedAt = Math.max(sharedStateLastRemoteUpdatedAt, updatedAt);
+                    setSharedStateMeta({ updatedAt: updatedAt });
+                }
+            } catch (err) {
+                // Ignore remote state apply errors.
+            } finally {
+                sharedStateApplyingRemote = false;
+            }
+            if (refreshUi) {
+                refreshUiFromSharedState();
+            }
+        }
+
+        async function pullSharedStateFromBackend() {
+            if (!sharedStateReady || !firebaseDbInstance) return;
+            try {
+                var snapshot = await firebaseDbInstance.ref(SHARED_STATE_DB_PATH).once('value');
+                var state = snapshot && snapshot.val ? snapshot.val() : null;
+                if (!state) return;
+                var remoteUpdatedAt = Number(state.updatedAt || 0);
+                var localMeta = getSharedStateMeta();
+                var localUpdatedAt = Number(localMeta.updatedAt || 0);
+                if (remoteUpdatedAt >= localUpdatedAt) {
+                    await applyRemoteSharedState(state, false);
+                }
+            } catch (err) {
+                // Ignore remote read failures and keep local fallback behavior.
+            }
+        }
+
+        async function pushSharedStateToBackend(reason) {
+            if (sharedStateApplyingRemote) return;
+            if (!canWriteSharedState()) return;
+            try {
+                var snapshot = await collectSharedStateSnapshot();
+                var now = Date.now();
+                var actor = sessionStorage.getItem('adminUsername') || '';
+                var payload = {
+                    updatedAt: now,
+                    updatedBy: actor || SHARED_STATE_CLIENT_ID,
+                    source: reason || 'manual',
+                    localStorage: snapshot.localStorage,
+                    indexedDb: snapshot.indexedDb
+                };
+                await firebaseDbInstance.ref(SHARED_STATE_DB_PATH).set(payload);
+                sharedStateLastRemoteUpdatedAt = now;
+                setSharedStateMeta({ updatedAt: now });
+            } catch (err) {
+                // Keep local data as fallback if cloud sync fails.
+            }
+        }
+
+        function scheduleSharedStatePush(reason) {
+            if (sharedStateApplyingRemote) return;
+            if (sharedStatePushTimer) clearTimeout(sharedStatePushTimer);
+            sharedStatePushTimer = setTimeout(function() {
+                pushSharedStateToBackend(reason || 'scheduled');
+            }, 350);
+        }
+
+        function attachSharedStateListener() {
+            if (!sharedStateReady || !firebaseDbInstance || sharedStateListening) return;
+            sharedStateListening = true;
+            firebaseDbInstance.ref(SHARED_STATE_DB_PATH).on('value', function(snapshot) {
+                var state = snapshot && snapshot.val ? snapshot.val() : null;
+                if (!state) return;
+                var updatedAt = Number(state.updatedAt || 0);
+                if (!updatedAt || updatedAt <= sharedStateLastRemoteUpdatedAt) return;
+                sharedStateLastRemoteUpdatedAt = updatedAt;
+                applyRemoteSharedState(state, true);
+            });
+        }
+
+        async function initializeSharedStateBackend() {
+            if (!ensureFirebaseInitialized()) return;
+            await pullSharedStateFromBackend();
+            attachSharedStateListener();
+        }
+
+        async function authorizeSharedBackendAdmin(username, password) {
+            if (!isSharedBackendEnabled()) return { ok: true };
+            if (!ensureFirebaseInitialized()) {
+                return { ok: false, message: 'Firebase is not initialized. Check your backend config values.' };
+            }
+            var email = getConfiguredAdminEmail(username);
+            if (!email) {
+                return { ok: false, message: 'Missing Firebase admin email mapping for this admin account.' };
+            }
+            try {
+                var credential = await firebaseAuthInstance.signInWithEmailAndPassword(email, password);
+                var user = credential && credential.user ? credential.user : firebaseAuthInstance.currentUser;
+                if (!isFirebaseAdminUser(user)) {
+                    await firebaseAuthInstance.signOut().catch(function() {});
+                    return { ok: false, message: 'Firebase account is not allowed to sync admin data.' };
+                }
+                return { ok: true };
+            } catch (err) {
+                return { ok: false, message: 'Backend sign-in failed. Verify Firebase admin email/password setup.' };
+            }
+        }
+
+        function patchSharedLocalStorageSync() {
+            if (!window.Storage || !Storage.prototype || Storage.prototype.__sharedSyncPatched) return;
+            var nativeSetItem = Storage.prototype.setItem;
+            Storage.prototype.setItem = function(key, value) {
+                nativeSetItem.call(this, key, value);
+                if (this === localStorage && isSharedLocalStorageKey(String(key || ''))) {
+                    scheduleSharedStatePush('localStorage:' + key);
+                }
+            };
+            Storage.prototype.__sharedSyncPatched = true;
+        }
+
+        function refreshUiFromSharedState() {
+            try {
+                if (typeof restoreSiteContent === 'function') {
+                    restoreSiteContent().then(function() {
+                        if (typeof applySavedBranding === 'function') applySavedBranding();
+                        if (typeof applySavedHeroBackground === 'function') applySavedHeroBackground();
+                    });
+                }
+            } catch (err) {}
+            try { if (typeof loadPaymentLinks === 'function') loadPaymentLinks(); } catch (err) {}
+            try { if (typeof loadPaymentNotificationSettings === 'function') loadPaymentNotificationSettings(); } catch (err) {}
+            try { if (typeof renderPaymentMethodsInfo === 'function') renderPaymentMethodsInfo(); } catch (err) {}
+            try { if (typeof renderLeagueAdminTables === 'function') renderLeagueAdminTables(); } catch (err) {}
+            try { if (typeof renderAllStats === 'function') renderAllStats(); } catch (err) {}
+            try { if (typeof renderPayPalSettings === 'function') renderPayPalSettings(); } catch (err) {}
+            try { if (typeof applySavedCtaButton === 'function') applySavedCtaButton(); } catch (err) {}
+            try { if (typeof renderPlayoffBracket === 'function') renderPlayoffBracket(); } catch (err) {}
+            try { if (typeof renderCountdownTimer === 'function') renderCountdownTimer(); } catch (err) {}
+        }
+
+        patchSharedLocalStorageSync();
 
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
@@ -1172,6 +1470,7 @@
         }
 
         (async function() {
+            await initializeSharedStateBackend();
             await migrateLocalStorageToIDB();
             await restoreSiteContent();
             ensureSeasonStatsAndRecapUI();
@@ -1198,6 +1497,7 @@
                 showPage(validPage);
                 updateHeaderScrollState();
             })();
+            refreshUiFromSharedState();
         })();
 
         // logo/image support removed — header shows text only.
@@ -1792,7 +2092,7 @@
             setNavQuickSelectOpen(false);
             showPage(targetPage);
         });
-        function handleFooterAdminLoginSubmit(e) {
+        async function handleFooterAdminLoginSubmit(e) {
             e.preventDefault();
             const form = e && e.target && e.target.id === 'footerAdminLoginForm'
                 ? e.target
@@ -1812,6 +2112,11 @@
                 if (formMessage) formMessage.textContent = 'Invalid admin selection or password';
                 return;
             }
+            const backendAuth = await authorizeSharedBackendAdmin(adminAccount.username, password);
+            if (!backendAuth.ok) {
+                if (formMessage) formMessage.textContent = backendAuth.message || 'Backend admin sign-in failed.';
+                return;
+            }
             sessionStorage.setItem('adminLoggedIn', 'true');
             sessionStorage.setItem('adminUsername', adminAccount.username);
             if (formMessage) {
@@ -1820,6 +2125,7 @@
             }
             if (passwordInput) passwordInput.value = '';
             showAdminView();
+            scheduleSharedStatePush('admin-login');
         }
         document.getElementById('siteContent')?.addEventListener('click', function(e) {
             const logoutBtn = e.target.closest('#footerAdminLogoutBtn');
@@ -3675,7 +3981,7 @@
 
         // --- end Documents functions ---
 
-        function handleAdminLoginSubmit(e) {
+        async function handleAdminLoginSubmit(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -3683,6 +3989,15 @@
             const adminAccount = getMatchingAdminAccount(username, password);
 
             if (adminAccount) {
+                const backendAuth = await authorizeSharedBackendAdmin(adminAccount.username, password);
+                if (!backendAuth.ok) {
+                    const backendMsgEl = document.getElementById('loginError');
+                    if (backendMsgEl) {
+                        backendMsgEl.style.color = 'red';
+                        backendMsgEl.textContent = backendAuth.message || 'Backend admin sign-in failed.';
+                    }
+                    return;
+                }
                 sessionStorage.setItem('adminLoggedIn', 'true');
                 sessionStorage.setItem('adminUsername', adminAccount.username);
                 // show feedback inside modal
@@ -3695,6 +4010,7 @@
                 setTimeout(() => {
                     showAdminView();
                 }, 800);
+                scheduleSharedStatePush('admin-login');
             } else {
                 const msgEl = document.getElementById('loginError');
                 if (msgEl) {
@@ -3756,6 +4072,9 @@
         function logout() {
             saveAllChanges();
             flushPersistSiteContent();
+            if (firebaseAuthInstance && firebaseAuthInstance.currentUser) {
+                firebaseAuthInstance.signOut().catch(function() {});
+            }
             clearAdminSession();
             // Full public lockdown — removes ALL editing artifacts
             lockdownForPublic();
