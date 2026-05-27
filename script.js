@@ -1000,25 +1000,22 @@
         }
 
         const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
+        const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
 
         async function applySavedBranding() {
             try {
                 const savedLogo = await idbGet(SITE_LOGO_KEY);
-                if (savedLogo) {
-                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
-                    const icon = document.querySelector('link[rel="icon"]');
-                    if (icon) {
-                        icon.href = savedLogo;
-                        icon.type = 'image/png';
-                    }
+                const logoSrc = savedLogo || STATIC_LOGO_URL;
+                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoSrc; });
+                const icon = document.querySelector('link[rel="icon"]');
+                if (icon) {
+                    icon.href = logoSrc;
+                    icon.type = savedLogo ? 'image/png' : 'image/png';
                 }
-                // If no saved logo, the HTML src (assets/images/865-elite-logo.png) is already correct.
             } catch (err) {
                 // Ignore branding restore errors.
             }
         }
-
-        const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
 
         async function applySavedHeroBackground() {
             try {
