@@ -1230,6 +1230,7 @@
             });
             safeLocalStorageSet('members', JSON.stringify(normalized));
             renderUsersTableForAdmin();
+            renderAdminSignupNotifications();
         }
 
         function ensurePaymentSignupUI() {
@@ -1345,6 +1346,34 @@
         function savePaymentRequests(list) {
             localStorage.setItem('paymentRequests', JSON.stringify(list));
             renderAdminPaymentRequests();
+            renderAdminSignupNotifications();
+        }
+
+        function renderAdminSignupNotifications() {
+            const notice = document.getElementById('adminSignupNotification');
+            if (!notice) return;
+            if (!isAdminLoggedIn()) {
+                notice.style.display = 'none';
+                notice.textContent = '';
+                return;
+            }
+            const members = loadMembers();
+            const requests = loadPaymentRequests();
+            const pendingMembers = members.filter(function(member) {
+                return normalizeMemberStatus(member && member.status) === 'pending';
+            }).length;
+            const pendingPayments = requests.filter(function(request) {
+                return String((request && request.status) || 'pending').toLowerCase() === 'pending';
+            }).length;
+            const totalPending = pendingMembers + pendingPayments;
+            notice.style.display = 'block';
+            if (totalPending > 0) {
+                notice.style.background = '#f57c00';
+                notice.textContent = totalPending + ' new signup' + (totalPending === 1 ? '' : 's') + ' waiting for review (' + pendingMembers + ' user account' + (pendingMembers === 1 ? '' : 's') + ', ' + pendingPayments + ' payment request' + (pendingPayments === 1 ? '' : 's') + ').';
+                return;
+            }
+            notice.style.background = '#2e7d32';
+            notice.textContent = 'No new signups waiting for review.';
         }
 
         function updatePaymentTypeFields() {
@@ -1547,8 +1576,12 @@
         // --- UI: show saved logo and check auth states on load ---
         window.addEventListener('load', function() {
             renderDocumentsList();
+            const hasMemberSession = sessionStorage.getItem('memberLoggedIn') === 'true';
+            if (hasMemberSession && sessionStorage.getItem('adminLoggedIn') === 'true') {
+                clearAdminSession();
+            }
             // admin
-            if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+            if (isAdminLoggedIn()) {
                 const stored = sessionStorage.getItem('adminUsername');
                 const adminNameEl = document.getElementById('adminNameDisplay');
                 if (adminNameEl) adminNameEl.textContent = stored ? '(' + stored + ')' : '';
@@ -1563,6 +1596,7 @@
                 renderDocsAdmin && renderDocsAdmin();
                 renderAllStats && renderAllStats();
                 renderAdminPaymentRequests && renderAdminPaymentRequests();
+                renderAdminSignupNotifications && renderAdminSignupNotifications();
                 renderPayPalSettings && renderPayPalSettings();
                 bindPayPalSettingsControls && bindPayPalSettingsControls();
                 populateCtaButtonEditor && populateCtaButtonEditor();
@@ -1986,6 +2020,9 @@
             if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
             if (user.status === 'pending') { document.getElementById('memberAuthError').textContent = 'Your registration is pending admin approval.'; return; }
             if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an administrator for assistance.'; return; }
+            clearAdminSession();
+            lockdownForPublic();
+            updateFooterAdminState();
             sessionStorage.setItem('memberLoggedIn', 'true');
             sessionStorage.setItem('memberUsername', username);
             hideMemberModal();
@@ -3700,6 +3737,7 @@
             renderLeagueAdminTables && renderLeagueAdminTables();
             renderAllStats && renderAllStats();
             renderAdminPaymentRequests && renderAdminPaymentRequests();
+            renderAdminSignupNotifications && renderAdminSignupNotifications();
             renderPayPalSettings && renderPayPalSettings();
             bindPayPalSettingsControls && bindPayPalSettingsControls();
             populateCtaButtonEditor && populateCtaButtonEditor();
