@@ -26,7 +26,7 @@
         // --- Helper: safe localStorage setter with quota handling ---
         function safeLocalStorageSet(key, value) {
             try {
-                localStorage.setItem(key, value);
+                setLocalStorageWithSharedSync(key, value);
                 return true;
             } catch (e) {
                 if (e.name === 'QuotaExceededError' || e.code === 22) {
@@ -35,6 +35,20 @@
                     alert('Unable to save data to browser storage. You may be in private browsing mode.');
                 }
                 return false;
+            }
+        }
+
+        function setLocalStorageWithSharedSync(key, value) {
+            localStorage.setItem(key, value);
+            if (isSharedLocalStorageKey(key)) {
+                scheduleSharedStatePush('localStorage:' + key);
+            }
+        }
+
+        function removeLocalStorageWithSharedSync(key) {
+            localStorage.removeItem(key);
+            if (isSharedLocalStorageKey(key)) {
+                scheduleSharedStatePush('localStorage-remove:' + key);
             }
         }
 
@@ -91,8 +105,8 @@
 
         // --- Admin accounts ---
         const ADMIN_ACCOUNTS = [
-            { username: 'TFick123', password: 'IowaTennessee' },
-            { username: 'Maxwell22339', password: 'Daush+1115' }
+            { username: 'TFick123', passwordHash: '2b86ca9ba462bf85524e384710bc5482bc169b1dd411f73e829c69efe2bd74cf' },
+            { username: 'Maxwell22339', passwordHash: 'e58f4b19f113ad92cbfca57ba945c3885379bd8a65d1d6737f251342e849cbc8' }
         ];
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
@@ -124,7 +138,10 @@
             : {};
         const SHARED_STATE_META_KEY = 'sharedStateMeta_v1';
         const SHARED_STATE_DB_PATH = 'sharedState/v1';
-        const SHARED_STATE_CLIENT_ID = 'client-' + Math.random().toString(36).slice(2) + '-' + Date.now();
+        const SHARED_STATE_PUSH_DEBOUNCE_MS = 350;
+        const SHARED_STATE_CLIENT_ID = (window.crypto && typeof window.crypto.randomUUID === 'function')
+            ? window.crypto.randomUUID()
+            : ('client-' + Date.now());
         const SHARED_LOCAL_STORAGE_KEYS = [
             PAYMENT_LINKS_KEY,
             PAYMENT_NOTIFICATION_SETTINGS_KEY,
@@ -247,11 +264,14 @@
                 if (val !== null) localValues[key] = val;
             });
             var idbValues = {};
-            for (var i = 0; i < SHARED_IDB_KEYS.length; i++) {
-                var idbKey = SHARED_IDB_KEYS[i];
-                var data = await idbGet(idbKey);
-                if (data !== undefined && data !== null) idbValues[idbKey] = data;
-            }
+            var idbEntries = await Promise.all(SHARED_IDB_KEYS.map(function(idbKey) {
+                return idbGet(idbKey).then(function(data) {
+                    return { key: idbKey, value: data };
+                });
+            }));
+            idbEntries.forEach(function(entry) {
+                if (entry.value !== undefined && entry.value !== null) idbValues[entry.key] = entry.value;
+            });
             return {
                 localStorage: localValues,
                 indexedDb: idbValues
@@ -281,7 +301,7 @@
                     setSharedStateMeta({ updatedAt: updatedAt });
                 }
             } catch (err) {
-                // Ignore remote state apply errors.
+                console.warn('Unable to apply remote shared state.', err);
             } finally {
                 sharedStateApplyingRemote = false;
             }
@@ -303,7 +323,7 @@
                     await applyRemoteSharedState(state, false);
                 }
             } catch (err) {
-                // Ignore remote read failures and keep local fallback behavior.
+                console.warn('Unable to pull shared state from backend; using local fallback.', err);
             }
         }
 
@@ -325,16 +345,20 @@
                 sharedStateLastRemoteUpdatedAt = now;
                 setSharedStateMeta({ updatedAt: now });
             } catch (err) {
-                // Keep local data as fallback if cloud sync fails.
+                console.warn('Unable to push shared state to backend; local fallback remains active.', err);
             }
         }
 
         function scheduleSharedStatePush(reason) {
             if (sharedStateApplyingRemote) return;
-            if (sharedStatePushTimer) clearTimeout(sharedStatePushTimer);
+            if (sharedStatePushTimer) {
+                clearTimeout(sharedStatePushTimer);
+                sharedStatePushTimer = null;
+            }
             sharedStatePushTimer = setTimeout(function() {
                 pushSharedStateToBackend(reason || 'scheduled');
-            }, 350);
+                sharedStatePushTimer = null;
+            }, SHARED_STATE_PUSH_DEBOUNCE_MS);
         }
 
         function attachSharedStateListener() {
@@ -361,6 +385,12 @@
             if (!ensureFirebaseInitialized()) {
                 return { ok: false, message: 'Firebase is not initialized. Check your backend config values.' };
             }
+            if (!password || String(password).length < 8) {
+                return { ok: false, message: 'Password must be at least 8 characters.' };
+            }
+            if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+                return { ok: false, message: 'Password must include uppercase, lowercase, and a number.' };
+            }
             var email = getConfiguredAdminEmail(username);
             if (!email) {
                 return { ok: false, message: 'Missing Firebase admin email mapping for this admin account.' };
@@ -378,39 +408,34 @@
             }
         }
 
-        function patchSharedLocalStorageSync() {
-            if (!window.Storage || !Storage.prototype || Storage.prototype.__sharedSyncPatched) return;
-            var nativeSetItem = Storage.prototype.setItem;
-            Storage.prototype.setItem = function(key, value) {
-                nativeSetItem.call(this, key, value);
-                if (this === localStorage && isSharedLocalStorageKey(String(key || ''))) {
-                    scheduleSharedStatePush('localStorage:' + key);
-                }
-            };
-            Storage.prototype.__sharedSyncPatched = true;
-        }
-
         function refreshUiFromSharedState() {
-            try {
+            function runSafeSync(label, fn) {
+                try {
+                    fn();
+                } catch (err) {
+                    console.warn('Shared state UI refresh failed for ' + label + '.', err);
+                }
+            }
+            runSafeSync('site content', function() {
                 if (typeof restoreSiteContent === 'function') {
                     restoreSiteContent().then(function() {
                         if (typeof applySavedBranding === 'function') applySavedBranding();
                         if (typeof applySavedHeroBackground === 'function') applySavedHeroBackground();
+                    }).catch(function(err) {
+                        console.warn('Shared state site content restore failed.', err);
                     });
                 }
-            } catch (err) {}
-            try { if (typeof loadPaymentLinks === 'function') loadPaymentLinks(); } catch (err) {}
-            try { if (typeof loadPaymentNotificationSettings === 'function') loadPaymentNotificationSettings(); } catch (err) {}
-            try { if (typeof renderPaymentMethodsInfo === 'function') renderPaymentMethodsInfo(); } catch (err) {}
-            try { if (typeof renderLeagueAdminTables === 'function') renderLeagueAdminTables(); } catch (err) {}
-            try { if (typeof renderAllStats === 'function') renderAllStats(); } catch (err) {}
-            try { if (typeof renderPayPalSettings === 'function') renderPayPalSettings(); } catch (err) {}
-            try { if (typeof applySavedCtaButton === 'function') applySavedCtaButton(); } catch (err) {}
-            try { if (typeof renderPlayoffBracket === 'function') renderPlayoffBracket(); } catch (err) {}
-            try { if (typeof renderCountdownTimer === 'function') renderCountdownTimer(); } catch (err) {}
+            });
+            runSafeSync('payment links', function() { if (typeof loadPaymentLinks === 'function') loadPaymentLinks(); });
+            runSafeSync('payment notifications', function() { if (typeof loadPaymentNotificationSettings === 'function') loadPaymentNotificationSettings(); });
+            runSafeSync('payment methods', function() { if (typeof renderPaymentMethodsInfo === 'function') renderPaymentMethodsInfo(); });
+            runSafeSync('league tables', function() { if (typeof renderLeagueAdminTables === 'function') renderLeagueAdminTables(); });
+            runSafeSync('stats tables', function() { if (typeof renderAllStats === 'function') renderAllStats(); });
+            runSafeSync('paypal settings', function() { if (typeof renderPayPalSettings === 'function') renderPayPalSettings(); });
+            runSafeSync('cta button', function() { if (typeof applySavedCtaButton === 'function') applySavedCtaButton(); });
+            runSafeSync('playoff bracket', function() { if (typeof renderPlayoffBracket === 'function') renderPlayoffBracket(); });
+            runSafeSync('countdown timer', function() { if (typeof renderCountdownTimer === 'function') renderCountdownTimer(); });
         }
-
-        patchSharedLocalStorageSync();
 
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
@@ -436,10 +461,26 @@
             return sessionStorage.getItem('adminLoggedIn') === 'true';
         }
 
-        function getMatchingAdminAccount(username, password) {
-            return ADMIN_ACCOUNTS.find(function(account) {
-                return account.username === username && account.password === password;
+        async function hashAdminPassword(password) {
+            var value = String(password || '');
+            if (!value) return '';
+            if (!(window.crypto && window.crypto.subtle && window.TextEncoder)) return '';
+            var encoded = new TextEncoder().encode(value);
+            var digest = await window.crypto.subtle.digest('SHA-256', encoded);
+            var hashArray = Array.from(new Uint8Array(digest));
+            return hashArray.map(function(b) {
+                return b.toString(16).padStart(2, '0');
+            }).join('');
+        }
+
+        async function getMatchingAdminAccount(username, password) {
+            var account = ADMIN_ACCOUNTS.find(function(item) {
+                return item.username === username;
             }) || null;
+            if (!account) return null;
+            var hashedPassword = await hashAdminPassword(password);
+            if (!hashedPassword) return null;
+            return hashedPassword === String(account.passwordHash || '') ? account : null;
         }
 
         function clearAdminSession() {
@@ -872,7 +913,7 @@
 
                 if (saved.team !== normalizedLinks.team || saved.freeAgent !== normalizedLinks.freeAgent ||
                         saved.cashApp !== normalizedLinks.cashApp || saved.venmo !== normalizedLinks.venmo) {
-                    localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
+                    setLocalStorageWithSharedSync(PAYMENT_LINKS_KEY, JSON.stringify(normalizedLinks));
                 }
             } catch (err) {
                 PAYMENT_LINKS = {
@@ -881,7 +922,7 @@
                     cashApp: DEFAULT_CASHAPP_URL,
                     venmo: DEFAULT_VENMO_URL
                 };
-                localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+                setLocalStorageWithSharedSync(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             }
         }
 
@@ -919,7 +960,7 @@
                     templateId: saved.templateId || ''
                 };
                 if (saved.adminEmail !== DEFAULT_ADMIN_NOTIFICATION_EMAIL) {
-                    localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+                    setLocalStorageWithSharedSync(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
                 }
             } catch (err) {
                 PAYMENT_NOTIFICATION_SETTINGS = {
@@ -928,7 +969,7 @@
                     serviceId: '',
                     templateId: ''
                 };
-                localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+                setLocalStorageWithSharedSync(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
             }
         }
 
@@ -941,7 +982,7 @@
                 cashApp: DEFAULT_CASHAPP_URL,
                 venmo: DEFAULT_VENMO_URL
             };
-            localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+            setLocalStorageWithSharedSync(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
             renderPaymentMethodsInfo();
         }
 
@@ -952,7 +993,7 @@
                 serviceId: (settings.serviceId || '').trim(),
                 templateId: (settings.templateId || '').trim()
             };
-            localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+            setLocalStorageWithSharedSync(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
         }
 
         async function sendAdminPaymentNotification(details) {
@@ -1120,7 +1161,7 @@
                     btn.setAttribute('href', newLink);
                 }
                 try {
-                    localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
+                    setLocalStorageWithSharedSync(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
                 } catch (err) {
                     // Ignore storage write failures.
                 }
@@ -1863,14 +1904,14 @@
             });
         }
 
-        // Simple password hashing (SHA-256) with fallback
+        // Simple password hashing (SHA-256)
         async function hashPw(password) {
             if (window.crypto && crypto.subtle) {
                 const enc = new TextEncoder();
                 const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
                 return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
             }
-            return password; // fallback (not secure)
+            return '';
         }
 
         // --- UI: show saved logo and check auth states on load ---
@@ -2107,7 +2148,7 @@
                 formMessage.style.color = '#ff6f61';
                 formMessage.textContent = '';
             }
-            const adminAccount = getMatchingAdminAccount(username, password);
+            const adminAccount = await getMatchingAdminAccount(username, password);
             if (!adminAccount) {
                 if (formMessage) formMessage.textContent = 'Invalid admin selection or password';
                 return;
@@ -2278,6 +2319,10 @@
             if (members.find(m => m.username.toLowerCase() === username.toLowerCase())) { document.getElementById('memberAuthError').textContent = 'Username already taken'; return; }
 
             const pwHash = await hashPw(password);
+            if (!pwHash) {
+                document.getElementById('memberAuthError').textContent = 'Secure password hashing is not available in this browser.';
+                return;
+            }
             const user = {
                 username,
                 passwordHash: pwHash,
@@ -2322,6 +2367,7 @@
             const password = document.getElementById('memberLoginPassword').value;
             const members = loadMembers();
             const pwHash = await hashPw(password);
+            if (!pwHash) { document.getElementById('memberAuthError').textContent = 'Secure password hashing is not available in this browser.'; return; }
             const user = members.find(m => m.username === username && m.passwordHash === pwHash);
             if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
             if (user.status === 'pending') { document.getElementById('memberAuthError').textContent = 'Your registration is pending admin approval.'; return; }
@@ -2477,7 +2523,14 @@
             user.email = document.getElementById('mpEmail').value.trim();
             user.team = document.getElementById('mpTeam').value.trim();
             const newPw = document.getElementById('mpPassword').value;
-            if (newPw) user.passwordHash = await hashPw(newPw);
+            if (newPw) {
+                const nextHash = await hashPw(newPw);
+                if (!nextHash) {
+                    document.getElementById('mpMsg').textContent = 'Unable to update password in this browser.';
+                    return;
+                }
+                user.passwordHash = nextHash;
+            }
             saveMembers(members);
             document.getElementById('mpMsg').textContent = 'Profile saved.';
             setTimeout(()=> document.getElementById('mpMsg').textContent = '', 3000);
@@ -2839,7 +2892,7 @@
         }
 
         function saveStatsTeamLogos(logos) {
-            localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+            setLocalStorageWithSharedSync(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
         }
 
         function getStatsTeamLogo(teamName) {
@@ -2968,7 +3021,7 @@
         }
 
         function saveSeasonLabel(key, value) {
-            localStorage.setItem(key, String(value || '').trim());
+            setLocalStorageWithSharedSync(key, String(value || '').trim());
         }
 
         function loadSeasonArchives() {
@@ -2981,7 +3034,7 @@
         }
 
         function saveSeasonArchives(items) {
-            localStorage.setItem(SEASON_ARCHIVES_KEY, JSON.stringify(items || []));
+            setLocalStorageWithSharedSync(SEASON_ARCHIVES_KEY, JSON.stringify(items || []));
         }
 
         function getSelectedSeasonArchiveId() {
@@ -2989,8 +3042,8 @@
         }
 
         function setSelectedSeasonArchiveId(id) {
-            if (id) localStorage.setItem(SELECTED_SEASON_ARCHIVE_KEY, id);
-            else localStorage.removeItem(SELECTED_SEASON_ARCHIVE_KEY);
+            if (id) setLocalStorageWithSharedSync(SELECTED_SEASON_ARCHIVE_KEY, id);
+            else removeLocalStorageWithSharedSync(SELECTED_SEASON_ARCHIVE_KEY);
         }
 
         function migrateLegacyRecapArchive() {
@@ -3251,7 +3304,7 @@
         }
 
         function saveLeagueCollection(key, rows) {
-            localStorage.setItem(key, JSON.stringify(rows));
+            setLocalStorageWithSharedSync(key, JSON.stringify(rows));
         }
 
         function loadLeagueStandings() {
@@ -3538,7 +3591,7 @@
             try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
         }
         function savePlayerStats(key, data) {
-            localStorage.setItem(key, JSON.stringify(data));
+            setLocalStorageWithSharedSync(key, JSON.stringify(data));
         }
 
         function getStatsSortConfig(type) {
@@ -3986,7 +4039,7 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            const adminAccount = getMatchingAdminAccount(username, password);
+            const adminAccount = await getMatchingAdminAccount(username, password);
 
             if (adminAccount) {
                 const backendAuth = await authorizeSharedBackendAdmin(adminAccount.username, password);
@@ -4171,9 +4224,9 @@
         // =====================================================
         
         /* SECURITY WARNING:
-         * This application stores passwords in plaintext in localStorage.
-         * This is NOT secure for production use. Passwords should NEVER be
-         * stored in plaintext. For a production application:
+         * This application stores client-side password hashes in browser storage.
+         * Client-side hashing alone is NOT secure for production authentication.
+         * For a production application:
          * 
          * 1. Use proper backend authentication (OAuth, JWT, etc.)
          * 2. Hash passwords with bcrypt or similar on the server
@@ -4635,7 +4688,7 @@
                     if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a date.'; } return; }
                     var label = labelInput ? (labelInput.value.trim() || 'Next Game') : 'Next Game';
                     try {
-                        localStorage.setItem(COUNTDOWN_DATE_KEY, JSON.stringify({ date: new Date(val).toISOString(), label: label }));
+                        setLocalStorageWithSharedSync(COUNTDOWN_DATE_KEY, JSON.stringify({ date: new Date(val).toISOString(), label: label }));
                     } catch (e) {}
                     renderCountdownTimer();
                     if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Timer saved!'; setTimeout(function() { msgEl.textContent = ''; }, 2000); }
@@ -4645,7 +4698,7 @@
                 clearBtn.dataset.bound = '1';
                 clearBtn.addEventListener('click', function() {
                     if (!isAdminLoggedIn()) return;
-                    try { localStorage.removeItem(COUNTDOWN_DATE_KEY); } catch (e) {}
+                    try { removeLocalStorageWithSharedSync(COUNTDOWN_DATE_KEY); } catch (e) {}
                     var dateInput = document.getElementById('countdownDateInput');
                     var labelInput = document.getElementById('countdownLabelInput');
                     if (dateInput) dateInput.value = '';
@@ -4875,7 +4928,7 @@
         function savePlayoffBracket() {
             if (!isAdminLoggedIn()) return;
             var rounds = collectPlayoffRounds();
-            try { localStorage.setItem(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
+            try { setLocalStorageWithSharedSync(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
             renderPlayoffBracket();
             var msg = document.getElementById('playoffAdminMsg');
             if (msg) { msg.style.color = '#4caf50'; msg.textContent = 'Bracket saved!'; setTimeout(function() { msg.textContent = ''; }, 2500); }
