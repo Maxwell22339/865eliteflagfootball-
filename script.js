@@ -1090,6 +1090,20 @@
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
             const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
+            const applyPermanentBrandingPhoto = function(logoPhoto, backgroundPhoto) {
+                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
+                document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
+                const icon = document.querySelector('link[rel="icon"]');
+                if (icon) {
+                    icon.href = logoPhoto;
+                    icon.type = 'image/jpeg';
+                }
+                idbSet(SITE_LOGO_KEY, logoPhoto);
+                idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
+                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoPhoto, 'Branding');
+                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, backgroundPhoto, 'Branding');
+                flushPersistSiteContent();
+            };
 
             if (changeLogoBtn) {
                 changeLogoBtn.onclick = function() {
@@ -1107,16 +1121,13 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(compressed) {
-                            document.querySelectorAll('.site-logo').forEach(img => { img.src = compressed; });
-                            const icon = document.querySelector('link[rel="icon"]');
-                            if (icon) {
-                                icon.href = compressed;
-                                icon.type = 'image/jpeg';
-                            }
-                            idbSet(SITE_LOGO_KEY, compressed);
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, compressed, 'Branding');
-                            flushPersistSiteContent();
+                        Promise.all([
+                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
+                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
+                        ]).then(function(images) {
+                            const logoPhoto = images[0];
+                            const backgroundPhoto = images[1];
+                            applyPermanentBrandingPhoto(logoPhoto, backgroundPhoto);
                         });
                     };
                     reader.readAsDataURL(file);
@@ -1140,11 +1151,13 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(compressed) {
-                            document.documentElement.style.setProperty('--hero-photo', 'url("' + compressed + '")');
-                            idbSet(HOME_HERO_BACKGROUND_KEY, compressed);
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, compressed, 'Branding');
-                            flushPersistSiteContent();
+                        Promise.all([
+                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
+                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
+                        ]).then(function(images) {
+                            const logoPhoto = images[0];
+                            const backgroundPhoto = images[1];
+                            applyPermanentBrandingPhoto(logoPhoto, backgroundPhoto);
                         });
                     };
                     reader.readAsDataURL(file);
