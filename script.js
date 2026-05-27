@@ -1786,11 +1786,20 @@
             setNavQuickSelectOpen(false);
         });
         document.getElementById('siteContent')?.addEventListener('change', function(e) {
-            if (e.target.id !== 'navQuickSelect') return;
-            const targetPage = e.target.value;
-            if (!targetPage) return;
-            setNavQuickSelectOpen(false);
-            showPage(targetPage);
+            if (e.target.id === 'navQuickSelect') {
+                const targetPage = e.target.value;
+                if (!targetPage) return;
+                setNavQuickSelectOpen(false);
+                showPage(targetPage);
+                return;
+            }
+            if (e.target.id === 'payType') {
+                updatePaymentTypeFields();
+                return;
+            }
+            if (e.target.id === 'payMethod') {
+                updatePaymentMethodLink();
+            }
         });
         function handleFooterAdminLoginSubmit(e) {
             e.preventDefault();
@@ -1827,12 +1836,10 @@
             logout();
         });
 
-        document.getElementById('payType')?.addEventListener('change', updatePaymentTypeFields);
         updatePaymentTypeFields();
-        document.getElementById('payMethod')?.addEventListener('change', updatePaymentMethodLink);
         updatePaymentMethodLink();
 
-        document.getElementById('paymentForm')?.addEventListener('submit', async function(e) {
+        async function handlePaymentFormSubmit(e) {
             e.preventDefault();
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
@@ -1944,6 +1951,10 @@
                     : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
             }
             window.open(link, '_blank', 'noopener,noreferrer');
+        }
+        document.getElementById('siteContent')?.addEventListener('submit', function(e) {
+            if (e.target.id !== 'paymentForm') return;
+            handlePaymentFormSubmit(e);
         });
 
         // Member register
