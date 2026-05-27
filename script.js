@@ -1205,7 +1205,8 @@
         // --- Members persistence (localStorage) ---
         function normalizeMemberStatus(status) {
             const normalized = String(status || '').toLowerCase();
-            if (normalized === 'pending' || normalized === 'denied' || normalized === 'approved') return normalized;
+            const validStatuses = ['pending', 'denied', 'approved'];
+            if (validStatuses.includes(normalized)) return normalized;
             return 'approved';
         }
         function loadMembers() {
@@ -1984,7 +1985,7 @@
             const user = members.find(m => m.username === username && m.passwordHash === pwHash);
             if (!user) { document.getElementById('memberAuthError').textContent = 'Invalid username or password'; return; }
             if (user.status === 'pending') { document.getElementById('memberAuthError').textContent = 'Your registration is pending admin approval.'; return; }
-            if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an admin to request a new registration review.'; return; }
+            if (user.status === 'denied') { document.getElementById('memberAuthError').textContent = 'Your registration was denied. Please contact an administrator for assistance.'; return; }
             sessionStorage.setItem('memberLoggedIn', 'true');
             sessionStorage.setItem('memberUsername', username);
             hideMemberModal();
@@ -2145,7 +2146,7 @@
             if (!tbody) return;
             const members = loadMembers();
             const usersTable = tbody.closest('table');
-            const usersTableColumnCount = usersTable ? usersTable.querySelectorAll('thead th').length : 7;
+            const usersTableColumnCount = Math.max(1, usersTable ? usersTable.querySelectorAll('thead th').length : 0);
             tbody.innerHTML = '';
             if (members.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="' + usersTableColumnCount + '" style="text-align:center; color:#777; padding:20px;">No registered members yet.</td></tr>';
