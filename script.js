@@ -68,6 +68,15 @@
                 });
             }).catch(function() { return false; });
         }
+        function idbDelete(key) {
+            return openIDB().then(function(db) {
+                return new Promise(function(resolve) {
+                    var req = db.transaction('blobs', 'readwrite').objectStore('blobs').delete(key);
+                    req.onsuccess = function() { resolve(true); };
+                    req.onerror = function() { resolve(false); };
+                });
+            }).catch(function() { return false; });
+        }
 
         // --- One-time migration: move large items from localStorage to IndexedDB ---
         function migrateLocalStorageToIDB() {
@@ -114,6 +123,229 @@
             serviceId: '',
             templateId: ''
         };
+        const SUPABASE_PUBLIC_STATE_KEYS = {
+            pageContent: 'page_content',
+            siteLogo: 'site_logo',
+            homeHeroBackground: 'home_hero_background',
+            ctaButton: 'cta_button',
+            paymentLinks: 'payment_links',
+            paymentNotificationSettings: 'payment_notification_settings',
+            members: 'members',
+            documents: 'documents',
+            countdown: 'countdown',
+            leagueStandings: 'league_standings',
+            leagueSchedule: 'league_schedule',
+            offensiveStats: 'offensive_stats',
+            defensiveStats: 'defensive_stats',
+            recapOffensiveStats: 'recap_offensive_stats',
+            recapDefensiveStats: 'recap_defensive_stats',
+            statsTeamLogos: 'stats_team_logos',
+            currentSeasonLabel: 'current_season_label',
+            recapSeasonLabel: 'recap_season_label',
+            seasonArchives: 'season_archives',
+            selectedSeasonArchiveId: 'selected_season_archive_id',
+            playoffBracket: 'playoff_bracket'
+        };
+        var siteSupabaseClient = null;
+        var siteSupabaseInitialized = false;
+        var paymentRequestsState = [];
+        var membersState = null;
+        var documentsState = [];
+
+        function getSiteSupabaseConfig() {
+            var config = window.__865EliteSupabaseConfig || {};
+            return {
+                url: String(config.url || '').trim(),
+                anonKey: String(config.anonKey || '').trim(),
+                stateTable: String(config.stateTable || config.dataTable || 'league_site_data').trim(),
+                registrationsTable: String(config.registrationsTable || config.signupsTable || 'registrations').trim(),
+                galleryImagesTable: String(config.galleryImagesTable || 'gallery_images').trim(),
+                galleryBucket: String(config.galleryBucket || 'gallery-images').trim(),
+                galleryKey: String(config.galleryKey || 'gallery').trim(),
+                paymentRequestsKey: String(config.paymentRequestsKey || 'payment_requests').trim()
+            };
+        }
+
+        function isLocalPreviewMode() {
+            var host = String(window.location.hostname || '').toLowerCase();
+            return window.location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
+        }
+
+        function logSupabaseOperation(scope, level, message, details) {
+            var method = console[level] || console.log;
+            if (details === undefined) method.call(console, '[' + scope + '][Supabase] ' + message);
+            else method.call(console, '[' + scope + '][Supabase] ' + message, details);
+        }
+
+        function logSupabaseRlsHint(scope, error) {
+            var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
+            if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
+                console.error('[' + scope + '][Supabase][RLS] Check public SELECT plus required INSERT/UPDATE policies.', error || '');
+            }
+        }
+
+        function getSiteSupabaseClient() {
+            if (siteSupabaseInitialized) return siteSupabaseClient;
+            siteSupabaseInitialized = true;
+            var config = getSiteSupabaseConfig();
+            if (!config.url || !config.anonKey) {
+                logSupabaseOperation('Core', 'error', 'Missing Supabase URL or anon key in window.__865EliteSupabaseConfig.');
+                return null;
+            }
+            if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                logSupabaseOperation('Core', 'error', 'Supabase browser client library failed to load.');
+                return null;
+            }
+            siteSupabaseClient = window.supabase.createClient(config.url, config.anonKey);
+            logSupabaseOperation('Core', 'info', 'Supabase client initialized.', {
+                url: config.url,
+                stateTable: config.stateTable,
+                registrationsTable: config.registrationsTable,
+                galleryImagesTable: config.galleryImagesTable,
+                galleryBucket: config.galleryBucket
+            });
+            return siteSupabaseClient;
+        }
+
+        async function clearProductionPublicStateMirrors() {
+            var localKeys = [
+                PAGE_CONTENT_KEY,
+                SITE_LOGO_KEY,
+                HOME_HERO_BACKGROUND_KEY,
+                CTA_BUTTON_KEY,
+                PAYMENT_LINKS_KEY,
+                PAYMENT_NOTIFICATION_SETTINGS_KEY,
+                'members',
+                'countdownDate_v1',
+                'leagueStandings_v1',
+                'leagueSchedule_v1',
+                'offensivePlayerStats_v1',
+                'defensivePlayerStats_v1',
+                'recapOffensivePlayerStats_v1',
+                'recapDefensivePlayerStats_v1',
+                'statsTeamLogos_v1',
+                'currentSeasonLabel_v1',
+                'recapSeasonLabel_v1',
+                'seasonArchives_v1',
+                'selectedSeasonArchive_v1',
+                'playoffBracket_v1',
+                'galleryMeta_v1',
+                PAYMENT_REQUESTS_KEY
+            ];
+            localKeys.forEach(function(key) {
+                try { localStorage.removeItem(key); } catch (err) {}
+            });
+            await Promise.all([
+                idbDelete(PAGE_CONTENT_KEY),
+                idbDelete(SITE_LOGO_KEY),
+                idbDelete(HOME_HERO_BACKGROUND_KEY),
+                idbDelete('documents')
+            ]);
+            paymentRequestsState = [];
+            membersState = null;
+            documentsState = [];
+        }
+
+        async function fetchSharedPublicStateFromSupabase() {
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            var keys = Object.keys(SUPABASE_PUBLIC_STATE_KEYS).map(function(name) { return SUPABASE_PUBLIC_STATE_KEYS[name]; });
+            try {
+                var response = await client
+                    .from(config.stateTable)
+                    .select('key, value')
+                    .in('key', keys);
+                if (response.error) {
+                    logSupabaseOperation('SharedState', 'error', 'SELECT error while hydrating shared public state.', response.error);
+                    logSupabaseRlsHint('SharedState', response.error);
+                    return null;
+                }
+                var rows = Array.isArray(response.data) ? response.data : [];
+                logSupabaseOperation('SharedState', 'info', 'SELECT success while hydrating shared public state.', { rows: rows.length });
+                return rows;
+            } catch (err) {
+                logSupabaseOperation('SharedState', 'error', 'Unexpected SELECT failure while hydrating shared public state.', err);
+                logSupabaseRlsHint('SharedState', err);
+                return null;
+            }
+        }
+
+        async function persistSharedPublicStateToSupabase(stateKey, value, scope) {
+            if (isLocalPreviewMode()) return true;
+            var client = getSiteSupabaseClient();
+            if (!client) return false;
+            var config = getSiteSupabaseConfig();
+            try {
+                var response = await client
+                    .from(config.stateTable)
+                    .upsert({ key: stateKey, value: value }, { onConflict: 'key' });
+                if (response.error) {
+                    logSupabaseOperation(scope || 'SharedState', 'error', 'INSERT/UPDATE error for key "' + stateKey + '".', response.error);
+                    logSupabaseRlsHint(scope || 'SharedState', response.error);
+                    return false;
+                }
+                logSupabaseOperation(scope || 'SharedState', 'info', 'INSERT/UPDATE success for key "' + stateKey + '".');
+                return true;
+            } catch (err) {
+                logSupabaseOperation(scope || 'SharedState', 'error', 'Unexpected INSERT/UPDATE failure for key "' + stateKey + '".', err);
+                logSupabaseRlsHint(scope || 'SharedState', err);
+                return false;
+            }
+        }
+
+        function queueSharedPublicStatePersist(stateKey, value, scope) {
+            return persistSharedPublicStateToSupabase(stateKey, value, scope).then(function(saved) {
+                if (!saved && !isLocalPreviewMode()) {
+                    logSupabaseOperation(scope || 'SharedState', 'warn', 'Production data did not persist to Supabase for key "' + stateKey + '".');
+                }
+                return saved;
+            });
+        }
+
+        async function hydrateSharedPublicStateFromSupabase() {
+            if (isLocalPreviewMode()) return false;
+            await clearProductionPublicStateMirrors();
+            var rows = await fetchSharedPublicStateFromSupabase();
+            if (rows === null) return false;
+            var valueByKey = rows.reduce(function(acc, row) {
+                if (row && row.key) acc[row.key] = row.value;
+                return acc;
+            }, {});
+            try {
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) {
+                    documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
+                    await idbSet('documents', documentsState);
+                }
+            } catch (err) {
+                logSupabaseOperation('SharedState', 'error', 'Failed mirroring IndexedDB-backed public state.', err);
+            }
+            try {
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel]) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel]) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId]) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
+                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
+                membersState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members] : [];
+            } catch (err) {
+                logSupabaseOperation('SharedState', 'error', 'Failed mirroring localStorage-backed public state.', err);
+            }
+            return true;
+        }
 
         // ---- Page navigation (SPA-style) ----
         const ALL_PAGE_IDS = ['home','about','standings','leagueSchedule','player-stats','season-recap','payments',
@@ -645,6 +877,7 @@
                 venmo: DEFAULT_VENMO_URL
             };
             localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(PAYMENT_LINKS));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks, PAYMENT_LINKS, 'PaymentLinks');
             renderPaymentMethodsInfo();
         }
 
@@ -656,6 +889,7 @@
                 templateId: (settings.templateId || '').trim()
             };
             localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings, PAYMENT_NOTIFICATION_SETTINGS, 'PaymentNotifications');
         }
 
         async function sendAdminPaymentNotification(details) {
@@ -823,7 +1057,9 @@
                     btn.setAttribute('href', newLink);
                 }
                 try {
-                    localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify({ text: newText, link: newLink }));
+                    var ctaState = { text: newText, link: newLink };
+                    localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(ctaState));
+                    queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.ctaButton, ctaState, 'CTA');
                 } catch (err) {
                     // Ignore storage write failures.
                 }
@@ -879,6 +1115,7 @@
                                 icon.type = 'image/jpeg';
                             }
                             idbSet(SITE_LOGO_KEY, compressed);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, compressed, 'Branding');
                             flushPersistSiteContent();
                         });
                     };
@@ -906,6 +1143,7 @@
                         compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(compressed) {
                             document.documentElement.style.setProperty('--hero-photo', 'url("' + compressed + '")');
                             idbSet(HOME_HERO_BACKGROUND_KEY, compressed);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, compressed, 'Branding');
                             flushPersistSiteContent();
                         });
                     };
@@ -1167,6 +1405,7 @@
                 var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
                 if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
                 idbSet(PAGE_CONTENT_KEY, clone.innerHTML);
+                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.pageContent, clone.innerHTML, 'PageContent');
             } catch (err) {
                 // Ignore storage write failures.
             }
@@ -1174,6 +1413,7 @@
 
         (async function() {
             await migrateLocalStorageToIDB();
+            await hydrateSharedPublicStateFromSupabase();
             await restoreSiteContent();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
@@ -1190,6 +1430,11 @@
             bindPayPalSettingsControls();
             bindCtaButtonControls();
             renderPayPalSettings();
+            try {
+                await syncPaymentRequestsFromSupabase();
+            } catch (err) {
+                logPaymentSignupEvent('error', 'Initial signup sync from Supabase failed.', err);
+            }
 
             // Show the correct page immediately after restoring content
             (function() {
@@ -1212,13 +1457,24 @@
         }
         function loadMembers() {
             try {
-                const parsed = JSON.parse(localStorage.getItem('members') || '[]');
-                if (!Array.isArray(parsed)) return [];
-                return parsed.map(function(member) {
-                    return Object.assign({}, member, {
-                        status: normalizeMemberStatus(member && member.status)
+                if (Array.isArray(membersState)) {
+                    return membersState.map(function(member) {
+                        return Object.assign({}, member, {
+                            status: normalizeMemberStatus(member && member.status)
+                        });
                     });
-                });
+                }
+                if (isLocalPreviewMode()) {
+                    const parsed = JSON.parse(localStorage.getItem('members') || '[]');
+                    if (!Array.isArray(parsed)) return [];
+                    membersState = parsed;
+                    return parsed.map(function(member) {
+                        return Object.assign({}, member, {
+                            status: normalizeMemberStatus(member && member.status)
+                        });
+                    });
+                }
+                return [];
             } catch (err) {
                 return [];
             }
@@ -1229,9 +1485,12 @@
                     status: normalizeMemberStatus(member && member.status)
                 });
             });
-            safeLocalStorageSet('members', JSON.stringify(normalized));
+            membersState = normalized;
+            if (isLocalPreviewMode()) safeLocalStorageSet('members', JSON.stringify(normalized));
             renderUsersTableForAdmin();
             renderAdminSignupNotifications();
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.members, normalized, 'Members');
+            return normalized;
         }
 
         function ensurePaymentSignupUI() {
@@ -1356,13 +1615,14 @@
             console.error('[Signup][Supabase][' + type + '] ' + message, error || '');
             var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
             if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
-                console.error('[Signup][Supabase][RLS] Check RLS SELECT/INSERT/UPDATE policies for payment requests key.', error || '');
+                console.error('[Signup][Supabase][RLS] Check RLS SELECT/INSERT/UPDATE policies for registrations table.', error || '');
             }
         }
 
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
             return {
+                id: String(item.id || ('signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10))).trim(),
                 name: String(item.name || '').trim(),
                 email: String(item.email || '').trim(),
                 type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
@@ -1384,101 +1644,126 @@
 
         function normalizePaymentRequestList(list) {
             if (!Array.isArray(list)) return [];
-            return list.map(normalizePaymentRequest).filter(Boolean);
+            return list.map(normalizePaymentRequest).filter(Boolean).sort(function(a, b) {
+                return new Date(a.submittedAt || 0).getTime() - new Date(b.submittedAt || 0).getTime();
+            });
+        }
+
+        function mapPaymentSignupRow(row) {
+            return normalizePaymentRequest({
+                id: row && row.id,
+                name: row && row.name,
+                email: row && row.email,
+                type: row && row.type,
+                method: row && row.method,
+                teamName: row && row.team_name,
+                teamMembers: row && row.team_members,
+                teamYears: row && row.team_years,
+                offPosition: row && row.off_position,
+                defPosition: row && row.def_position,
+                experience: row && row.experience,
+                paymentUsername: row && row.payment_username,
+                status: row && row.status,
+                submittedAt: row && row.submitted_at,
+                reviewedAt: row && row.reviewed_at
+            });
+        }
+
+        function mapPaymentSignupRecord(record) {
+            var normalized = normalizePaymentRequest(record);
+            return {
+                id: normalized.id,
+                name: normalized.name,
+                email: normalized.email,
+                type: normalized.type,
+                method: normalized.method,
+                team_name: normalized.teamName,
+                team_members: normalized.teamMembers,
+                team_years: normalized.teamYears,
+                off_position: normalized.offPosition,
+                def_position: normalized.defPosition,
+                experience: normalized.experience,
+                payment_username: normalized.paymentUsername,
+                status: normalized.status,
+                submitted_at: normalized.submittedAt || new Date().toISOString(),
+                reviewed_at: normalized.reviewedAt || null
+            };
         }
 
         function loadPaymentRequests() {
-            try {
-                return normalizePaymentRequestList(JSON.parse(localStorage.getItem(PAYMENT_REQUESTS_KEY) || '[]'));
-            } catch (err) {
-                logPaymentSignupEvent('error', 'Failed to read cached payment requests from localStorage.', err);
-                return [];
-            }
+            return normalizePaymentRequestList(paymentRequestsState);
         }
 
         async function fetchPaymentRequestsFromSupabase() {
-            var client = getGallerySupabaseClient();
-            if (!client) {
-                logPaymentSignupEvent('warn', 'Supabase client unavailable; using local signup data only.');
-                return null;
-            }
-            var config = getGallerySupabaseConfig();
-            var authOk = await verifyGallerySupabaseAuth(client);
-            if (!authOk) return null;
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
             try {
                 var response = await client
-                    .from(config.dataTable)
-                    .select('value')
-                    .eq('key', config.paymentRequestsKey)
-                    .maybeSingle();
+                    .from(config.registrationsTable)
+                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, experience, payment_username, status, submitted_at, reviewed_at')
+                    .order('submitted_at', { ascending: true });
                 if (response.error) {
-                    logPaymentSupabaseError('Select', 'Failed to fetch payment requests from table "' + config.dataTable + '".', response.error);
+                    logPaymentSupabaseError('Select', 'Failed to fetch signup rows from table "' + config.registrationsTable + '".', response.error);
                     return null;
                 }
-                return normalizePaymentRequestList(response.data && response.data.value);
+                var rows = Array.isArray(response.data) ? response.data : [];
+                console.info('[Signup][Supabase][Select] Success.', { rows: rows.length });
+                return rows.map(mapPaymentSignupRow).filter(Boolean);
             } catch (err) {
-                logPaymentSupabaseError('Select', 'Unexpected failure while fetching payment requests.', err);
+                logPaymentSupabaseError('Select', 'Unexpected failure while fetching signup rows.', err);
                 return null;
             }
         }
 
         async function persistPaymentRequestsToSupabase(list) {
-            var client = getGallerySupabaseClient();
+            var client = getSiteSupabaseClient();
             if (!client) return false;
-            var config = getGallerySupabaseConfig();
-            var authOk = await verifyGallerySupabaseAuth(client);
-            if (!authOk) return false;
+            var config = getSiteSupabaseConfig();
             try {
+                var rows = normalizePaymentRequestList(list).map(mapPaymentSignupRecord);
                 var response = await client
-                    .from(config.dataTable)
-                    .upsert(
-                        { key: config.paymentRequestsKey, value: normalizePaymentRequestList(list) },
-                        { onConflict: 'key' }
-                    );
+                    .from(config.registrationsTable)
+                    .upsert(rows, { onConflict: 'id' });
                 if (response.error) {
-                    logPaymentSupabaseError('Upsert', 'Failed to save payment requests to table "' + config.dataTable + '".', response.error);
+                    logPaymentSupabaseError('Insert', 'Failed to insert/update signup rows in table "' + config.registrationsTable + '".', response.error);
                     return false;
                 }
+                console.info('[Signup][Supabase][Insert] Success.', { rows: rows.length });
                 return true;
             } catch (err) {
-                logPaymentSupabaseError('Upsert', 'Unexpected failure while saving payment requests.', err);
+                logPaymentSupabaseError('Insert', 'Unexpected failure while saving signup rows.', err);
                 return false;
             }
         }
 
         async function syncPaymentRequestsFromSupabase() {
             var remoteRequests = await fetchPaymentRequestsFromSupabase();
-            if (remoteRequests === null) return { synced: false, source: 'local' };
-            try {
-                localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(remoteRequests));
-            } catch (err) {
-                logPaymentSignupEvent('error', 'Fetched payment requests, but failed caching them locally.', err);
-            }
+            if (remoteRequests === null) return { synced: false, source: 'supabase-error' };
+            paymentRequestsState = normalizePaymentRequestList(remoteRequests);
             renderAdminPaymentRequests();
             renderAdminSignupNotifications();
-            logPaymentSignupEvent('info', 'Loaded payment requests from Supabase.', { count: remoteRequests.length });
-            return { synced: true, source: 'supabase', count: remoteRequests.length };
+            logPaymentSignupEvent('info', 'Loaded signup requests from Supabase.', { count: paymentRequestsState.length });
+            return { synced: true, source: 'supabase', count: paymentRequestsState.length };
         }
 
-        function savePaymentRequests(list, options) {
+        async function savePaymentRequests(list, options) {
             var normalized = normalizePaymentRequestList(list);
             var skipRemote = !!(options && options.skipRemote);
-            try {
-                localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(normalized));
-            } catch (err) {
-                logPaymentSignupEvent('error', 'Failed to cache payment requests locally.', err);
-            }
+            var previous = paymentRequestsState.slice();
+            paymentRequestsState = normalized;
             renderAdminPaymentRequests();
             renderAdminSignupNotifications();
-            if (skipRemote) return Promise.resolve(true);
-            return persistPaymentRequestsToSupabase(normalized).then(function(saved) {
-                if (saved) {
-                    logPaymentSignupEvent('info', 'Payment requests persisted to Supabase.', { count: normalized.length });
-                } else {
-                    logPaymentSignupEvent('warn', 'Payment requests saved locally but failed to persist to Supabase.');
-                }
-                return saved;
-            });
+            if (skipRemote) return true;
+            var saved = await persistPaymentRequestsToSupabase(normalized);
+            if (!saved) {
+                paymentRequestsState = previous;
+                renderAdminPaymentRequests();
+                renderAdminSignupNotifications();
+                logPaymentSignupEvent('warn', 'Signup change was not persisted to Supabase; reverting local state.');
+                return false;
+            }
+            return true;
         }
 
         function renderAdminSignupNotifications() {
@@ -1683,9 +1968,9 @@
                         try {
                             const saved = await savePaymentRequests(items);
                             if (!saved) {
-                                alert('Marked approved locally, but Supabase sync failed. Check console for details.');
+                                alert('Approval update failed to persist to Supabase. Check console for details.');
                             }
-                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved });
+                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved, rows: items.length });
                         } catch (err) {
                             alert('Failed to save approval update. Please try again.');
                             logPaymentSignupEvent('error', 'Failed saving admin approval update.', err);
@@ -1703,9 +1988,9 @@
                         try {
                             const saved = await savePaymentRequests(items);
                             if (!saved) {
-                                alert('Marked denied locally, but Supabase sync failed. Check console for details.');
+                                alert('Denial update failed to persist to Supabase. Check console for details.');
                             }
-                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved });
+                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved, rows: items.length });
                         } catch (err) {
                             alert('Failed to save denial update. Please try again.');
                             logPaymentSignupEvent('error', 'Failed saving admin denial update.', err);
@@ -1730,9 +2015,6 @@
         // --- UI: show saved logo and check auth states on load ---
         window.addEventListener('load', function() {
             renderDocumentsList();
-            syncPaymentRequestsFromSupabase().catch(function(err) {
-                logPaymentSignupEvent('error', 'Initial signup sync from Supabase failed.', err);
-            });
             const hasMemberSession = sessionStorage.getItem('memberLoggedIn') === 'true';
             if (hasMemberSession && sessionStorage.getItem('adminLoggedIn') === 'true') {
                 clearAdminSession();
@@ -2058,6 +2340,9 @@
 
             const requests = loadPaymentRequests();
             requests.push({
+                id: window.crypto && typeof window.crypto.randomUUID === 'function'
+                    ? 'signup_' + window.crypto.randomUUID()
+                    : 'signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
                 name,
                 email,
                 type,
@@ -2073,14 +2358,15 @@
                 submittedAt: submittedAt
             });
             const savedToSupabase = await savePaymentRequests(requests);
-            const syncWarning = !savedToSupabase
-                ? 'Signup was saved locally on this device, but cloud sync failed.'
-                : '';
             if (!savedToSupabase) {
-                logPaymentSignupEvent('warn', 'Signup persisted locally but not to Supabase.', { submittedAt: submittedAt, email: email });
-            } else {
-                logPaymentSignupEvent('info', 'Signup persisted to Supabase.', { submittedAt: submittedAt, email: email });
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Signup could not be saved to Supabase. Please try again after checking the console.';
+                }
+                logPaymentSignupEvent('warn', 'Signup insert failed and no browser-only fallback was used.', { submittedAt: submittedAt, email: email });
+                return;
             }
+            logPaymentSignupEvent('info', 'Signup persisted to Supabase.', { submittedAt: submittedAt, email: email, rows: requests.length });
 
             const notificationResult = await sendAdminPaymentNotification({
                 name,
@@ -2108,16 +2394,16 @@
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = notificationResult.sent
-                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '')
-                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.' + (syncWarning ? ' ' + syncWarning : '');
+                        ? 'Payment info submitted and admin was notified. ' + methodLabel + ' link is not configured yet.'
+                        : 'Payment info submitted for admin approval. ' + methodLabel + ' link is not configured yet.';
                 }
                 return;
             }
             if (msg) {
-                msg.style.color = syncWarning ? '#e65100' : 'green';
+                msg.style.color = 'green';
                 msg.textContent = notificationResult.sent
-                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.' + (syncWarning ? ' ' + syncWarning : '')
-                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.' + (syncWarning ? ' ' + syncWarning : '');
+                    ? 'Payment submitted. Admin was notified and you are being redirected to ' + methodLabel + '.'
+                    : 'Payment submitted. Redirecting to ' + methodLabel + '... Approval is still required before registration.';
             }
             logPaymentSignupEvent('info', 'Signup submission completed successfully.', { method: method, redirect: link });
             window.open(link, '_blank', 'noopener,noreferrer');
@@ -2438,13 +2724,17 @@
         // --- Documents (admin upload + member signing) ---
         async function loadDocuments() {
             try {
+                if (Array.isArray(documentsState) && documentsState.length) return documentsState.slice();
                 var stored = await idbGet('documents');
                 if (!stored) return [];
-                return Array.isArray(stored) ? stored : [];
+                documentsState = Array.isArray(stored) ? stored : [];
+                return documentsState.slice();
             } catch (err) { return []; }
         }
         async function saveDocuments(list) {
-            await idbSet('documents', list);
+            documentsState = Array.isArray(list) ? list.slice() : [];
+            await idbSet('documents', documentsState);
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.documents, documentsState, 'Documents');
             await renderDocsAdmin();
             await renderDocumentsList();
         }
@@ -2715,6 +3005,7 @@
 
         function saveStatsTeamLogos(logos) {
             localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, logos || {}, 'StatsTeamLogos');
         }
 
         function getStatsTeamLogo(teamName) {
@@ -2843,7 +3134,12 @@
         }
 
         function saveSeasonLabel(key, value) {
-            localStorage.setItem(key, String(value || '').trim());
+            var normalizedValue = String(value || '').trim();
+            localStorage.setItem(key, normalizedValue);
+            var remoteKey = key === CURRENT_SEASON_LABEL_KEY
+                ? SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel
+                : SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel;
+            queueSharedPublicStatePersist(remoteKey, normalizedValue, 'SeasonLabels');
         }
 
         function loadSeasonArchives() {
@@ -2857,6 +3153,7 @@
 
         function saveSeasonArchives(items) {
             localStorage.setItem(SEASON_ARCHIVES_KEY, JSON.stringify(items || []));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.seasonArchives, items || [], 'SeasonArchives');
         }
 
         function getSelectedSeasonArchiveId() {
@@ -2866,6 +3163,7 @@
         function setSelectedSeasonArchiveId(id) {
             if (id) localStorage.setItem(SELECTED_SEASON_ARCHIVE_KEY, id);
             else localStorage.removeItem(SELECTED_SEASON_ARCHIVE_KEY);
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId, id || '', 'SeasonArchives');
         }
 
         function migrateLegacyRecapArchive() {
@@ -3127,6 +3425,10 @@
 
         function saveLeagueCollection(key, rows) {
             localStorage.setItem(key, JSON.stringify(rows));
+            var remoteKey = key === LEAGUE_STANDINGS_KEY
+                ? SUPABASE_PUBLIC_STATE_KEYS.leagueStandings
+                : SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule;
+            queueSharedPublicStatePersist(remoteKey, rows, key === LEAGUE_STANDINGS_KEY ? 'Standings' : 'Schedule');
         }
 
         function loadLeagueStandings() {
@@ -3414,6 +3716,12 @@
         }
         function savePlayerStats(key, data) {
             localStorage.setItem(key, JSON.stringify(data));
+            var remoteMap = {};
+            remoteMap[OFFENSIVE_STATS_KEY] = SUPABASE_PUBLIC_STATE_KEYS.offensiveStats;
+            remoteMap[DEFENSIVE_STATS_KEY] = SUPABASE_PUBLIC_STATE_KEYS.defensiveStats;
+            remoteMap[RECAP_OFFENSIVE_STATS_KEY] = SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats;
+            remoteMap[RECAP_DEFENSIVE_STATS_KEY] = SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats;
+            if (remoteMap[key]) queueSharedPublicStatePersist(remoteMap[key], data, 'PlayerStats');
         }
 
         function getStatsSortConfig(type) {
@@ -4497,7 +4805,9 @@
                     if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a date.'; } return; }
                     var label = labelInput ? (labelInput.value.trim() || 'Next Game') : 'Next Game';
                     try {
-                        localStorage.setItem(COUNTDOWN_DATE_KEY, JSON.stringify({ date: new Date(val).toISOString(), label: label }));
+                        var countdownState = { date: new Date(val).toISOString(), label: label };
+                        localStorage.setItem(COUNTDOWN_DATE_KEY, JSON.stringify(countdownState));
+                        queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.countdown, countdownState, 'Countdown');
                     } catch (e) {}
                     renderCountdownTimer();
                     if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Timer saved!'; setTimeout(function() { msgEl.textContent = ''; }, 2000); }
@@ -4508,6 +4818,7 @@
                 clearBtn.addEventListener('click', function() {
                     if (!isAdminLoggedIn()) return;
                     try { localStorage.removeItem(COUNTDOWN_DATE_KEY); } catch (e) {}
+                    queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.countdown, null, 'Countdown');
                     var dateInput = document.getElementById('countdownDateInput');
                     var labelInput = document.getElementById('countdownLabelInput');
                     if (dateInput) dateInput.value = '';
@@ -4577,60 +4888,31 @@
         var galleryEscapeListenerBound = false;
 
         function loadGalleryMetaCache() {
-            try {
-                var parsed = JSON.parse(localStorage.getItem(GALLERY_META_KEY) || '[]');
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-                return [];
-            }
+            return [];
         }
 
-        function saveGalleryMetaCache(list) {
-            try { localStorage.setItem(GALLERY_META_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch (e) {}
-        }
+        function saveGalleryMetaCache() {}
 
         function getGallerySupabaseConfig() {
-            var config = window.__865EliteSupabaseConfig || {};
-            return {
-                url: String(config.url || '').trim(),
-                anonKey: String(config.anonKey || '').trim(),
-                dataTable: String(config.dataTable || 'league_site_data').trim(),
-                galleryKey: String(config.galleryKey || 'gallery').trim(),
-                paymentRequestsKey: String(config.paymentRequestsKey || 'payment_requests').trim()
-            };
+            return getSiteSupabaseConfig();
         }
 
         function logGallerySupabaseError(type, message, error) {
             console.error('[Gallery][Supabase][' + type + '] ' + message, error || '');
-            var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
-            if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
-                console.error('[Gallery][Supabase][RLS] Check table and storage RLS policies for bucket "' + GALLERY_STORAGE_BUCKET + '".', error || '');
-            }
+            logSupabaseRlsHint('Gallery', error);
         }
 
         function getGallerySupabaseClient() {
-            if (gallerySupabaseInitialized) return gallerySupabaseClient;
-            gallerySupabaseInitialized = true;
-            var config = getGallerySupabaseConfig();
-            if (!config.url || !config.anonKey) {
-                logGallerySupabaseError('Auth', 'Missing Supabase URL or anon key in window.__865EliteSupabaseConfig.', null);
-                return null;
-            }
-            if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-                logGallerySupabaseError('Auth', 'Supabase browser client library failed to load.', null);
-                return null;
-            }
-            gallerySupabaseClient = window.supabase.createClient(config.url, config.anonKey);
-            return gallerySupabaseClient;
+            return getSiteSupabaseClient();
         }
 
         function normalizeGalleryMetaItem(item) {
             if (!item || typeof item !== 'object') return null;
             var id = String(item.id || '').trim();
             var url = String(item.url || item.publicUrl || '').trim();
-            var storagePath = String(item.storagePath || item.path || '').trim();
+            var storagePath = String(item.storagePath || item.storage_path || item.path || '').trim();
             var caption = String(item.caption || '').trim();
-            var ts = Number(item.ts || item.createdAt || Date.now());
+            var ts = Number(item.ts || item.createdAt || item.created_at || Date.now());
             if (!id) id = generateGalleryId();
             if (!url) return null;
             return {
@@ -4647,44 +4929,35 @@
                 logGallerySupabaseError('Auth', 'Supabase client is unavailable for gallery operations.', null);
                 return false;
             }
-            if (!client.auth || typeof client.auth.getSession !== 'function') {
-                logGallerySupabaseError('Auth', 'Supabase auth client is unavailable for gallery operations.', null);
-                return false;
-            }
-            try {
-                var sessionResult = await client.auth.getSession();
-                if (sessionResult && sessionResult.error) {
-                    logGallerySupabaseError('Auth', 'Failed to verify Supabase auth session.', sessionResult.error);
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                logGallerySupabaseError('Auth', 'Unexpected Supabase auth failure while reading session.', err);
-                return false;
-            }
+            return true;
         }
 
         async function fetchGalleryMetaFromSupabase() {
             var client = getGallerySupabaseClient();
             if (!client) return null;
             var config = getGallerySupabaseConfig();
-            var authOk = await verifyGallerySupabaseAuth(client);
-            if (!authOk) return null;
             try {
                 var response = await client
-                    .from(config.dataTable)
-                    .select('value')
-                    .eq('key', config.galleryKey)
-                    .maybeSingle();
+                    .from(config.galleryImagesTable)
+                    .select('id, storage_path, public_url, caption, created_at')
+                    .order('created_at', { ascending: false });
                 if (response.error) {
-                    logGallerySupabaseError('Table', 'Failed to fetch gallery metadata from table "' + config.dataTable + '".', response.error);
+                    logGallerySupabaseError('Select', 'Failed to fetch gallery rows from table "' + config.galleryImagesTable + '".', response.error);
                     return null;
                 }
-                var value = response.data && response.data.value;
-                if (!Array.isArray(value)) return [];
-                return value.map(normalizeGalleryMetaItem).filter(Boolean);
+                var rows = Array.isArray(response.data) ? response.data : [];
+                console.info('[Gallery][Supabase][Select] Success.', { rows: rows.length });
+                return rows.map(function(row) {
+                    return normalizeGalleryMetaItem({
+                        id: row.id,
+                        storage_path: row.storage_path,
+                        url: row.public_url,
+                        caption: row.caption,
+                        created_at: row.created_at
+                    });
+                }).filter(Boolean);
             } catch (err) {
-                logGallerySupabaseError('Table', 'Unexpected failure while fetching gallery metadata.', err);
+                logGallerySupabaseError('Select', 'Unexpected failure while fetching gallery rows.', err);
                 return null;
             }
         }
@@ -4693,22 +4966,28 @@
             var client = getGallerySupabaseClient();
             if (!client) return false;
             var config = getGallerySupabaseConfig();
-            var authOk = await verifyGallerySupabaseAuth(client);
-            if (!authOk) return false;
             try {
+                var rows = (Array.isArray(list) ? list : []).map(function(item) {
+                    var normalized = normalizeGalleryMetaItem(item);
+                    return normalized ? {
+                        id: normalized.id,
+                        storage_path: normalized.storagePath,
+                        public_url: normalized.url,
+                        caption: normalized.caption,
+                        created_at: new Date(normalized.ts || Date.now()).toISOString()
+                    } : null;
+                }).filter(Boolean);
                 var response = await client
-                    .from(config.dataTable)
-                    .upsert(
-                        { key: config.galleryKey, value: list },
-                        { onConflict: 'key' }
-                    );
+                    .from(config.galleryImagesTable)
+                    .upsert(rows, { onConflict: 'id' });
                 if (response.error) {
-                    logGallerySupabaseError('Table', 'Failed to save gallery metadata to table "' + config.dataTable + '".', response.error);
+                    logGallerySupabaseError('Insert', 'Failed to insert/update gallery rows in table "' + config.galleryImagesTable + '".', response.error);
                     return false;
                 }
+                console.info('[Gallery][Supabase][Insert] Success.', { rows: rows.length });
                 return true;
             } catch (err) {
-                logGallerySupabaseError('Table', 'Unexpected failure while saving gallery metadata.', err);
+                logGallerySupabaseError('Insert', 'Unexpected failure while saving gallery rows.', err);
                 return false;
             }
         }
@@ -4723,18 +5002,13 @@
                 .filter(Boolean)
                 .sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
             galleryMetaState = normalizedList;
-            saveGalleryMetaCache(normalizedList);
             if (!(options && options.skipRender)) renderGallery();
             return normalizedList;
         }
 
         async function hydrateGalleryMeta() {
             var cloudMeta = await fetchGalleryMetaFromSupabase();
-            if (Array.isArray(cloudMeta)) {
-                setGalleryMeta(cloudMeta, { skipRender: true });
-                return;
-            }
-            setGalleryMeta(loadGalleryMetaCache(), { skipRender: true });
+            setGalleryMeta(Array.isArray(cloudMeta) ? cloudMeta : [], { skipRender: true });
         }
 
         function sanitizeGalleryFileName(name) {
@@ -4758,6 +5032,7 @@
             if (!client) return null;
             var authOk = await verifyGallerySupabaseAuth(client);
             if (!authOk) return null;
+            var config = getGallerySupabaseConfig();
             var safeName = sanitizeGalleryFileName(file && file.name);
             var extension = '';
             var extensionMatch = safeName.match(/(\.[a-z0-9]+)$/);
@@ -4765,17 +5040,17 @@
             if (!extension) extension = '.jpg';
             var storagePath = GALLERY_STORAGE_FOLDER + '/' + id + extension;
             var uploadResponse = await client.storage
-                .from(GALLERY_STORAGE_BUCKET)
+                .from(config.galleryBucket)
                 .upload(storagePath, file, {
                     cacheControl: GALLERY_STORAGE_CACHE_SECONDS,
                     upsert: true,
                     contentType: file && file.type ? file.type : 'image/jpeg'
                 });
             if (uploadResponse.error) {
-                logGallerySupabaseError('StorageUpload', 'Failed upload to storage bucket "' + GALLERY_STORAGE_BUCKET + '" at path "' + storagePath + '".', uploadResponse.error);
+                logGallerySupabaseError('StorageUpload', 'Failed upload to storage bucket "' + config.galleryBucket + '" at path "' + storagePath + '".', uploadResponse.error);
                 return null;
             }
-            var publicUrlResponse = client.storage.from(GALLERY_STORAGE_BUCKET).getPublicUrl(storagePath);
+            var publicUrlResponse = client.storage.from(config.galleryBucket).getPublicUrl(storagePath);
             var publicUrl = publicUrlResponse && publicUrlResponse.data ? publicUrlResponse.data.publicUrl : '';
             if (!publicUrl) {
                 logGallerySupabaseError('StorageUpload', 'Upload succeeded but public URL could not be generated for "' + storagePath + '".', null);
@@ -4850,24 +5125,33 @@
         async function deleteGalleryPhoto(id) {
             var meta = getGalleryMeta();
             var itemToDelete = meta.find(function(m) { return m.id === id; });
+            if (!itemToDelete) return;
             var nextMeta = meta.filter(function(m) { return m.id !== id; });
-            setGalleryMeta(nextMeta);
-
             var client = getGallerySupabaseClient();
-            if (client && itemToDelete && itemToDelete.storagePath) {
+            var config = getGallerySupabaseConfig();
+            if (!client) return;
+            if (itemToDelete.storagePath) {
                 try {
-                    var removeResponse = await client.storage.from(GALLERY_STORAGE_BUCKET).remove([itemToDelete.storagePath]);
+                    var removeResponse = await client.storage.from(config.galleryBucket).remove([itemToDelete.storagePath]);
                     if (removeResponse.error) {
                         logGallerySupabaseError('StorageDelete', 'Failed to delete storage object "' + itemToDelete.storagePath + '".', removeResponse.error);
+                        return;
                     }
                 } catch (err) {
                     logGallerySupabaseError('StorageDelete', 'Unexpected storage deletion failure for "' + itemToDelete.storagePath + '".', err);
+                    return;
                 }
             }
-
-            var persisted = await saveGalleryMetaToSupabase(nextMeta);
-            if (!persisted) {
-                logGallerySupabaseError('Table', 'Gallery metadata delete was cached locally but not synced to Supabase.', null);
+            try {
+                var deleteResponse = await client.from(config.galleryImagesTable).delete().eq('id', id);
+                if (deleteResponse.error) {
+                    logGallerySupabaseError('Delete', 'Failed to delete gallery row "' + id + '" from table "' + config.galleryImagesTable + '".', deleteResponse.error);
+                    return;
+                }
+                console.info('[Gallery][Supabase][Insert] Delete success.', { id: id });
+                setGalleryMeta(nextMeta);
+            } catch (err) {
+                logGallerySupabaseError('Delete', 'Unexpected failure while deleting gallery row "' + id + '".', err);
             }
         }
 
@@ -4903,13 +5187,15 @@
             }
             var uploadedItems = uploadResults.map(function(result) { return result.value; });
 
-            var nextMeta = uploadedItems.concat(getGalleryMeta());
+            var previousMeta = getGalleryMeta();
+            var nextMeta = uploadedItems.concat(previousMeta);
             setGalleryMeta(nextMeta);
             var persisted = await saveGalleryMetaToSupabase(nextMeta);
             if (!persisted) {
+                setGalleryMeta(previousMeta);
                 if (msgEl) {
                     msgEl.style.color = '#ff6f61';
-                    msgEl.textContent = 'Photos uploaded, but Supabase metadata sync failed. They may not appear on other devices yet. Check console errors.';
+                    msgEl.textContent = 'Photos uploaded, but the gallery_images table insert failed. Check console errors.';
                 }
                 return false;
             }
@@ -4998,6 +5284,7 @@
             if (!isAdminLoggedIn()) return;
             var rounds = collectPlayoffRounds();
             try { localStorage.setItem(PLAYOFF_BRACKET_KEY, JSON.stringify(rounds)); } catch (e) {}
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.playoffBracket, rounds, 'Playoff');
             renderPlayoffBracket();
             var msg = document.getElementById('playoffAdminMsg');
             if (msg) { msg.style.color = '#4caf50'; msg.textContent = 'Bracket saved!'; setTimeout(function() { msg.textContent = ''; }, 2500); }
