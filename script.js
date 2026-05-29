@@ -305,18 +305,41 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
-            await clearProductionPublicStateMirrors();
+            // Snapshot existing branding from IndexedDB BEFORE clearing, so we can
+            // fall back to the local copy if Supabase does not return those keys
+            // (e.g. first-time visit, failed prior upsert, or RLS policy gap).
+            var existingLogo = null;
+            var existingBg = null;
+            try { existingLogo = await idbGet(SITE_LOGO_KEY); } catch (err) {}
+            try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
+
+            // Fetch from Supabase BEFORE clearing local mirrors so that a transient
+            // network error or RLS failure does not wipe locally-cached data.
             var rows = await fetchSharedPublicStateFromSupabase();
             if (rows === null) return false;
+            await clearProductionPublicStateMirrors();
             var valueByKey = rows.reduce(function(acc, row) {
                 if (row && row.key) acc[row.key] = row.value;
                 return acc;
             }, {});
+            // hasKey helper: check that a key exists in the response (value may be falsy).
+            function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) {
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
+                    await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                } else if (existingLogo) {
+                    // Supabase doesn't have the logo yet — preserve the local copy so
+                    // the page doesn't revert to the static default after a refresh.
+                    await idbSet(SITE_LOGO_KEY, existingLogo);
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
+                    await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                } else if (existingBg) {
+                    // Same fallback for the hero background.
+                    await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.documents)) {
                     documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
                     await idbSet('documents', documentsState);
                 }
@@ -324,22 +347,22 @@
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring IndexedDB-backed public state.', err);
             }
             try {
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel]) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel]) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId]) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.ctaButton) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton] != null) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks] != null) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings] != null) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.countdown) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown] != null) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueStandings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings] != null) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule] != null) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.offensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats] != null) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.defensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats] != null) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats] != null) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats] != null) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos] != null) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] != null) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] != null) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.seasonArchives) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives] != null) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] != null) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.playoffBracket) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket] != null) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
                 membersState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members] : [];
             } catch (err) {
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring localStorage-backed public state.', err);
@@ -1001,6 +1024,47 @@
 
         const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
         const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
+        const BRANDING_STORAGE_FOLDER = 'branding';
+
+        // Upload a branding image (given as a data URL) to Supabase Storage so that
+        // only a small public URL needs to be saved in the state table.  This avoids
+        // storing large base64 blobs in the database column, which can cause silent
+        // upsert failures and lost branding on page refresh.
+        async function uploadBrandingImageToSupabase(dataUrl, filename) {
+            if (isLocalPreviewMode()) return null;
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            var bucket = config.galleryBucket || 'gallery-images';
+            try {
+                // Convert data URL → Blob
+                var parts = dataUrl.split(',');
+                var mimeMatch = parts[0].match(/:(.*?);/);
+                var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                var binaryStr = atob(parts[1]);
+                var bytes = new Uint8Array(binaryStr.length);
+                for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+                var blob = new Blob([bytes], { type: mime });
+
+                var storagePath = BRANDING_STORAGE_FOLDER + '/' + filename;
+                // upsert: true replaces the existing file at that path
+                var uploadResp = await client.storage.from(bucket).upload(storagePath, blob, { upsert: true, contentType: mime });
+                if (uploadResp.error) {
+                    logSupabaseOperation('Branding', 'warn', 'Storage upload failed for "' + filename + '", falling back to data URL.', uploadResp.error);
+                    return null;
+                }
+                var urlResp = client.storage.from(bucket).getPublicUrl(storagePath);
+                var publicUrl = urlResp && urlResp.data && urlResp.data.publicUrl;
+                if (!publicUrl) {
+                    logSupabaseOperation('Branding', 'warn', 'Could not get public URL for "' + filename + '", falling back to data URL.');
+                    return null;
+                }
+                return publicUrl;
+            } catch (err) {
+                logSupabaseOperation('Branding', 'warn', 'Unexpected error uploading branding image, falling back to data URL.', err);
+                return null;
+            }
+        }
 
         async function applySavedBranding() {
             try {
@@ -1092,21 +1156,6 @@
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
             const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
-            const applyBrandingAssets = function(logoPhoto, backgroundPhoto) {
-                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
-                document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
-                const icon = document.querySelector('link[rel="icon"]');
-                if (icon) {
-                    icon.href = logoPhoto;
-                    const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
-                    icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
-                }
-                idbSet(SITE_LOGO_KEY, logoPhoto);
-                idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
-                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoPhoto, 'Branding');
-                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, backgroundPhoto, 'Branding');
-                flushPersistSiteContent();
-            };
 
             if (changeLogoBtn) {
                 changeLogoBtn.onclick = function() {
@@ -1124,13 +1173,22 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        Promise.all([
-                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
-                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
-                        ]).then(function(images) {
-                            const logoPhoto = images[0];
-                            const backgroundPhoto = images[1];
-                            applyBrandingAssets(logoPhoto, backgroundPhoto);
+                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(async function(logoPhoto) {
+                            // Apply immediately so the UI updates without waiting for storage
+                            document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
+                            const icon = document.querySelector('link[rel="icon"]');
+                            if (icon) {
+                                icon.href = logoPhoto;
+                                const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
+                                icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
+                            }
+                            // Try to persist as a Storage URL (small) so the state table
+                            // row stays tiny and the upsert never fails due to image size.
+                            var storageUrl = await uploadBrandingImageToSupabase(logoPhoto, 'site-logo.jpg');
+                            var logoValue = storageUrl || logoPhoto;
+                            idbSet(SITE_LOGO_KEY, logoValue);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
+                            flushPersistSiteContent();
                         });
                     };
                     reader.readAsDataURL(file);
@@ -1154,13 +1212,15 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        Promise.all([
-                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
-                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
-                        ]).then(function(images) {
-                            const logoPhoto = images[0];
-                            const backgroundPhoto = images[1];
-                            applyBrandingAssets(logoPhoto, backgroundPhoto);
+                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(async function(backgroundPhoto) {
+                            // Apply immediately
+                            document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
+                            // Try Storage first so the state table row stays small
+                            var storageUrl = await uploadBrandingImageToSupabase(backgroundPhoto, 'home-background.jpg');
+                            var bgValue = storageUrl || backgroundPhoto;
+                            idbSet(HOME_HERO_BACKGROUND_KEY, bgValue);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, bgValue, 'Branding');
+                            flushPersistSiteContent();
                         });
                     };
                     reader.readAsDataURL(file);
