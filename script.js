@@ -1180,7 +1180,7 @@
                             if (icon) {
                                 icon.href = logoPhoto;
                                 const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
-                                icon.type = (logoMime && logoMime[1]) || 'image/png';
+                                icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
                             }
                             // Try to persist as a Storage URL (small) so the state table
                             // row stays tiny and the upsert never fails due to image size.
