@@ -1096,21 +1096,6 @@
             const logoUploadInput = document.getElementById('logoUploadInput');
             const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
             const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
-            const applyBrandingAssets = function(logoPhoto, backgroundPhoto) {
-                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
-                document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
-                const icon = document.querySelector('link[rel="icon"]');
-                if (icon) {
-                    icon.href = logoPhoto;
-                    const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
-                    icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
-                }
-                idbSet(SITE_LOGO_KEY, logoPhoto);
-                idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
-                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoPhoto, 'Branding');
-                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, backgroundPhoto, 'Branding');
-                flushPersistSiteContent();
-            };
 
             if (changeLogoBtn) {
                 changeLogoBtn.onclick = function() {
@@ -1128,13 +1113,17 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        Promise.all([
-                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
-                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
-                        ]).then(function(images) {
-                            const logoPhoto = images[0];
-                            const backgroundPhoto = images[1];
-                            applyBrandingAssets(logoPhoto, backgroundPhoto);
+                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(logoPhoto) {
+                            document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
+                            const icon = document.querySelector('link[rel="icon"]');
+                            if (icon) {
+                                icon.href = logoPhoto;
+                                const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
+                                icon.type = (logoMime && logoMime[1]) || 'image/png';
+                            }
+                            idbSet(SITE_LOGO_KEY, logoPhoto);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoPhoto, 'Branding');
+                            flushPersistSiteContent();
                         });
                     };
                     reader.readAsDataURL(file);
@@ -1158,13 +1147,11 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        Promise.all([
-                            compressImageDataUrl(dataUrl, 200, 200, 0.8),
-                            compressImageDataUrl(dataUrl, 1200, 800, 0.7)
-                        ]).then(function(images) {
-                            const logoPhoto = images[0];
-                            const backgroundPhoto = images[1];
-                            applyBrandingAssets(logoPhoto, backgroundPhoto);
+                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(backgroundPhoto) {
+                            document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
+                            idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, backgroundPhoto, 'Branding');
+                            flushPersistSiteContent();
                         });
                     };
                     reader.readAsDataURL(file);
