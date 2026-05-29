@@ -305,6 +305,14 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
+            // Snapshot existing branding from IndexedDB BEFORE clearing, so we can
+            // fall back to the local copy if Supabase does not return those keys
+            // (e.g. first-time visit, failed prior upsert, or RLS policy gap).
+            var existingLogo = null;
+            var existingBg = null;
+            try { existingLogo = await idbGet(SITE_LOGO_KEY); } catch (err) {}
+            try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
+
             // Fetch from Supabase BEFORE clearing local mirrors so that a transient
             // network error or RLS failure does not wipe locally-cached data.
             var rows = await fetchSharedPublicStateFromSupabase();
@@ -318,8 +326,19 @@
             function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
+                    await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                } else if (existingLogo) {
+                    // Supabase doesn't have the logo yet — preserve the local copy so
+                    // the page doesn't revert to the static default after a refresh.
+                    await idbSet(SITE_LOGO_KEY, existingLogo);
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
+                    await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                } else if (existingBg) {
+                    // Same fallback for the hero background.
+                    await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
+                }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.documents)) {
                     documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
                     await idbSet('documents', documentsState);
@@ -1005,6 +1024,47 @@
 
         const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
         const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
+        const BRANDING_STORAGE_FOLDER = 'branding';
+
+        // Upload a branding image (given as a data URL) to Supabase Storage so that
+        // only a small public URL needs to be saved in the state table.  This avoids
+        // storing large base64 blobs in the database column, which can cause silent
+        // upsert failures and lost branding on page refresh.
+        async function uploadBrandingImageToSupabase(dataUrl, filename) {
+            if (isLocalPreviewMode()) return null;
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            var bucket = config.galleryBucket || 'gallery-images';
+            try {
+                // Convert data URL → Blob
+                var parts = dataUrl.split(',');
+                var mimeMatch = parts[0].match(/:(.*?);/);
+                var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                var binaryStr = atob(parts[1]);
+                var bytes = new Uint8Array(binaryStr.length);
+                for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+                var blob = new Blob([bytes], { type: mime });
+
+                var storagePath = BRANDING_STORAGE_FOLDER + '/' + filename;
+                // upsert: true replaces the existing file at that path
+                var uploadResp = await client.storage.from(bucket).upload(storagePath, blob, { upsert: true, contentType: mime });
+                if (uploadResp.error) {
+                    logSupabaseOperation('Branding', 'warn', 'Storage upload failed for "' + filename + '", falling back to data URL.', uploadResp.error);
+                    return null;
+                }
+                var urlResp = client.storage.from(bucket).getPublicUrl(storagePath);
+                var publicUrl = urlResp && urlResp.data && urlResp.data.publicUrl;
+                if (!publicUrl) {
+                    logSupabaseOperation('Branding', 'warn', 'Could not get public URL for "' + filename + '", falling back to data URL.');
+                    return null;
+                }
+                return publicUrl;
+            } catch (err) {
+                logSupabaseOperation('Branding', 'warn', 'Unexpected error uploading branding image, falling back to data URL.', err);
+                return null;
+            }
+        }
 
         async function applySavedBranding() {
             try {
@@ -1113,7 +1173,8 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(function(logoPhoto) {
+                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(async function(logoPhoto) {
+                            // Apply immediately so the UI updates without waiting for storage
                             document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
                             const icon = document.querySelector('link[rel="icon"]');
                             if (icon) {
@@ -1121,8 +1182,12 @@
                                 const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
                                 icon.type = (logoMime && logoMime[1]) || 'image/png';
                             }
-                            idbSet(SITE_LOGO_KEY, logoPhoto);
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoPhoto, 'Branding');
+                            // Try to persist as a Storage URL (small) so the state table
+                            // row stays tiny and the upsert never fails due to image size.
+                            var storageUrl = await uploadBrandingImageToSupabase(logoPhoto, 'site-logo.jpg');
+                            var logoValue = storageUrl || logoPhoto;
+                            idbSet(SITE_LOGO_KEY, logoValue);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
                             flushPersistSiteContent();
                         });
                     };
@@ -1147,10 +1212,14 @@
                     reader.onload = function(e) {
                         const dataUrl = e.target && e.target.result;
                         if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(function(backgroundPhoto) {
+                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(async function(backgroundPhoto) {
+                            // Apply immediately
                             document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
-                            idbSet(HOME_HERO_BACKGROUND_KEY, backgroundPhoto);
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, backgroundPhoto, 'Branding');
+                            // Try Storage first so the state table row stays small
+                            var storageUrl = await uploadBrandingImageToSupabase(backgroundPhoto, 'home-background.jpg');
+                            var bgValue = storageUrl || backgroundPhoto;
+                            idbSet(HOME_HERO_BACKGROUND_KEY, bgValue);
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, bgValue, 'Branding');
                             flushPersistSiteContent();
                         });
                     };
