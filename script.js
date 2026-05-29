@@ -305,18 +305,22 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
-            await clearProductionPublicStateMirrors();
+            // Fetch from Supabase BEFORE clearing local mirrors so that a transient
+            // network error or RLS failure does not wipe locally-cached data.
             var rows = await fetchSharedPublicStateFromSupabase();
             if (rows === null) return false;
+            await clearProductionPublicStateMirrors();
             var valueByKey = rows.reduce(function(acc, row) {
                 if (row && row.key) acc[row.key] = row.value;
                 return acc;
             }, {});
+            // hasKey helper: check that a key exists in the response (value may be falsy).
+            function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) {
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.documents)) {
                     documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
                     await idbSet('documents', documentsState);
                 }
@@ -324,22 +328,22 @@
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring IndexedDB-backed public state.', err);
             }
             try {
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel]) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel]) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId]) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
-                if (valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.ctaButton) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.countdown) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueStandings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.offensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.defensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] != null) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] != null) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.seasonArchives) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] != null) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.playoffBracket) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
                 membersState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members] : [];
             } catch (err) {
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring localStorage-backed public state.', err);
