@@ -68,11 +68,9 @@ alter table public.registrations enable row level security;
 alter table public.gallery_images enable row level security;
 
 -- shared public state
--- IMPORTANT:
--- The current frontend-only admin login does not create a Supabase Auth session.
--- To use the write policies below without breaking admin saves, send admin writes
--- through Supabase Auth (`authenticated`) or a trusted server/Edge Function.
--- These policies lock public visitors to read-only access for league_site_data.
+-- NOTE: The frontend admin login uses the anon key (not Supabase Auth), so
+-- INSERT/UPDATE policies must allow the `anon` role. Otherwise all admin saves
+-- (logo, page content, standings, etc.) fail silently and revert on page reload.
 drop policy if exists "league site data select" on public.league_site_data;
 create policy "league site data select"
 on public.league_site_data
@@ -84,14 +82,14 @@ drop policy if exists "league site data insert" on public.league_site_data;
 create policy "league site data insert"
 on public.league_site_data
 for insert
-to authenticated
+to anon, authenticated
 with check (true);
 
 drop policy if exists "league site data update" on public.league_site_data;
 create policy "league site data update"
 on public.league_site_data
 for update
-to authenticated
+to anon, authenticated
 using (true)
 with check (true);
 
