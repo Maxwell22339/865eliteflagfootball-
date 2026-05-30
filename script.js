@@ -1154,19 +1154,10 @@
             if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
         }
 
-        const STATIC_LOGO_URL = './assets/logo.png';
-        const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
         const BRANDING_STORAGE_FOLDER = 'branding';
 
-        function applyLogoToPage(logoUrl, mimeType) {
-            var nextLogoUrl = String(logoUrl || STATIC_LOGO_URL);
-            document.querySelectorAll('.site-logo, .footer-logo').forEach(function(img) { img.src = nextLogoUrl; });
-            document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(function(linkEl) {
-                linkEl.href = nextLogoUrl;
-                if (mimeType && linkEl.getAttribute('rel') !== 'apple-touch-icon') {
-                    linkEl.type = mimeType;
-                }
-            });
+        function applyLogoToPage() {
+            // Static branding is text-only.
         }
 
         async function clearLegacyLogoCaches() {
@@ -1248,22 +1239,9 @@
 
         async function applySavedBranding() {
             try {
-                var logoOverrideEnabled = isSiteLogoOverrideEnabled();
-                if (!logoOverrideEnabled) {
-                    await idbDelete(SITE_LOGO_KEY);
-                    applyLogoToPage(STATIC_LOGO_URL, 'image/png');
-                    return;
-                }
-                const savedLogo = await idbGet(SITE_LOGO_KEY);
-                if (savedLogo && (String(savedLogo).startsWith('data:') || String(savedLogo).startsWith('http'))) {
-                    const logoMime = /^data:([^;]+);/i.exec(savedLogo);
-                    applyLogoToPage(savedLogo, (logoMime && logoMime[1]) || 'image/png');
-                    return;
-                }
-                applyLogoToPage(STATIC_LOGO_URL, 'image/png');
+                await idbDelete(SITE_LOGO_KEY);
             } catch (err) {
                 // Ignore branding restore errors.
-                applyLogoToPage(STATIC_LOGO_URL, 'image/png');
             }
         }
 
@@ -1279,14 +1257,9 @@
 
         async function applySavedHeroBackground() {
             try {
-                const savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
-                if (savedBackground) {
-                    document.documentElement.style.setProperty('--hero-photo', 'url("' + savedBackground + '")');
-                } else {
-                    document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
-                }
+                await idbDelete(HOME_HERO_BACKGROUND_KEY);
             } catch (err) {
-                document.documentElement.style.setProperty('--hero-photo', 'url("' + STATIC_BACKGROUND_URL + '")');
+                // Ignore hero background restore errors.
             }
         }
 
@@ -1348,86 +1321,7 @@
         }
 
         function bindAdminBrandingControls() {
-            const changeLogoBtn = document.getElementById('changeLogoBtn');
-            const logoUploadInput = document.getElementById('logoUploadInput');
-            const changeHeroBackgroundBtn = document.getElementById('changeHeroBackgroundBtn');
-            const heroBackgroundUploadInput = document.getElementById('heroBackgroundUploadInput');
-
-            if (changeLogoBtn) {
-                changeLogoBtn.onclick = function() {
-                    if (!isAdminLoggedIn()) return;
-                    var currentLogoInput = document.getElementById('logoUploadInput');
-                    if (currentLogoInput) currentLogoInput.click();
-                };
-            }
-
-            if (logoUploadInput) {
-                logoUploadInput.onchange = function() {
-                    const file = this.files && this.files[0];
-                    if (!file || !isAdminLoggedIn()) return;
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const dataUrl = e.target && e.target.result;
-                        if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 200, 200, 0.8).then(async function(logoPhoto) {
-                            // Apply immediately so the UI updates without waiting for storage
-                            const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
-                            applyLogoToPage(logoPhoto, (logoMime && logoMime[1]) || 'image/jpeg');
-                            // Try to persist as a Storage URL (small) so the state table
-                            // row stays tiny and the upsert never fails due to image size.
-                            var storageUrl = await uploadBrandingImageToSupabase(logoPhoto, 'site-logo.jpg');
-                            var logoValue = storageUrl || logoPhoto;
-                            idbSet(SITE_LOGO_KEY, logoValue);
-                            try { localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, '1'); } catch (err) {}
-                            var logoSaved = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
-                            var overrideSaved = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'Branding');
-                            flushPersistSiteContent();
-                            if (!isLocalPreviewMode() && (!logoSaved || !overrideSaved)) {
-                                var saveMsg = document.getElementById('saveMsg');
-                                if (saveMsg) {
-                                    saveMsg.style.color = '#e74c3c';
-                                    saveMsg.textContent = '⚠ Logo saved locally but failed to sync to cloud — other visitors will not see the change until Supabase write access is enabled.';
-                                    setTimeout(function() { saveMsg.textContent = ''; saveMsg.style.color = ''; }, 8000);
-                                }
-                            }
-                        });
-                    };
-                    reader.readAsDataURL(file);
-                    this.value = '';
-                };
-            }
-
-            if (changeHeroBackgroundBtn) {
-                changeHeroBackgroundBtn.onclick = function() {
-                    if (!isAdminLoggedIn()) return;
-                    var currentBackgroundInput = document.getElementById('heroBackgroundUploadInput');
-                    if (currentBackgroundInput) currentBackgroundInput.click();
-                };
-            }
-
-            if (heroBackgroundUploadInput) {
-                heroBackgroundUploadInput.onchange = function() {
-                    const file = this.files && this.files[0];
-                    if (!file || !isAdminLoggedIn()) return;
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const dataUrl = e.target && e.target.result;
-                        if (!dataUrl) return;
-                        compressImageDataUrl(dataUrl, 1200, 800, 0.7).then(async function(backgroundPhoto) {
-                            // Apply immediately
-                            document.documentElement.style.setProperty('--hero-photo', 'url("' + backgroundPhoto + '")');
-                            // Try Storage first so the state table row stays small
-                            var storageUrl = await uploadBrandingImageToSupabase(backgroundPhoto, 'home-background.jpg');
-                            var bgValue = storageUrl || backgroundPhoto;
-                            idbSet(HOME_HERO_BACKGROUND_KEY, bgValue);
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, bgValue, 'Branding');
-                            flushPersistSiteContent();
-                        });
-                    };
-                    reader.readAsDataURL(file);
-                    this.value = '';
-                };
-            }
+            return;
         }
 
         function ensureAdminBrandingUI() {
@@ -1456,43 +1350,6 @@
 
             const toggleBtn = document.getElementById('togglePageEditBtn');
 
-            if (!document.getElementById('changeLogoBtn')) {
-                const btn = document.createElement('button');
-                btn.id = 'changeLogoBtn';
-                btn.className = 'cta-button small';
-                btn.style.marginRight = '8px';
-                btn.textContent = 'Change Logo';
-                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
-                else adminHeader.appendChild(btn);
-            }
-
-            if (!document.getElementById('logoUploadInput')) {
-                const input = document.createElement('input');
-                input.id = 'logoUploadInput';
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.style.display = 'none';
-                adminHeader.appendChild(input);
-            }
-
-            if (!document.getElementById('changeHeroBackgroundBtn')) {
-                const btn = document.createElement('button');
-                btn.id = 'changeHeroBackgroundBtn';
-                btn.className = 'cta-button small';
-                btn.style.marginRight = '8px';
-                btn.textContent = 'Change Home Background';
-                if (toggleBtn) adminHeader.insertBefore(btn, toggleBtn);
-                else adminHeader.appendChild(btn);
-            }
-
-            if (!document.getElementById('heroBackgroundUploadInput')) {
-                const input = document.createElement('input');
-                input.id = 'heroBackgroundUploadInput';
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.style.display = 'none';
-                adminHeader.appendChild(input);
-            }
         }
 
         function setAdminHeaderVisible(isVisible) {
@@ -1501,7 +1358,7 @@
             adminHdr.style.display = isVisible ? 'flex' : 'none';
             adminHdr.classList.toggle('hidden', !isVisible);
             if (isVisible) {
-                ['saveChangesBtn', 'changeLogoBtn', 'changeHeroBackgroundBtn'].forEach(function(id) {
+                ['saveChangesBtn'].forEach(function(id) {
                     var el = document.getElementById(id);
                     if (el) el.style.display = 'inline-block';
                 });
@@ -1557,19 +1414,20 @@
                 if (logoDivs[i].tagName === 'DIV') { logoDiv = logoDivs[i]; break; }
             }
             if (!logoDiv) return;
-            var existingImage = logoDiv.querySelector(':scope > img.site-logo');
-            if (existingImage && logoDiv.children.length === 1) {
-                existingImage.alt = '865 Elite logo';
-                existingImage.className = 'site-logo';
-                existingImage.removeAttribute('loading');
+            var existingBrandMark = logoDiv.querySelector(':scope > a.brand-mark');
+            if (existingBrandMark && logoDiv.children.length === 1) {
+                existingBrandMark.href = '#home';
+                existingBrandMark.setAttribute('aria-label', '865 Elite Flag Football home');
+                existingBrandMark.textContent = '865 Elite';
                 return;
             }
             logoDiv.replaceChildren();
-            var logoImage = document.createElement('img');
-            logoImage.src = STATIC_LOGO_URL;
-            logoImage.alt = '865 Elite logo';
-            logoImage.className = 'site-logo';
-            logoDiv.appendChild(logoImage);
+            var brandMark = document.createElement('a');
+            brandMark.href = '#home';
+            brandMark.className = 'brand-mark';
+            brandMark.setAttribute('aria-label', '865 Elite Flag Football home');
+            brandMark.textContent = '865 Elite';
+            logoDiv.appendChild(brandMark);
         }
 
         /* ── Public Lockdown ──────────────────────────────────────

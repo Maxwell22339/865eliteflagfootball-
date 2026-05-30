@@ -1,203 +1,30 @@
-# 865 Elite Flag Football - Website Improvements Summary
+# 865 Elite Flag Football - Current Repository Notes
 
 ## Overview
-Successfully implemented comprehensive improvements across all 6 phases for the 865 Elite Flag Football website. The site has been transformed from a monolithic 5413-line HTML file into a modern, maintainable, accessible, and SEO-optimized static website.
 
-## File Structure Changes
+This repository is the current source for the 865 Elite Flag Football site. It is a static front end backed by browser storage and optional Supabase persistence for shared data.
 
-### Before
-- `index.html` - 5413 lines (contained all CSS and JS inline)
+## Current structure
 
-### After
-- `index.html` - 904 lines (clean HTML only)
-- `styles.css` - 1669 lines (all styles, organized with comments)
-- `script.js` - 3713 lines (all JavaScript, well-documented)
-- **Total reduction**: ~83% reduction in index.html size
+- `index.html` contains the page markup
+- `styles.css` contains the site styling
+- `script.js` contains the client-side behavior
 
----
+## Current branding state
 
-## Phase 1: Restructure (HIGH PRIORITY) ✓
+- The site shell uses text-based branding in the header and footer
+- The hero area uses CSS-only background styling
+- Static bundled logo/background image references were removed from the repository source
 
-### 1. External CSS and JS Links
-- Moved all inline CSS to `styles.css`
-- Moved all inline JavaScript to `script.js`
-- Added proper `<link>` and `<script>` tags
-- Removed duplicate EmailJS script tag
+## Current content model
 
-### 2. Comprehensive SEO Meta Tags
-```html
-<meta name="description" content="865 Elite Flag Football - Premier youth flag football league in Knoxville, TN...">
-<meta name="keywords" content="865 Elite, flag football, Knoxville football...">
-<meta name="author" content="865 Elite Flag Football">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://www.865eliteflagfootball.com/">
-```
+- League content, settings, and admin-managed updates are handled in the front end
+- Shared production data can be synchronized through Supabase
+- Dynamic gallery items, uploaded documents, and team logos are still runtime-managed where those features are used
 
-### 3. Open Graph Tags (Social Media)
-- Added 6 Open Graph meta tags for Facebook/social sharing
-- Includes og:type, og:url, og:title, og:description, og:image, og:locale
+## Local preview
 
-### 4. Twitter Card Meta Tags
-- Added 5 Twitter Card meta tags
-- Enables rich previews when shared on Twitter
-
-### 5. Structured Data (Schema.org)
-```json
-{
-    "@context": "https://schema.org",
-    "@type": "SportsOrganization",
-    "name": "865 Elite Flag Football",
-    "description": "Premier youth flag football league...",
-    "sport": "Flag Football",
-    "address": { "addressLocality": "Knoxville", "addressRegion": "TN" }
-}
-```
-
-### 6. Semantic HTML Structure
-- Wrapped main content in `<main id="main-content">` tag
-- Added `role="banner"` to header
-- Added `role="navigation"` to nav
-- Converted logo div to accessible anchor tag
-
----
-
-## Phase 2: Critical Features (HIGH PRIORITY) ✓
-
-### 1. Loading Spinners/Indicators
-- Created `showLoading(message)` and `hideLoading()` functions
-- Full-screen overlay with animated spinner
-- CSS animations for smooth appearance
-- Accessible with proper z-index management
-
-### 2. Search Functionality for Stats Tables
-- Dynamic search box for filtering player names
-- Real-time filtering as user types
-- Case-insensitive search
-- Highlights matching rows, hides non-matching
-
-### 3. Filter Dropdowns for Teams
-- Team filter dropdowns for stats tables
-- Dynamically populated from table data
-- Works in combination with search
-- "All Teams" default option
-
-### 4. Back to Top Button
-- Fixed position button in bottom-right corner
-- Only visible after scrolling 300px down
-- Smooth scroll animation to top
-- Orange gradient styling matching site theme
-- Proper ARIA labels and focus indicators
-
-### 5. CSV Export Functionality
-```javascript
-function exportTableToCSV(table, filename)
-```
-- Exports any table to CSV format
-- Proper escaping of quotes
-- Automatic download trigger
-- Works with filtered/searched data
-
-### 6. Smooth Scroll Behavior
-```css
-html { scroll-behavior: smooth; }
-```
-- Applied to all anchor links
-- Native CSS smooth scrolling
-- Enhanced user experience
-
-### 7. Active Navigation Highlighting
-- Automatically highlights current section in nav
-- Based on scroll position
-- Visual indicator (orange underline)
-- Updates in real-time as user scrolls
-
----
-
-## Phase 3: Accessibility (HIGH PRIORITY) ✓
-
-### 1. Comprehensive ARIA Labels
-- Added `aria-label` to all buttons and interactive elements
-- Added `aria-haspopup` and `aria-expanded` to dropdowns
-- Added `role="menubar"`, `role="menuitem"`, `role="menu"`
-- Added `role="banner"` to header
-- Added `aria-label` to navigation ("Main navigation")
-
-### 2. Keyboard Navigation
-- Proper tab order maintained throughout
-- All interactive elements keyboard accessible
-- Modal dialogs trap focus appropriately
-- Logical focus flow
-
-### 3. Visible Focus Indicators
-```css
-a:focus, button:focus, input:focus, textarea:focus, select:focus {
-    outline: 3px solid #ff6f00;
-    outline-offset: 2px;
-}
-```
-- High-contrast orange outline
-- 2px offset for better visibility
-- Applied to all focusable elements
-
-### 4. Skip to Content Link
-```html
-<a href="#main-content" class="skip-link">Skip to main content</a>
-```
-- Keyboard accessible (Tab on page load)
-- Hidden until focused
-- Jumps directly to main content
-- Essential for screen reader users
-
-### 5. Alt Text for Images
-- Updated logo alt text to be more descriptive
-- "865 Elite Flag Football logo" instead of "865 Elite logo"
-
-### 6. Screen Reader Only Text
-```css
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    /* ... clips element visually but keeps it for screen readers */
-}
-```
-
----
-
-## Phase 4: Mobile Improvements (HIGH PRIORITY) ✓
-
-### 1. Horizontally Scrollable Tables
-```css
-.responsive-table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-```
-- Tables scroll horizontally on small screens
-- Touch-optimized scrolling
-- Maintains data integrity
-
-### 2. Minimum Touch Targets (44x44px)
-```css
-@media (max-width: 768px) {
-    button, a, input[type="submit"], input[type="button"] {
-        min-height: 44px;
-        min-width: 44px;
-    }
-}
-```
-- Meets WCAG 2.1 Level AAA guidelines
-- Easier tapping on mobile devices
-
-### 3. Additional Responsive Breakpoints
-- **768px**: Tablet/mobile transition
-  - Stacks table controls vertically
-  - Adjusts button sizes
-  - Full-width search/filter controls
-  
-- **480px**: Small mobile devices
-  - Reduces heading font sizes
-  - Adjusts hero section text
+Open `index.html` in a browser to preview the site locally.
   - Optimizes padding/margins
 
 ### 4. Payment Form Optimization
