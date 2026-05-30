@@ -67,33 +67,23 @@
         }
 
         .logo-container {
+            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            padding: 20px 0;
+            padding: 24px 0;
         }
 
         .site-logo {
-            width: min(70vw, 320px);
+            width: min(85vw, 420px);
             height: auto;
             display: block;
-            margin: 0 auto;
             object-fit: contain;
-            filter: drop-shadow(0 0 15px rgba(255,140,0,.45));
         }
 
-        /* Mobile: make logo smaller in header by default */
         @media (max-width: 768px) {
             .site-logo {
-                width: 220px;
-            }
-        }
-
-        /* Desktop: larger logo */
-        @media (min-width: 769px) {
-            .site-logo {
-                width: 320px;
+                width: min(90vw, 360px);
             }
         }
 

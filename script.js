@@ -264,7 +264,8 @@
                 'selectedSeasonArchive_v1',
                 'playoffBracket_v1',
                 'galleryMeta_v1',
-                PAYMENT_REQUESTS_KEY
+                PAYMENT_REQUESTS_KEY,
+                SUPABASE_PUBLIC_STATE_KEYS.siteLogo
             ];
             localKeys.forEach(function(key) {
                 try { localStorage.removeItem(key); } catch (err) {}
@@ -345,12 +346,10 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
-            // Snapshot existing branding from IndexedDB BEFORE clearing, so we can
+            // Snapshot existing background branding from IndexedDB BEFORE clearing, so we can
             // fall back to the local copy if Supabase does not return those keys
             // (e.g. first-time visit, failed prior upsert, or RLS policy gap).
-            var existingLogo = null;
             var existingBg = null;
-            try { existingLogo = await idbGet(SITE_LOGO_KEY); } catch (err) {}
             try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
 
             // Fetch from Supabase BEFORE clearing local mirrors so that a transient
@@ -367,13 +366,6 @@
             function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
-                    await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                } else if (existingLogo) {
-                    // Supabase doesn't have the logo yet — preserve the local copy so
-                    // the page doesn't revert to the static default after a refresh.
-                    await idbSet(SITE_LOGO_KEY, existingLogo);
-                }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
                     await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
                 } else if (existingBg) {
@@ -1139,17 +1131,21 @@
 
         async function applySavedBranding() {
             try {
-                const savedLogo = await idbGet(SITE_LOGO_KEY);
-                const logoSrc = savedLogo || STATIC_LOGO_URL;
-                document.querySelectorAll('.site-logo').forEach(img => { img.src = logoSrc; });
+                document.querySelectorAll('.site-logo').forEach(img => { img.src = STATIC_LOGO_URL; });
                 const icon = document.querySelector('link[rel="icon"]');
                 if (icon) {
-                    icon.href = logoSrc;
-                    icon.type = savedLogo ? 'image/png' : 'image/png';
+                    icon.href = STATIC_LOGO_URL;
+                    icon.type = 'image/png';
                 }
             } catch (err) {
                 // Ignore branding restore errors.
             }
+        }
+
+        async function clearPersistedLegacyLogoState() {
+            await idbDelete(SITE_LOGO_KEY);
+            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (SITE_LOGO_KEY).', err); }
+            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (siteLogo state key).', err); }
         }
 
         async function applySavedHeroBackground() {
@@ -1417,6 +1413,33 @@
             lockdownForPublic();
         }
 
+        function enforceHeaderLogoLayout() {
+            var logoContainer = document.querySelector('header .logo-container');
+            if (!logoContainer) return;
+            var existingLink = logoContainer.querySelector(':scope > a.logo');
+            var existingImage = existingLink ? existingLink.querySelector(':scope > img.site-logo') : null;
+            if (existingLink && existingImage && logoContainer.children.length === 1 && existingLink.children.length === 1) {
+                existingLink.href = '#home';
+                existingLink.setAttribute('aria-label', '865 Elite Flag Football home');
+                existingImage.src = STATIC_LOGO_URL;
+                existingImage.alt = '865 Elite Flag Football logo';
+                existingImage.className = 'site-logo';
+                existingImage.removeAttribute('loading');
+                return;
+            }
+            logoContainer.replaceChildren();
+            var logoLink = document.createElement('a');
+            logoLink.href = '#home';
+            logoLink.className = 'logo';
+            logoLink.setAttribute('aria-label', '865 Elite Flag Football home');
+            var logoImage = document.createElement('img');
+            logoImage.src = STATIC_LOGO_URL;
+            logoImage.alt = '865 Elite Flag Football logo';
+            logoImage.className = 'site-logo';
+            logoLink.appendChild(logoImage);
+            logoContainer.appendChild(logoLink);
+        }
+
         /* ── Public Lockdown ──────────────────────────────────────
            Strips every editable/admin artifact from the page.
            Called on every page load BEFORE any admin check runs,
@@ -1560,8 +1583,10 @@
 
         (async function() {
             await migrateLocalStorageToIDB();
+            await clearPersistedLegacyLogoState();
             await hydrateSharedPublicStateFromSupabase();
             await restoreSiteContent();
+            enforceHeaderLogoLayout();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
             ensurePaymentSignupUI();
@@ -4243,7 +4268,7 @@
         });
 
         function setAdminEditableText(enable) {
-            var editableSelector = 'header .logo span, header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
+            var editableSelector = 'header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
             var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, form';
 
             document.querySelectorAll(editableSelector).forEach(function(el) {
