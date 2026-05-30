@@ -1144,8 +1144,8 @@
 
         async function clearPersistedLegacyLogoState() {
             await idbDelete(SITE_LOGO_KEY);
-            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo cache key.', err); }
-            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo state key.', err); }
+            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (SITE_LOGO_KEY).', err); }
+            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (siteLogo state key).', err); }
         }
 
         async function applySavedHeroBackground() {
