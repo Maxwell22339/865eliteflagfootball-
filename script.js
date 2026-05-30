@@ -149,7 +149,7 @@
         const ADMIN_MANAGED_PUBLIC_STATE_KEYS = Object.keys(SUPABASE_PUBLIC_STATE_KEYS).map(function(name) {
             return SUPABASE_PUBLIC_STATE_KEYS[name];
         });
-        const PUBLIC_SHARED_STATE_REFRESH_MS = 30000;
+        const PUBLIC_SHARED_STATE_REFRESH_INTERVAL_MS = 30000;
         var siteSupabaseClient = null;
         var siteSupabaseInitialized = false;
         var paymentRequestsState = [];
@@ -200,6 +200,8 @@
         function publicVisitorHasActiveFormInteraction() {
             var active = document.activeElement;
             if (!active || typeof active.closest !== 'function') return false;
+            // Include standalone controls as well as form descendants because some
+            // signup/login actions on the page are rendered outside a <form>.
             return !!active.closest('form, input, textarea, select, button');
         }
 
@@ -422,6 +424,9 @@
             }
             if (nextFingerprint && nextFingerprint !== sharedPublicStateFingerprint) {
                 if (publicVisitorHasActiveFormInteraction()) return false;
+                // A full reload is intentional here because shared admin saves can
+                // replace large sections of #siteContent and need the normal boot
+                // sequence to restore the public read-only view safely.
                 window.location.reload();
                 return true;
             }
@@ -433,7 +438,7 @@
             if (isLocalPreviewMode()) return;
             sharedPublicStateRefreshTimer = window.setInterval(function() {
                 refreshSharedPublicStateForPublicView();
-            }, PUBLIC_SHARED_STATE_REFRESH_MS);
+            }, PUBLIC_SHARED_STATE_REFRESH_INTERVAL_MS);
         }
 
         // ---- Page navigation (SPA-style) ----
