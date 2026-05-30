@@ -21,7 +21,7 @@
         }
 
         header {
-            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+            background: #0B1F3A;
             color: white;
             padding: 1rem 0;
             position: sticky;
@@ -58,12 +58,19 @@
         }
 
         .site-logo {
-            width: 120px;
-            height: 120px;
-            object-fit: cover;
+            height: 80px;
+            width: auto;
+            object-fit: contain;
             border-radius: 50%;
             background: transparent;
             padding: 2px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        @media (min-width: 769px) {
+            .site-logo {
+                height: 100px;
+            }
         }
 
 
@@ -1889,7 +1896,7 @@ body.light-mode {
     color: #1a1a2e;
 }
 body.light-mode header {
-    background: linear-gradient(135deg, #fff7f0 0%, #ffe0b2 50%, #fff7f0 100%);
+    background: #0B1F3A;
     border-bottom-color: #e65100;
 }
 body.light-mode .nav-links a { color: #1a1a2e; }
