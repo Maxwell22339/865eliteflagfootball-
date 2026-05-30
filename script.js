@@ -365,7 +365,7 @@
             function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                await idbDelete(SITE_LOGO_KEY);
+                await clearPersistedLegacyLogoState();
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
                     await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
                 } else if (existingBg) {
@@ -1137,12 +1137,16 @@
                     icon.href = STATIC_LOGO_URL;
                     icon.type = 'image/png';
                 }
-                await idbDelete(SITE_LOGO_KEY);
-                try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) {}
-                try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) {}
+                await clearPersistedLegacyLogoState();
             } catch (err) {
                 // Ignore branding restore errors.
             }
+        }
+
+        async function clearPersistedLegacyLogoState() {
+            await idbDelete(SITE_LOGO_KEY);
+            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) {}
+            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) {}
         }
 
         async function applySavedHeroBackground() {
@@ -1413,7 +1417,18 @@
         function enforceHeaderLogoLayout() {
             var logoContainer = document.querySelector('header .logo-container');
             if (!logoContainer) return;
-            logoContainer.innerHTML = '<a href="#home" class="logo" aria-label="865 Elite Flag Football home"><img src="assets/logo.png" alt="865 Elite Flag Football logo" class="site-logo" loading="lazy"></a>';
+            logoContainer.replaceChildren();
+            var logoLink = document.createElement('a');
+            logoLink.href = '#home';
+            logoLink.className = 'logo';
+            logoLink.setAttribute('aria-label', '865 Elite Flag Football home');
+            var logoImage = document.createElement('img');
+            logoImage.src = STATIC_LOGO_URL;
+            logoImage.alt = '865 Elite Flag Football logo';
+            logoImage.className = 'site-logo';
+            logoImage.loading = 'lazy';
+            logoLink.appendChild(logoImage);
+            logoContainer.appendChild(logoLink);
         }
 
         /* ── Public Lockdown ──────────────────────────────────────
