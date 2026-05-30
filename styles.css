@@ -50,28 +50,19 @@
         }
 
         .logo {
-            font-size: 1.35rem;
-            font-weight: bold;
-            letter-spacing: 1px;
             display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 10px;
             flex-shrink: 0;
             transform-origin: top left;
             transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), background 0.4s ease, padding 0.4s ease, border-radius 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease, top 0.4s ease, left 0.4s ease;
             will-change: transform;
         }
 
-        .logo span {
-            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, letter-spacing 0.35s ease, font-size 0.35s ease;
-            transform-origin: left center;
-            line-height: 1.2;
-        }
-
         .site-logo {
-            width: 82px;
-            height: 82px;
-            object-fit: cover;
+            width: 170px;
+            height: 170px;
+            object-fit: contain;
             border-radius: 50%;
             background: #fff;
             padding: 2px;
@@ -82,12 +73,16 @@
         /* Mobile: make logo smaller in header by default */
         @media (max-width: 768px) {
             .site-logo {
-                width: 68px;
-                height: 68px;
+                width: 130px;
+                height: 130px;
             }
-            
-            .logo {
-                font-size: 1.05rem;
+        }
+
+        /* Desktop: larger logo */
+        @media (min-width: 1024px) {
+            .site-logo {
+                width: 190px;
+                height: 190px;
             }
         }
 
@@ -127,7 +122,7 @@
             top: 12px;
             left: 20px;
             z-index: 180;
-            padding: 8px 16px 8px 8px;
+            padding: 8px;
             background: rgba(15, 15, 35, 0.92);
             border: 1px solid rgba(255, 111, 0, 0.9);
             border-radius: 999px;
@@ -140,11 +135,6 @@
             width: 68px;
             height: 68px;
             transform: scale(1);
-        }
-
-        header.scrolled .logo span {
-            transform: scale(0.9);
-            letter-spacing: 0.5px;
         }
 
         .nav-links a {
@@ -1346,14 +1336,6 @@
                 width: 48px;
                 height: 48px;
             }
-
-            header.scrolled .logo span {
-                font-size: 0.85rem;
-                transform: scale(0.9);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
         }
 
         /* highlight editable areas when admin has editing enabled */
@@ -1818,10 +1800,6 @@ table.zebra tbody tr:hover {
     header.scrolled .site-logo {
         width: 40px;
         height: 40px;
-    }
-    
-    header.scrolled .logo span {
-        font-size: 0.75rem;
     }
 }
 
