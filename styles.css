@@ -21,13 +21,13 @@
         }
 
         header {
-            background: #0B1F3A;
+            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
             color: white;
             padding: 1rem 0;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .container {
@@ -1896,7 +1896,7 @@ body.light-mode {
     color: #1a1a2e;
 }
 body.light-mode header {
-    background: #0B1F3A;
+    background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
     border-bottom-color: #e65100;
 }
 body.light-mode .nav-links a { color: #1a1a2e; }
