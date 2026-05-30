@@ -264,7 +264,8 @@
                 'selectedSeasonArchive_v1',
                 'playoffBracket_v1',
                 'galleryMeta_v1',
-                PAYMENT_REQUESTS_KEY
+                PAYMENT_REQUESTS_KEY,
+                SUPABASE_PUBLIC_STATE_KEYS.siteLogo
             ];
             localKeys.forEach(function(key) {
                 try { localStorage.removeItem(key); } catch (err) {}
@@ -365,7 +366,6 @@
             function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
-                await clearPersistedLegacyLogoState();
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
                     await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
                 } else if (existingBg) {
@@ -1137,7 +1137,6 @@
                     icon.href = STATIC_LOGO_URL;
                     icon.type = 'image/png';
                 }
-                await clearPersistedLegacyLogoState();
             } catch (err) {
                 // Ignore branding restore errors.
             }
@@ -1145,8 +1144,8 @@
 
         async function clearPersistedLegacyLogoState() {
             await idbDelete(SITE_LOGO_KEY);
-            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) {}
-            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) {}
+            try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo cache key.', err); }
+            try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo state key.', err); }
         }
 
         async function applySavedHeroBackground() {
@@ -1417,6 +1416,17 @@
         function enforceHeaderLogoLayout() {
             var logoContainer = document.querySelector('header .logo-container');
             if (!logoContainer) return;
+            var existingLink = logoContainer.querySelector(':scope > a.logo');
+            var existingImage = existingLink ? existingLink.querySelector(':scope > img.site-logo') : null;
+            if (existingLink && existingImage && logoContainer.children.length === 1 && existingLink.children.length === 1) {
+                existingLink.href = '#home';
+                existingLink.setAttribute('aria-label', '865 Elite Flag Football home');
+                existingImage.src = STATIC_LOGO_URL;
+                existingImage.alt = '865 Elite Flag Football logo';
+                existingImage.className = 'site-logo';
+                existingImage.removeAttribute('loading');
+                return;
+            }
             logoContainer.replaceChildren();
             var logoLink = document.createElement('a');
             logoLink.href = '#home';
@@ -1573,6 +1583,7 @@
 
         (async function() {
             await migrateLocalStorageToIDB();
+            await clearPersistedLegacyLogoState();
             await hydrateSharedPublicStateFromSupabase();
             await restoreSiteContent();
             enforceHeaderLogoLayout();
