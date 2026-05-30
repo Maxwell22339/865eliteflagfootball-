@@ -1414,30 +1414,26 @@
         }
 
         function enforceHeaderLogoLayout() {
-            var logoContainer = document.querySelector('header .logo-container');
-            if (!logoContainer) return;
-            var existingLink = logoContainer.querySelector(':scope > a.logo');
-            var existingImage = existingLink ? existingLink.querySelector(':scope > img.site-logo') : null;
-            if (existingLink && existingImage && logoContainer.children.length === 1 && existingLink.children.length === 1) {
-                existingLink.href = '#home';
-                existingLink.setAttribute('aria-label', '865 Elite Flag Football home');
+            var logoDivs = document.querySelectorAll('header nav .logo');
+            var logoDiv = null;
+            for (var i = 0; i < logoDivs.length; i++) {
+                if (logoDivs[i].tagName === 'DIV') { logoDiv = logoDivs[i]; break; }
+            }
+            if (!logoDiv) return;
+            var existingImage = logoDiv.querySelector(':scope > img.site-logo');
+            if (existingImage && logoDiv.children.length === 1) {
                 existingImage.src = STATIC_LOGO_URL;
-                existingImage.alt = '865 Elite Flag Football logo';
+                existingImage.alt = '865 Elite logo';
                 existingImage.className = 'site-logo';
                 existingImage.removeAttribute('loading');
                 return;
             }
-            logoContainer.replaceChildren();
-            var logoLink = document.createElement('a');
-            logoLink.href = '#home';
-            logoLink.className = 'logo';
-            logoLink.setAttribute('aria-label', '865 Elite Flag Football home');
+            logoDiv.replaceChildren();
             var logoImage = document.createElement('img');
             logoImage.src = STATIC_LOGO_URL;
-            logoImage.alt = '865 Elite Flag Football logo';
+            logoImage.alt = '865 Elite logo';
             logoImage.className = 'site-logo';
-            logoLink.appendChild(logoImage);
-            logoContainer.appendChild(logoLink);
+            logoDiv.appendChild(logoImage);
         }
 
         /* ── Public Lockdown ──────────────────────────────────────
