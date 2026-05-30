@@ -146,11 +146,17 @@
             selectedSeasonArchiveId: 'selected_season_archive_id',
             playoffBracket: 'playoff_bracket'
         };
+        const ADMIN_MANAGED_PUBLIC_STATE_KEYS = Object.keys(SUPABASE_PUBLIC_STATE_KEYS).map(function(name) {
+            return SUPABASE_PUBLIC_STATE_KEYS[name];
+        });
+        const PUBLIC_SHARED_STATE_REFRESH_INTERVAL_MS = 30000;
         var siteSupabaseClient = null;
         var siteSupabaseInitialized = false;
         var paymentRequestsState = [];
         var membersState = null;
         var documentsState = [];
+        var sharedPublicStateFingerprint = '';
+        var sharedPublicStateRefreshTimer = null;
 
         function getSiteSupabaseConfig() {
             var config = window.__865EliteSupabaseConfig || {};
@@ -169,6 +175,34 @@
         function isLocalPreviewMode() {
             var host = String(window.location.hostname || '').toLowerCase();
             return window.location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
+        }
+
+        function isAdminManagedPublicStateKey(stateKey) {
+            return ADMIN_MANAGED_PUBLIC_STATE_KEYS.indexOf(stateKey) !== -1;
+        }
+
+        function buildSharedPublicStateFingerprint(rows) {
+            if (!Array.isArray(rows)) return '';
+            return JSON.stringify(rows.map(function(row) {
+                return {
+                    key: row && row.key ? row.key : '',
+                    value: row ? row.value : null
+                };
+            }).sort(function(a, b) {
+                return a.key.localeCompare(b.key);
+            }));
+        }
+
+        function shouldLogSharedPublicPersistWarning(result) {
+            return (!result || !result.saved) && !(result && result.blocked);
+        }
+
+        function publicVisitorHasActiveFormInteraction() {
+            var active = document.activeElement;
+            if (!active || typeof active.closest !== 'function') return false;
+            // Include standalone controls as well as form descendants because some
+            // signup/login actions on the page are rendered outside a <form>.
+            return !!active.closest('form, input, textarea, select, button');
         }
 
         function logSupabaseOperation(scope, level, message, details) {
@@ -272,9 +306,15 @@
         }
 
         async function persistSharedPublicStateToSupabase(stateKey, value, scope) {
-            if (isLocalPreviewMode()) return true;
+            // Local preview intentionally skips remote persistence so admins can test
+            // editing flows without a live Supabase write target.
+            if (isLocalPreviewMode()) return { saved: true, blocked: false };
+            if (isAdminManagedPublicStateKey(stateKey) && !isAdminLoggedIn()) {
+                logSupabaseOperation(scope || 'SharedState', 'warn', 'Blocked non-admin attempt to publish key "' + stateKey + '".');
+                return { saved: false, blocked: true };
+            }
             var client = getSiteSupabaseClient();
-            if (!client) return false;
+            if (!client) return { saved: false, blocked: false };
             var config = getSiteSupabaseConfig();
             try {
                 var response = await client
@@ -283,23 +323,23 @@
                 if (response.error) {
                     logSupabaseOperation(scope || 'SharedState', 'error', 'INSERT/UPDATE error for key "' + stateKey + '".', response.error);
                     logSupabaseRlsHint(scope || 'SharedState', response.error);
-                    return false;
+                    return { saved: false, blocked: false };
                 }
                 logSupabaseOperation(scope || 'SharedState', 'info', 'INSERT/UPDATE success for key "' + stateKey + '".');
-                return true;
+                return { saved: true, blocked: false };
             } catch (err) {
                 logSupabaseOperation(scope || 'SharedState', 'error', 'Unexpected INSERT/UPDATE failure for key "' + stateKey + '".', err);
                 logSupabaseRlsHint(scope || 'SharedState', err);
-                return false;
+                return { saved: false, blocked: false };
             }
         }
 
         function queueSharedPublicStatePersist(stateKey, value, scope) {
-            return persistSharedPublicStateToSupabase(stateKey, value, scope).then(function(saved) {
-                if (!saved && !isLocalPreviewMode()) {
+            return persistSharedPublicStateToSupabase(stateKey, value, scope).then(function(result) {
+                if (shouldLogSharedPublicPersistWarning(result) && !isLocalPreviewMode()) {
                     logSupabaseOperation(scope || 'SharedState', 'warn', 'Production data did not persist to Supabase for key "' + stateKey + '".');
                 }
-                return saved;
+                return !!(result && result.saved);
             });
         }
 
@@ -317,6 +357,7 @@
             // network error or RLS failure does not wipe locally-cached data.
             var rows = await fetchSharedPublicStateFromSupabase();
             if (rows === null) return false;
+            sharedPublicStateFingerprint = buildSharedPublicStateFingerprint(rows);
             await clearProductionPublicStateMirrors();
             var valueByKey = rows.reduce(function(acc, row) {
                 if (row && row.key) acc[row.key] = row.value;
@@ -368,6 +409,36 @@
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring localStorage-backed public state.', err);
             }
             return true;
+        }
+
+        async function refreshSharedPublicStateForPublicView() {
+            // Admins are the source of truth for edits, so only public visitors use
+            // the passive refresh loop to pick up newly-published content.
+            if (isLocalPreviewMode() || isAdminLoggedIn()) return false;
+            var rows = await fetchSharedPublicStateFromSupabase();
+            if (rows === null) return false;
+            var nextFingerprint = buildSharedPublicStateFingerprint(rows);
+            if (!sharedPublicStateFingerprint) {
+                sharedPublicStateFingerprint = nextFingerprint;
+                return false;
+            }
+            if (nextFingerprint && nextFingerprint !== sharedPublicStateFingerprint) {
+                if (publicVisitorHasActiveFormInteraction()) return false;
+                // A full reload is intentional here because shared admin saves can
+                // replace large sections of #siteContent and need the normal boot
+                // sequence to restore the public read-only view safely.
+                window.location.reload();
+                return true;
+            }
+            return false;
+        }
+
+        function startSharedPublicStateRefreshLoop() {
+            if (sharedPublicStateRefreshTimer) window.clearInterval(sharedPublicStateRefreshTimer);
+            if (isLocalPreviewMode()) return;
+            sharedPublicStateRefreshTimer = window.setInterval(function() {
+                refreshSharedPublicStateForPublicView();
+            }, PUBLIC_SHARED_STATE_REFRESH_INTERVAL_MS);
         }
 
         // ---- Page navigation (SPA-style) ----
@@ -1501,6 +1572,7 @@
             applySavedCtaButton();
             ensureAdminBrandingUI();
             enforceNonEditableAdminUI();
+            startSharedPublicStateRefreshLoop();
             ensureNavHamburger();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
@@ -4167,6 +4239,7 @@
         });
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'hidden') flushPersistSiteContent();
+            if (document.visibilityState === 'visible') refreshSharedPublicStateForPublicView();
         });
 
         function setAdminEditableText(enable) {
