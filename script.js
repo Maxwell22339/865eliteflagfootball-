@@ -101,6 +101,8 @@
             { username: 'Maxwell22339', password: 'Daush+1115' }
         ];
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
+        const PAGE_CONTENT_VERSION_KEY = 'siteContentVersion_v1';
+        const PAGE_CONTENT_TEMPLATE_VERSION = '20260530_remake_v1';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
         const CTA_BUTTON_KEY = 'heroCtaButton_v1';
@@ -125,6 +127,7 @@
         };
         const SUPABASE_PUBLIC_STATE_KEYS = {
             pageContent: 'page_content',
+            pageContentVersion: 'page_content_version',
             siteLogo: 'site_logo',
             homeHeroBackground: 'home_hero_background',
             ctaButton: 'cta_button',
@@ -244,6 +247,7 @@
         async function clearProductionPublicStateMirrors() {
             var localKeys = [
                 PAGE_CONTENT_KEY,
+                PAGE_CONTENT_VERSION_KEY,
                 SITE_LOGO_KEY,
                 HOME_HERO_BACKGROUND_KEY,
                 CTA_BUTTON_KEY,
@@ -279,6 +283,15 @@
             paymentRequestsState = [];
             membersState = null;
             documentsState = [];
+        }
+
+        function getStoredPageContentVersion() {
+            try {
+                var raw = localStorage.getItem(PAGE_CONTENT_VERSION_KEY);
+                return raw ? String(raw).trim() : '';
+            } catch (err) {
+                return '';
+            }
         }
 
         async function fetchSharedPublicStateFromSupabase() {
@@ -388,6 +401,11 @@
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring IndexedDB-backed public state.', err);
             }
             try {
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContentVersion) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContentVersion] != null) {
+                    localStorage.setItem(PAGE_CONTENT_VERSION_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContentVersion] || ''));
+                } else {
+                    localStorage.removeItem(PAGE_CONTENT_VERSION_KEY);
+                }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.ctaButton) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton] != null) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks] != null) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings] != null) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
@@ -1420,8 +1438,11 @@
             try {
                 const saved = await idbGet(PAGE_CONTENT_KEY);
                 const container = document.getElementById('siteContent');
-                if (saved && container) {
+                const savedVersion = getStoredPageContentVersion();
+                if (saved && container && savedVersion === PAGE_CONTENT_TEMPLATE_VERSION) {
                     container.innerHTML = saved;
+                } else if (saved && savedVersion !== PAGE_CONTENT_TEMPLATE_VERSION) {
+                    await idbDelete(PAGE_CONTENT_KEY);
                 }
             } catch (err) {
                 // If storage is unavailable or corrupted, continue with default markup.
@@ -1587,7 +1608,9 @@
                 var pmInfoClone = clone.querySelector('#paymentMethodsInfo');
                 if (pmInfoClone) { pmInfoClone.style.display = 'none'; pmInfoClone.querySelector('#paymentMethodsList') && (pmInfoClone.querySelector('#paymentMethodsList').innerHTML = ''); }
                 idbSet(PAGE_CONTENT_KEY, clone.innerHTML);
+                localStorage.setItem(PAGE_CONTENT_VERSION_KEY, PAGE_CONTENT_TEMPLATE_VERSION);
                 queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.pageContent, clone.innerHTML, 'PageContent');
+                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.pageContentVersion, PAGE_CONTENT_TEMPLATE_VERSION, 'PageContent');
             } catch (err) {
                 // Ignore storage write failures.
             }
