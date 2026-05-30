@@ -1386,8 +1386,8 @@
                                 var saveMsg = document.getElementById('saveMsg');
                                 if (saveMsg) {
                                     saveMsg.style.color = '#e74c3c';
-                                    saveMsg.textContent = '⚠ Logo saved locally but could not sync to cloud. Other visitors may not see the change. Check Supabase RLS policies (allow anon INSERT/UPDATE on league_site_data).';
-                                    setTimeout(function() { saveMsg.textContent = ''; saveMsg.style.color = ''; }, 10000);
+                                    saveMsg.textContent = '⚠ Logo saved locally but failed to sync to cloud — other visitors will not see the change until Supabase write access is enabled.';
+                                    setTimeout(function() { saveMsg.textContent = ''; saveMsg.style.color = ''; }, 8000);
                                 }
                             }
                         });
