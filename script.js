@@ -1426,7 +1426,6 @@
             logoImage.src = STATIC_LOGO_URL;
             logoImage.alt = '865 Elite Flag Football logo';
             logoImage.className = 'site-logo';
-            logoImage.loading = 'lazy';
             logoLink.appendChild(logoImage);
             logoContainer.appendChild(logoLink);
         }
