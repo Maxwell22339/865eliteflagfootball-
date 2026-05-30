@@ -1162,7 +1162,12 @@
                 if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
                     var registrations = await navigator.serviceWorker.getRegistrations();
                     await Promise.all(registrations.map(function(registration) {
-                        try { return registration.unregister(); } catch (err) { return false; }
+                        try {
+                            return registration.unregister();
+                        } catch (err) {
+                            console.warn('Failed unregistering a service worker during logo refresh.', err);
+                            return false;
+                        }
                     }));
                 }
             } catch (err) {
