@@ -193,6 +193,16 @@
             }));
         }
 
+        function shouldLogSharedPublicPersistWarning(result) {
+            return (!result || !result.saved) && !(result && result.blocked);
+        }
+
+        function publicVisitorHasActiveFormInteraction() {
+            var active = document.activeElement;
+            if (!active || typeof active.closest !== 'function') return false;
+            return !!active.closest('form, input, textarea, select, button');
+        }
+
         function logSupabaseOperation(scope, level, message, details) {
             var method = console[level] || console.log;
             if (details === undefined) method.call(console, '[' + scope + '][Supabase] ' + message);
@@ -294,6 +304,8 @@
         }
 
         async function persistSharedPublicStateToSupabase(stateKey, value, scope) {
+            // Local preview intentionally skips remote persistence so admins can test
+            // editing flows without a live Supabase write target.
             if (isLocalPreviewMode()) return { saved: true, blocked: false };
             if (isAdminManagedPublicStateKey(stateKey) && !isAdminLoggedIn()) {
                 logSupabaseOperation(scope || 'SharedState', 'warn', 'Blocked non-admin attempt to publish key "' + stateKey + '".');
@@ -322,7 +334,7 @@
 
         function queueSharedPublicStatePersist(stateKey, value, scope) {
             return persistSharedPublicStateToSupabase(stateKey, value, scope).then(function(result) {
-                if ((!result || !result.saved) && !(result && result.blocked) && !isLocalPreviewMode()) {
+                if (shouldLogSharedPublicPersistWarning(result) && !isLocalPreviewMode()) {
                     logSupabaseOperation(scope || 'SharedState', 'warn', 'Production data did not persist to Supabase for key "' + stateKey + '".');
                 }
                 return !!(result && result.saved);
@@ -398,6 +410,8 @@
         }
 
         async function refreshSharedPublicStateForPublicView() {
+            // Admins are the source of truth for edits, so only public visitors use
+            // the passive refresh loop to pick up newly-published content.
             if (isLocalPreviewMode() || isAdminLoggedIn()) return false;
             var rows = await fetchSharedPublicStateFromSupabase();
             if (rows === null) return false;
@@ -407,6 +421,7 @@
                 return false;
             }
             if (nextFingerprint && nextFingerprint !== sharedPublicStateFingerprint) {
+                if (publicVisitorHasActiveFormInteraction()) return false;
                 window.location.reload();
                 return true;
             }
