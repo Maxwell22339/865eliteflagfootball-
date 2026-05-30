@@ -384,6 +384,16 @@
             var existingBg = null;
             try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
 
+            // Snapshot existing logo state BEFORE clearing local mirrors so we can fall back
+            // to the locally-cached logo if Supabase does not have the key (e.g. a prior write
+            // was blocked by RLS or failed transiently).
+            var existingLogo = null;
+            var existingLogoOverrideEnabled = false;
+            try {
+                existingLogoOverrideEnabled = isSiteLogoOverrideEnabled();
+                existingLogo = await idbGet(SITE_LOGO_KEY);
+            } catch (err) {}
+
             // Fetch from Supabase BEFORE clearing local mirrors so that a transient
             // network error or RLS failure does not wipe locally-cached data.
             var rows = await fetchSharedPublicStateFromSupabase();
@@ -409,6 +419,12 @@
                 }
                 if (logoOverrideEnabled && hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
                     await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                } else if (!hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled) && existingLogoOverrideEnabled && existingLogo) {
+                    // Supabase has no record of the logo override — a prior write may have been
+                    // blocked by RLS or failed transiently. Preserve the locally-cached logo so
+                    // the change survives page reloads on this browser until Supabase is updated.
+                    await idbSet(SITE_LOGO_KEY, existingLogo);
+                    logoOverrideEnabled = true;
                 } else {
                     await idbDelete(SITE_LOGO_KEY);
                 }
@@ -427,6 +443,9 @@
                 }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled] != null) {
                     localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, logoOverrideEnabled ? '1' : '0');
+                } else if (logoOverrideEnabled) {
+                    // We fell back to the locally-cached logo — make sure the flag matches.
+                    localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, '1');
                 } else {
                     localStorage.removeItem(SITE_LOGO_OVERRIDE_FLAG_KEY);
                 }
@@ -1360,9 +1379,17 @@
                             var logoValue = storageUrl || logoPhoto;
                             idbSet(SITE_LOGO_KEY, logoValue);
                             try { localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, '1'); } catch (err) {}
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
-                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'Branding');
+                            var logoSaved = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
+                            var overrideSaved = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'Branding');
                             flushPersistSiteContent();
+                            if (!isLocalPreviewMode() && (!logoSaved || !overrideSaved)) {
+                                var saveMsg = document.getElementById('saveMsg');
+                                if (saveMsg) {
+                                    saveMsg.style.color = '#e74c3c';
+                                    saveMsg.textContent = '⚠ Logo saved locally but could not sync to cloud. Other visitors may not see the change. Check Supabase RLS policies (allow anon INSERT/UPDATE on league_site_data).';
+                                    setTimeout(function() { saveMsg.textContent = ''; saveMsg.style.color = ''; }, 10000);
+                                }
+                            }
                         });
                     };
                     reader.readAsDataURL(file);
