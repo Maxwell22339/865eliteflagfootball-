@@ -1093,7 +1093,7 @@
             if (templateIdInput) templateIdInput.value = PAYMENT_NOTIFICATION_SETTINGS.templateId || '';
         }
 
-        const STATIC_LOGO_URL = 'assets/images/865-elite-logo.png';
+        const STATIC_LOGO_URL = 'assets/logo.png';
         const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
         const BRANDING_STORAGE_FOLDER = 'branding';
 
