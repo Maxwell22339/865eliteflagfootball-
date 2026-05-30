@@ -23,6 +23,20 @@
             });
         }
 
+        function toBooleanStateValue(value) {
+            if (value === true || value === 1) return true;
+            var normalized = String(value || '').trim().toLowerCase();
+            return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+        }
+
+        function isSiteLogoOverrideEnabled() {
+            try {
+                return toBooleanStateValue(localStorage.getItem(SITE_LOGO_OVERRIDE_FLAG_KEY));
+            } catch (err) {
+                return false;
+            }
+        }
+
         // --- Helper: safe localStorage setter with quota handling ---
         function safeLocalStorageSet(key, value) {
             try {
@@ -104,6 +118,9 @@
         const PAGE_CONTENT_VERSION_KEY = 'siteContentVersion_v1';
         const PAGE_CONTENT_TEMPLATE_VERSION = '20260530_remake_v1';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
+        const SITE_LOGO_OVERRIDE_FLAG_KEY = 'siteLogoOverrideEnabled_v1';
+        const LOGO_CACHE_VERSION_KEY = 'logoCacheVersion_v1';
+        const LOGO_CACHE_VERSION = '20260530_logo_refresh_v1';
         const HOME_HERO_BACKGROUND_KEY = 'homeHeroBackgroundDataUrl_v1';
         const CTA_BUTTON_KEY = 'heroCtaButton_v1';
         const DEFAULT_PAYPAL_URL = 'https://paypal.me/tfick123';
@@ -129,6 +146,7 @@
             pageContent: 'page_content',
             pageContentVersion: 'page_content_version',
             siteLogo: 'site_logo',
+            siteLogoOverrideEnabled: 'site_logo_override_enabled',
             homeHeroBackground: 'home_hero_background',
             ctaButton: 'cta_button',
             paymentLinks: 'payment_links',
@@ -269,7 +287,9 @@
                 'playoffBracket_v1',
                 'galleryMeta_v1',
                 PAYMENT_REQUESTS_KEY,
-                SUPABASE_PUBLIC_STATE_KEYS.siteLogo
+                SUPABASE_PUBLIC_STATE_KEYS.siteLogo,
+                SITE_LOGO_OVERRIDE_FLAG_KEY,
+                SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled
             ];
             localKeys.forEach(function(key) {
                 try { localStorage.removeItem(key); } catch (err) {}
@@ -359,13 +379,10 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
-            // Snapshot existing branding from IndexedDB BEFORE clearing, so we can
-            // fall back to the local cache if Supabase does not return those keys
-            // (e.g. first-time visit, failed prior upsert, or RLS policy gap).
+            // Snapshot existing hero background from IndexedDB BEFORE clearing, so we
+            // can fall back to the local cache if Supabase does not return that key.
             var existingBg = null;
-            var existingLogo = null;
             try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
-            try { existingLogo = await idbGet(SITE_LOGO_KEY); } catch (err) {}
 
             // Fetch from Supabase BEFORE clearing local mirrors so that a transient
             // network error or RLS failure does not wipe locally-cached data.
@@ -379,6 +396,9 @@
             }, {});
             // hasKey helper: check that a key exists in the response (value may be falsy).
             function hasKey(k) { return Object.prototype.hasOwnProperty.call(valueByKey, k); }
+            var logoOverrideEnabled = hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled)
+                ? toBooleanStateValue(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled])
+                : false;
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
@@ -387,11 +407,10 @@
                     // Same fallback for the hero background.
                     await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
                 }
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
+                if (logoOverrideEnabled && hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
                     await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                } else if (existingLogo) {
-                    // Restore the local logo cache if Supabase did not return one.
-                    await idbSet(SITE_LOGO_KEY, existingLogo);
+                } else {
+                    await idbDelete(SITE_LOGO_KEY);
                 }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.documents)) {
                     documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
@@ -405,6 +424,11 @@
                     localStorage.setItem(PAGE_CONTENT_VERSION_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContentVersion] || ''));
                 } else {
                     localStorage.removeItem(PAGE_CONTENT_VERSION_KEY);
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled] != null) {
+                    localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, logoOverrideEnabled ? '1' : '0');
+                } else {
+                    localStorage.removeItem(SITE_LOGO_OVERRIDE_FLAG_KEY);
                 }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.ctaButton) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton] != null) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks] != null) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
@@ -1115,6 +1139,46 @@
         const STATIC_BACKGROUND_URL = 'assets/images/865-elite-background.jpeg';
         const BRANDING_STORAGE_FOLDER = 'branding';
 
+        function applyLogoToPage(logoUrl, mimeType) {
+            var nextLogoUrl = String(logoUrl || STATIC_LOGO_URL);
+            document.querySelectorAll('.site-logo, .footer-logo').forEach(function(img) { img.src = nextLogoUrl; });
+            document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(function(linkEl) {
+                linkEl.href = nextLogoUrl;
+                if (mimeType && linkEl.getAttribute('rel') !== 'apple-touch-icon') {
+                    linkEl.type = mimeType;
+                }
+            });
+        }
+
+        async function clearLegacyLogoCaches() {
+            var shouldRefreshCaches = false;
+            try {
+                shouldRefreshCaches = localStorage.getItem(LOGO_CACHE_VERSION_KEY) !== LOGO_CACHE_VERSION;
+            } catch (err) {
+                shouldRefreshCaches = true;
+            }
+            if (!shouldRefreshCaches) return;
+            try {
+                if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
+                    var registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(function(registration) {
+                        try { return registration.unregister(); } catch (err) { return false; }
+                    }));
+                }
+            } catch (err) {
+                console.warn('Failed clearing service worker registrations during logo refresh.', err);
+            }
+            try {
+                if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
+                    var cacheKeys = await caches.keys();
+                    await Promise.all(cacheKeys.map(function(cacheKey) { return caches.delete(cacheKey); }));
+                }
+            } catch (err) {
+                console.warn('Failed clearing Cache Storage during logo refresh.', err);
+            }
+            try { localStorage.setItem(LOGO_CACHE_VERSION_KEY, LOGO_CACHE_VERSION); } catch (err) {}
+        }
+
         // Upload a branding image (given as a data URL) to Supabase Storage so that
         // only a small public URL needs to be saved in the state table.  This avoids
         // storing large base64 blobs in the database column, which can cause silent
@@ -1157,30 +1221,33 @@
 
         async function applySavedBranding() {
             try {
+                var logoOverrideEnabled = isSiteLogoOverrideEnabled();
+                if (!logoOverrideEnabled) {
+                    await idbDelete(SITE_LOGO_KEY);
+                    applyLogoToPage(STATIC_LOGO_URL, 'image/png');
+                    return;
+                }
                 const savedLogo = await idbGet(SITE_LOGO_KEY);
                 if (savedLogo && (String(savedLogo).startsWith('data:') || String(savedLogo).startsWith('http'))) {
-                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
-                    const icon = document.querySelector('link[rel="icon"]');
-                    if (icon) {
-                        icon.href = savedLogo;
-                        const logoMime = /^data:([^;]+);/i.exec(savedLogo);
-                        icon.type = (logoMime && logoMime[1]) || 'image/png';
-                    }
+                    const logoMime = /^data:([^;]+);/i.exec(savedLogo);
+                    applyLogoToPage(savedLogo, (logoMime && logoMime[1]) || 'image/png');
+                    return;
                 }
-                // If no admin-uploaded logo is saved, leave the existing src as-is.
+                applyLogoToPage(STATIC_LOGO_URL, 'image/png');
             } catch (err) {
                 // Ignore branding restore errors.
+                applyLogoToPage(STATIC_LOGO_URL, 'image/png');
             }
         }
 
         async function clearPersistedLegacyLogoState() {
-            // Only clear localStorage copies (old legacy storage paths).
-            // Do NOT delete SITE_LOGO_KEY from IDB — it is now the local cache of the
-            // admin-uploaded logo fetched from Supabase during hydrateSharedPublicStateFromSupabase()
-            // and must survive page loads so the logo can be restored if Supabase is temporarily unreachable.
-            // Called once per page load before hydration to evict old localStorage entries.
+            // Clear legacy logo keys from browser storage before hydration.
+            // The active logo source is controlled by SUPABASE_PUBLIC_STATE_KEYS.siteLogo
+            // plus SITE_LOGO_OVERRIDE_FLAG_KEY.
             try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (SITE_LOGO_KEY).', err); }
             try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (siteLogo state key).', err); }
+            try { sessionStorage.removeItem(SITE_LOGO_KEY); } catch (err) {}
+            try { sessionStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) {}
         }
 
         async function applySavedHeroBackground() {
@@ -1277,19 +1344,16 @@
                         if (!dataUrl) return;
                         compressImageDataUrl(dataUrl, 200, 200, 0.8).then(async function(logoPhoto) {
                             // Apply immediately so the UI updates without waiting for storage
-                            document.querySelectorAll('.site-logo').forEach(img => { img.src = logoPhoto; });
-                            const icon = document.querySelector('link[rel="icon"]');
-                            if (icon) {
-                                icon.href = logoPhoto;
-                                const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
-                                icon.type = (logoMime && logoMime[1]) || 'image/jpeg';
-                            }
+                            const logoMime = /^data:([^;]+);/i.exec(logoPhoto || '');
+                            applyLogoToPage(logoPhoto, (logoMime && logoMime[1]) || 'image/jpeg');
                             // Try to persist as a Storage URL (small) so the state table
                             // row stays tiny and the upsert never fails due to image size.
                             var storageUrl = await uploadBrandingImageToSupabase(logoPhoto, 'site-logo.jpg');
                             var logoValue = storageUrl || logoPhoto;
                             idbSet(SITE_LOGO_KEY, logoValue);
+                            try { localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, '1'); } catch (err) {}
                             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, logoValue, 'Branding');
+                            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'Branding');
                             flushPersistSiteContent();
                         });
                     };
@@ -1617,6 +1681,7 @@
         }
 
         (async function() {
+            await clearLegacyLogoCaches();
             await migrateLocalStorageToIDB();
             await clearPersistedLegacyLogoState();
             await hydrateSharedPublicStateFromSupabase();
