@@ -14,23 +14,20 @@
 
         :root {
             --hero-photo: url('assets/images/865-elite-background.jpeg');
-            --header-offset: 108px;
+            --header-offset: 152px;
             --hamburger-color: #ff9d2f;
             --hamburger-hover-border: #ffb04f;
             --hamburger-hover-color: #ffc67a;
         }
 
-        header, .site-header {
-            background: linear-gradient(135deg, rgba(15, 15, 35, 0.96) 0%, rgba(22, 33, 62, 0.95) 50%, rgba(15, 15, 35, 0.96) 100%);
+        header {
+            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
             color: white;
-            padding: 24px 0;
+            padding: 1rem 0;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 6px 24px rgba(0,0,0,0.45);
-            border-bottom: 2px solid rgba(255, 111, 0, 0.9);
-            backdrop-filter: blur(8px);
-            transition: background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease, padding 0.4s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .container {
@@ -40,54 +37,29 @@
             overflow-x: hidden; /* Prevent overflow in containers */
         }
 
-        header .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
         nav {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            gap: 14px;
             position: relative;
-            width: 100%;
-            transition: min-height 0.4s ease;
         }
 
         .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 1px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            flex-shrink: 0;
-            transform-origin: top left;
-            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), background 0.4s ease, padding 0.4s ease, border-radius 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease, top 0.4s ease, left 0.4s ease;
-            will-change: transform;
-        }
-
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
+            gap: 10px;
         }
 
         .site-logo {
-            width: min(85vw, 420px);
-            max-width: 420px;
-            height: auto;
-            display: block;
-            object-fit: contain;
-            background: transparent;
-            border: none;
-            box-shadow: none;
-        }
-
-        @media (max-width: 768px) {
-            .site-logo {
-                width: min(90vw, 340px);
-            }
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #fff;
+            padding: 2px;
         }
 
 
@@ -95,65 +67,18 @@
         .nav-links {
             display: flex;
             list-style: none;
-            gap: 0.75rem;
+            gap: 2rem;
             align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
-        }
-
-        header.scrolled {
-            background: transparent;
-            box-shadow: none;
-            border-bottom-color: transparent;
-            padding: 0;
-        }
-
-        header.scrolled nav {
-            min-height: 0;
-        }
-
-        header.scrolled .nav-links:not(.nav-open) {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transform: translateY(-12px);
-        }
-
-        header.scrolled .logo {
-            position: fixed;
-            top: 12px;
-            left: 20px;
-            z-index: 180;
-            padding: 8px;
-            background: rgba(15, 15, 35, 0.92);
-            border: 1px solid rgba(255, 111, 0, 0.9);
-            border-radius: 999px;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.28);
-            backdrop-filter: blur(10px);
-            transform: translateY(0) scale(0.88);
-        }
-
-        header.scrolled .site-logo {
-            width: 68px;
-            height: auto;
-            transform: scale(1);
         }
 
         .nav-links a {
             color: white;
             text-decoration: none;
-            transition: opacity 0.3s, background-color 0.3s, transform 0.2s;
-            padding: 0.5rem 0.75rem;
-            border-radius: 999px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
+            transition: opacity 0.3s;
         }
 
         .nav-links a:hover {
-            opacity: 1;
-            background: rgba(255, 111, 0, 0.17);
-            transform: translateY(-1px);
+            opacity: 0.8;
         }
 
         .cta-button.small { padding: 6px 10px; font-size: 0.95rem; border-radius: 4px; }
@@ -1327,18 +1252,6 @@
                 width: 60px;
                 height: 60px;
             }
-
-            header.scrolled .logo {
-                top: 10px;
-                left: 12px;
-                padding: 6px 12px 6px 6px;
-                max-width: calc(100vw - 80px); /* Leave room for hamburger */
-            }
-
-            header.scrolled .site-logo {
-                width: 48px;
-                height: auto;
-            }
         }
 
         /* highlight editable areas when admin has editing enabled */
@@ -1424,14 +1337,7 @@
             font-size: 1rem;
         }
 
-        /* Keep hamburger visible; pin it when scrolled */
-        header.scrolled .nav-hamburger {
-            display: block;
-            position: fixed;
-            top: 14px;
-            right: 20px;
-            z-index: 400;
-        }
+        /* Keep hamburger visible on mobile */
 
         /* Mobile: always show hamburger, hide nav row */
         @media (max-width: 900px) {
@@ -1445,10 +1351,6 @@
 
         /* Improve hamburger position on mobile */
         @media (max-width: 768px) {
-            header.scrolled .nav-hamburger {
-                top: 10px;
-                right: 12px;
-            }
             .nav-quick-select {
                 position: fixed;
                 top: 64px;
@@ -1798,12 +1700,6 @@ table.zebra tbody tr:hover {
     .hero-info-grid {
         grid-template-columns: 1fr;
     }
-    
-    /* Smaller logo on very small screens when scrolled */
-    header.scrolled .site-logo {
-        width: 40px;
-        height: auto;
-    }
 }
 
 /* ===================================
@@ -1991,10 +1887,6 @@ body.light-mode {
 body.light-mode header {
     background: linear-gradient(135deg, #fff7f0 0%, #ffe0b2 50%, #fff7f0 100%);
     border-bottom-color: #e65100;
-}
-body.light-mode header.scrolled .logo {
-    background: rgba(255,247,240,0.95);
-    border-color: rgba(255,111,0,0.85);
 }
 body.light-mode .nav-links a { color: #1a1a2e; }
 body.light-mode .hero {
