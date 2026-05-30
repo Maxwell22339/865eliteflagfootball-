@@ -346,11 +346,13 @@
 
         async function hydrateSharedPublicStateFromSupabase() {
             if (isLocalPreviewMode()) return false;
-            // Snapshot existing background branding from IndexedDB BEFORE clearing, so we can
-            // fall back to the local copy if Supabase does not return those keys
+            // Snapshot existing branding from IndexedDB BEFORE clearing, so we can
+            // fall back to the local cache if Supabase does not return those keys
             // (e.g. first-time visit, failed prior upsert, or RLS policy gap).
             var existingBg = null;
+            var existingLogo = null;
             try { existingBg = await idbGet(HOME_HERO_BACKGROUND_KEY); } catch (err) {}
+            try { existingLogo = await idbGet(SITE_LOGO_KEY); } catch (err) {}
 
             // Fetch from Supabase BEFORE clearing local mirrors so that a transient
             // network error or RLS failure does not wipe locally-cached data.
@@ -371,6 +373,12 @@
                 } else if (existingBg) {
                     // Same fallback for the hero background.
                     await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
+                    await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                } else if (existingLogo) {
+                    // Restore the local logo cache if Supabase did not return one.
+                    await idbSet(SITE_LOGO_KEY, existingLogo);
                 }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.documents)) {
                     documentsState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.documents] : [];
@@ -1131,19 +1139,28 @@
 
         async function applySavedBranding() {
             try {
-                document.querySelectorAll('.site-logo').forEach(img => { img.src = STATIC_LOGO_URL; });
-                const icon = document.querySelector('link[rel="icon"]');
-                if (icon) {
-                    icon.href = STATIC_LOGO_URL;
-                    icon.type = 'image/png';
+                const savedLogo = await idbGet(SITE_LOGO_KEY);
+                if (savedLogo && (String(savedLogo).startsWith('data:') || String(savedLogo).startsWith('http'))) {
+                    document.querySelectorAll('.site-logo').forEach(img => { img.src = savedLogo; });
+                    const icon = document.querySelector('link[rel="icon"]');
+                    if (icon) {
+                        icon.href = savedLogo;
+                        const logoMime = /^data:([^;]+);/i.exec(savedLogo);
+                        icon.type = (logoMime && logoMime[1]) || 'image/png';
+                    }
                 }
+                // If no admin-uploaded logo is saved, leave the existing src as-is.
             } catch (err) {
                 // Ignore branding restore errors.
             }
         }
 
         async function clearPersistedLegacyLogoState() {
-            await idbDelete(SITE_LOGO_KEY);
+            // Only clear localStorage copies (old legacy storage paths).
+            // Do NOT delete SITE_LOGO_KEY from IDB — it is now the local cache of the
+            // admin-uploaded logo fetched from Supabase during hydrateSharedPublicStateFromSupabase()
+            // and must survive page loads so the logo can be restored if Supabase is temporarily unreachable.
+            // Called once per page load before hydration to evict old localStorage entries.
             try { localStorage.removeItem(SITE_LOGO_KEY); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (SITE_LOGO_KEY).', err); }
             try { localStorage.removeItem(SUPABASE_PUBLIC_STATE_KEYS.siteLogo); } catch (err) { console.warn('Failed clearing legacy logo from localStorage (siteLogo state key).', err); }
         }
@@ -1422,7 +1439,6 @@
             if (!logoDiv) return;
             var existingImage = logoDiv.querySelector(':scope > img.site-logo');
             if (existingImage && logoDiv.children.length === 1) {
-                existingImage.src = STATIC_LOGO_URL;
                 existingImage.alt = '865 Elite logo';
                 existingImage.className = 'site-logo';
                 existingImage.removeAttribute('loading');
