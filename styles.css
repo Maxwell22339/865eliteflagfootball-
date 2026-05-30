@@ -62,7 +62,7 @@
             height: 120px;
             object-fit: cover;
             border-radius: 50%;
-            background: #0f0f23;
+            background: transparent;
             padding: 2px;
         }
 
