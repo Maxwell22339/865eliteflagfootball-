@@ -20,10 +20,10 @@
             --hamburger-hover-color: #ffc67a;
         }
 
-        header {
+        header, .site-header {
             background: linear-gradient(135deg, rgba(15, 15, 35, 0.96) 0%, rgba(22, 33, 62, 0.95) 50%, rgba(15, 15, 35, 0.96) 100%);
             color: white;
-            padding: 1rem 0;
+            padding: 24px 0;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -67,15 +67,15 @@
         }
 
         .logo-container {
-            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 24px 0;
+            width: 100%;
         }
 
         .site-logo {
             width: min(85vw, 420px);
+            max-width: 420px;
             height: auto;
             display: block;
             object-fit: contain;
@@ -83,7 +83,7 @@
 
         @media (max-width: 768px) {
             .site-logo {
-                width: min(90vw, 360px);
+                width: min(90vw, 340px);
             }
         }
 
