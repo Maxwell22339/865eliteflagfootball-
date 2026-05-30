@@ -1162,12 +1162,10 @@
                 if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistrations === 'function') {
                     var registrations = await navigator.serviceWorker.getRegistrations();
                     await Promise.all(registrations.map(function(registration) {
-                        try {
-                            return registration.unregister();
-                        } catch (err) {
+                        return Promise.resolve(registration.unregister()).catch(function(err) {
                             console.warn('Failed unregistering a service worker during logo refresh.', err);
                             return false;
-                        }
+                        });
                     }));
                 }
             } catch (err) {
@@ -1176,7 +1174,12 @@
             try {
                 if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
                     var cacheKeys = await caches.keys();
-                    await Promise.all(cacheKeys.map(function(cacheKey) { return caches.delete(cacheKey); }));
+                    await Promise.all(cacheKeys.map(function(cacheKey) {
+                        return Promise.resolve(caches.delete(cacheKey)).catch(function(err) {
+                            console.warn('Failed deleting cache "' + cacheKey + '" during logo refresh.', err);
+                            return false;
+                        });
+                    }));
                 }
             } catch (err) {
                 console.warn('Failed clearing Cache Storage during logo refresh.', err);
