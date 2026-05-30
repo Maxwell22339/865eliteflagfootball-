@@ -11,7 +11,7 @@ This repository contains the static site for the league website, hosted with Git
 - Main markup: `index.html`
 - Main styles: `styles.css`
 - Main behavior: `script.js`
-- Local preview: open `/tmp/workspace/Maxwell22339/865eliteflagfootball-/index.html` in a browser
+- Local preview: open `index.html` in a browser
 
 ## Static branding note
 
