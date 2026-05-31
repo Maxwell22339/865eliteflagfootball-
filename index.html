@@ -49,7 +49,7 @@
     </script>
     
     <!-- External CSS -->
-    <link rel="stylesheet" href="styles.css?v=20260530c">
+    <link rel="stylesheet" href="styles.css?v=20260531a">
     
     <!-- Redirect from github.io to custom domain -->
     <script>
@@ -63,9 +63,9 @@
     <a href="#main-content" class="skip-link">Skip to main content</a>
     
     <!-- Login Modal -->
-    <div id="loginModal" class="login-modal hidden" style="display:none">
+    <div id="loginModal" class="login-modal hidden">
         <div class="login-content">
-            <button id="closeLoginModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <button id="closeLoginModal" aria-label="Close admin login" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
             <h2>Admin Login</h2>
 
             <!-- Step 1: Pick which admin you are -->
@@ -93,9 +93,9 @@
     </div> 
 
     <!-- Member Modal (Register / Login) -->
-    <div id="memberModal" class="login-modal hidden" style="display:none">
+    <div id="memberModal" class="login-modal hidden">
         <div class="login-content">
-            <button id="closeMemberModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <button id="closeMemberModal" aria-label="Close member modal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
             <h2>Member — Register / Login</h2>
 
             <div id="memberForms">
@@ -130,7 +130,7 @@
     </div>
 
     <!-- Document Sign Modal -->
-    <div id="signModal" class="login-modal hidden" style="display:none">
+    <div id="signModal" class="login-modal hidden">
         <div class="login-content sign-modal">
             <h2>Sign Document</h2>
             <div id="docPreviewArea" style="height:320px; overflow:auto; border:1px solid #eee; margin-bottom:12px; display:flex; align-items:center; justify-content:center;">
