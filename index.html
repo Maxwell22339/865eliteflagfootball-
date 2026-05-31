@@ -49,7 +49,7 @@
     </script>
     
     <!-- External CSS -->
-    <link rel="stylesheet" href="styles.css?v=20260530c">
+    <link rel="stylesheet" href="styles.css?v=20260531b">
     
     <!-- Redirect from github.io to custom domain -->
     <script>
@@ -63,9 +63,9 @@
     <a href="#main-content" class="skip-link">Skip to main content</a>
     
     <!-- Login Modal -->
-    <div id="loginModal" class="login-modal hidden" style="display:none">
+    <div id="loginModal" class="login-modal hidden">
         <div class="login-content">
-            <button id="closeLoginModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <button id="closeLoginModal" aria-label="Close admin login" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
             <h2>Admin Login</h2>
 
             <!-- Step 1: Pick which admin you are -->
@@ -93,9 +93,9 @@
     </div> 
 
     <!-- Member Modal (Register / Login) -->
-    <div id="memberModal" class="login-modal hidden" style="display:none">
+    <div id="memberModal" class="login-modal hidden">
         <div class="login-content">
-            <button id="closeMemberModal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <button id="closeMemberModal" aria-label="Close member modal" style="position:absolute; top:8px; right:12px; background:transparent; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
             <h2>Member — Register / Login</h2>
 
             <div id="memberForms">
@@ -130,7 +130,7 @@
     </div>
 
     <!-- Document Sign Modal -->
-    <div id="signModal" class="login-modal hidden" style="display:none">
+    <div id="signModal" class="login-modal hidden">
         <div class="login-content sign-modal">
             <h2>Sign Document</h2>
             <div id="docPreviewArea" style="height:320px; overflow:auto; border:1px solid #eee; margin-bottom:12px; display:flex; align-items:center; justify-content:center;">
@@ -199,31 +199,42 @@
     <!-- Hero Section -->
     <main id="main-content">
     <section class="hero" id="home">
+        <!-- Floating particles -->
+        <div class="hero-particles" aria-hidden="true">
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+            <span class="hero-particle"></span>
+        </div>
         <div class="container hero-layout">
             <div class="hero-content">
                 <div class="hero-branding">
                     <a href="#home" class="hero-brand-mark" aria-label="Go to home page">865 Elite</a>
                 </div>
                 <p class="hero-eyebrow">Knoxville's premier adult flag football league</p>
-                <h1>865 Elite Flag Football</h1>
+                <h1 class="gradient-text text-shadow-hero">865 Elite Flag Football</h1>
                 <h2 class="hero-subtitle">Competitive games, weekly action, and a home base that keeps every player ready for the next matchup.</h2>
                 <p class="hero-description">Jump into sign-ups, check the schedule, track the standings, and stay connected with 865 Elite from one cleaner home page.</p>
                 <div class="hero-actions">
-                    <a id="heroCtaBtn" href="#payments" class="cta-button">Join Our League</a>
+                    <a id="heroCtaBtn" href="#payments" class="cta-button cta-glow cta-pulse">Join Our League</a>
                     <a href="#leagueSchedule" class="cta-button secondary">View Schedule</a>
                 </div>
-                <div class="hero-highlights" aria-label="League highlights">
-                    <article class="hero-highlight">
+                <div class="hero-highlights reveal-stagger" aria-label="League highlights">
+                    <article class="hero-highlight hover-glow">
                         <span class="hero-highlight-label">League Hub</span>
                         <h2>Everything in one place</h2>
                         <p>Standings, player stats, schedules, playoff updates, and registration all stay easy to reach.</p>
                     </article>
-                    <article class="hero-highlight">
+                    <article class="hero-highlight hover-glow">
                         <span class="hero-highlight-label">Game Day</span>
                         <h2>Built for weekly action</h2>
                         <p>Keep the next matchup, recent results, and league updates front and center without the clutter.</p>
                     </article>
-                    <article class="hero-highlight">
+                    <article class="hero-highlight hover-glow">
                         <span class="hero-highlight-label">Community</span>
                         <h2>Play hard. Stay connected.</h2>
                         <p>Use the site to sign up, share documents, and stay in touch with the league throughout the season.</p>
@@ -232,18 +243,18 @@
             </div>
 
             <div class="home-hero-panel">
-                <div class="hero-info-grid">
-                    <article class="hero-info-card">
+                <div class="hero-info-grid reveal-stagger">
+                    <article class="hero-info-card hover-glow">
                         <span class="hero-info-label">Location</span>
                         <strong class="hero-info-value">Knoxville, Tennessee</strong>
                         <p>John Tarleton Park is the home field for league nights and featured matchups.</p>
                     </article>
-                    <article class="hero-info-card">
+                    <article class="hero-info-card hover-glow">
                         <span class="hero-info-label">Quick Access</span>
                         <strong class="hero-info-value">Schedule, standings, and sign-up</strong>
                         <p>Get where you need to go fast without digging through the page.</p>
                     </article>
-                    <article class="hero-info-card hero-info-card-wide">
+                    <article class="hero-info-card hero-info-card-wide hover-glow">
                         <span class="hero-info-label">Need more?</span>
                         <strong class="hero-info-value">Open documents or contact the league anytime.</strong>
                         <p><a href="#documentsPublic">League documents</a> and <a href="#contact">contact details</a> are just one click away.</p>
@@ -274,7 +285,7 @@
     </section>
 
     <!-- About Section -->
-    <section class="about" id="about">
+    <section class="about section-divider pattern-dots reveal" id="about">
         <div class="container">
             <h2>About Us</h2>
             <div class="about-content">
@@ -304,7 +315,7 @@
 
 
     <!-- League Standings Section -->
-    <section class="schedule" id="standings" data-no-admin-edit="true" contenteditable="false">
+    <section class="schedule reveal" id="standings" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>League Standings</h2>
             <table class="schedule-table" id="leagueStandingsTable">
@@ -358,7 +369,7 @@
     </section>
 
     <!-- Playoff Bracket Section -->
-    <section class="schedule" id="playoff" data-no-admin-edit="true" contenteditable="false">
+    <section class="schedule reveal" id="playoff" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>Playoff Bracket</h2>
             <p style="text-align:center; color:#bbb; margin-bottom:2rem;">Follow the playoff action as teams battle for the championship!</p>
@@ -380,7 +391,7 @@
         </div>
     </section>
 
-    <section class="schedule" id="leagueSchedule" data-no-admin-edit="true" contenteditable="false">
+    <section class="schedule pattern-grid reveal" id="leagueSchedule" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>League Schedule</h2>
             <table class="schedule-table" id="leagueScheduleTable">
@@ -455,7 +466,7 @@
     </section>
 
     <!-- Season Stats Section -->
-    <section class="schedule" id="player-stats" data-no-admin-edit="true" contenteditable="false">
+    <section class="schedule reveal" id="player-stats" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>Season Stats</h2>
             <p id="currentSeasonLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>
@@ -549,7 +560,7 @@
         </div>
     </section>
 
-    <section class="schedule" id="season-recap" data-no-admin-edit="true" contenteditable="false">
+    <section class="schedule reveal" id="season-recap" data-no-admin-edit="true" contenteditable="false">
         <div class="container">
             <h2>Season Recap</h2>
             <p id="seasonRecapLabelDisplay" style="text-align:center; margin-bottom:16px; color:#ffb366; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"></p>
@@ -604,7 +615,7 @@
     </section>
 
     <!-- Photo Gallery Section -->
-    <section class="gallery-section" id="gallery">
+    <section class="gallery-section reveal" id="gallery">
         <div class="container">
             <h2>Photo Gallery</h2>
             <p style="text-align:center; color:#bbb; margin-bottom:2rem;">Game highlights, team photos, and action shots from 865 Elite Flag Football.</p>
@@ -631,7 +642,7 @@
     </section>
 
     <!-- Payments Section -->
-    <section class="payments" id="payments">
+    <section class="payments section-divider-top reveal" id="payments">
         <div class="container">
             <h2>Team/Free Agent Sign Up</h2>
             <div class="signup-intro">
@@ -1004,7 +1015,7 @@
     </section>
 
     <!-- FAQ Section -->
-    <section class="faq-section" id="faq">
+    <section class="faq-section pattern-dots reveal" id="faq">
         <div class="container">
             <h2>Frequently Asked Questions</h2>
             <div class="faq-list" id="faqList">
@@ -1061,7 +1072,7 @@
     </section>
 
     <!-- Contact Section -->
-    <section class="contact" id="contact">
+    <section class="contact reveal" id="contact">
         <div class="container">
             <h2>Get In Touch</h2>
             <div class="contact-info">
