@@ -179,6 +179,43 @@
             max-width: 680px;
         }
 
+        .hero-branding {
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-brand-mark {
+            max-width: min(100%, 360px);
+            min-height: 120px;
+            padding: 18px 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 143, 0, 0.48);
+            background: linear-gradient(145deg, rgba(6, 11, 30, 0.96) 0%, rgba(20, 36, 74, 0.94) 100%);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+            color: #fff;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-weight: 800;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+        }
+
+        .hero-brand-mark.has-logo {
+            overflow: hidden;
+        }
+
+        .hero-brand-mark img {
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: min(100%, 300px);
+            max-height: 140px;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.35));
+        }
+
         .hero-eyebrow {
             display: inline-flex;
             align-items: center;
@@ -1280,6 +1317,12 @@
 
             .hero-content {
                 max-width: none;
+            }
+
+            .hero-brand-mark {
+                max-width: 100%;
+                min-height: 104px;
+                padding: 16px 20px;
             }
 
             .hero-highlights {

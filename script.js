@@ -1227,8 +1227,9 @@
 
         function applyLogoToPage(logoUrl) {
             enforceHeaderLogoLayout();
-            renderBrandMark(document.querySelector('header nav .brand-mark'), logoUrl);
-            renderBrandMark(document.querySelector('.footer-brand-mark'), logoUrl);
+            document.querySelectorAll('header nav .brand-mark, .hero-brand-mark, .footer-brand-mark').forEach(function(markEl) {
+                renderBrandMark(markEl, logoUrl);
+            });
         }
 
         async function clearLegacyLogoCaches() {
