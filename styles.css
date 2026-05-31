@@ -1388,7 +1388,7 @@
             text-align: right;
             position: sticky;
             top: 0;
-            z-index: 50;
+            z-index: 150;
             border-bottom: 2px solid #ff6f00;
             display: flex;
             flex-wrap: wrap;
