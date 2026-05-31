@@ -2156,7 +2156,7 @@
                 teamYears: row && row.team_years,
                 offPosition: row && row.off_position,
                 defPosition: row && row.def_position,
-                experience: row && row.football_experience,
+                experience: row && row.experience,
                 paymentUsername: row && row.payment_username,
                 status: row && row.status,
                 submittedAt: row && row.submitted_at,
@@ -2177,7 +2177,7 @@
                 team_years: normalized.teamYears,
                 off_position: normalized.offPosition,
                 def_position: normalized.defPosition,
-                football_experience: normalized.experience,
+                experience: normalized.experience,
                 payment_username: normalized.paymentUsername,
                 status: normalized.status,
                 submitted_at: normalized.submittedAt || new Date().toISOString(),
@@ -2196,7 +2196,7 @@
             try {
                 var response = await client
                     .from(config.registrationsTable)
-                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, football_experience, payment_username, status, submitted_at, reviewed_at')
+                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, experience, payment_username, status, submitted_at, reviewed_at')
                     .order('submitted_at', { ascending: true });
                 if (response.error) {
                     logPaymentSupabaseError('Select', 'Failed to fetch signup rows from table "' + config.registrationsTable + '".', response.error);
