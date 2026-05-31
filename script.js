@@ -1217,8 +1217,8 @@
             var safeBackgroundUrl = normalizeBrandingImageUrl(backgroundUrl);
             var media = hero.querySelector(':scope > .hero-background-media');
 
-            // Cache-bust Supabase URLs to avoid stale images
-            if (safeBackgroundUrl && /^https?:\/\//i.test(safeBackgroundUrl)) {
+            // Cache-bust Supabase storage URLs to avoid stale images
+            if (safeBackgroundUrl && /^https?:\/\/[^/]*\.supabase\.co\//i.test(safeBackgroundUrl)) {
                 var separator = safeBackgroundUrl.indexOf('?') === -1 ? '?' : '&';
                 safeBackgroundUrl += separator + 'v=' + Date.now();
             }
@@ -1627,7 +1627,7 @@
             }
 
             if (!document.getElementById('bgPositionSelect')) {
-                const select = document.createElement('select');
+                var select = document.createElement('select');
                 select.id = 'bgPositionSelect';
                 select.title = 'Background focal point';
                 select.style.cssText = 'margin-right:8px;padding:6px 10px;font-size:0.85rem;border-radius:4px;border:1px solid #ff6f00;background:#16213e;color:#e0e0e0;cursor:pointer;';
