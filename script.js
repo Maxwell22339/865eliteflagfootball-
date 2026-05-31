@@ -1699,6 +1699,10 @@
             document.querySelectorAll('[data-no-admin-edit="true"]').forEach(el => {
                 el.setAttribute('contenteditable', 'false');
             });
+            // Ensure all admin-area buttons are never contenteditable (prevents click interception)
+            document.querySelectorAll('#adminOnly button, #adminHeader button, #leagueScheduleAdminPanel button, #galleryAdminPanel button, #playoffAdminPanel button').forEach(function(el) {
+                el.removeAttribute('contenteditable');
+            });
         }
 
         function ensureNavHamburger() {
@@ -4600,7 +4604,7 @@
 
         function setAdminEditableText(enable) {
             var editableSelector = 'header .nav-links a, #home h1, #home p, #home .cta-button, section h2, section h3, section h4, section p, section li, section td, section th, section label, section a, section button, footer p';
-            var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, form';
+            var protectedScopeSelector = '.login-modal, #adminHeader, #memberHeader, #player-stats, #leagueScheduleAdminPanel, #adminOnly, #paypalSettings, #galleryAdminPanel, #playoffAdminPanel, form';
 
             document.querySelectorAll(editableSelector).forEach(function(el) {
                 if (el.closest(protectedScopeSelector)) {
@@ -4628,8 +4632,12 @@
                 setAdminEditableText(true);
                 document.body.classList.add('admin-editable');
                 // Protect all form controls and protected surfaces from contenteditable
-                document.querySelectorAll('form, input, select, textarea, canvas, .login-modal, #memberHeader, #adminHeader, #paymentForm, #leagueScheduleAdminPanel, #player-stats').forEach(function(el) {
+                document.querySelectorAll('form, input, select, textarea, canvas, .login-modal, #memberHeader, #adminHeader, #paymentForm, #leagueScheduleAdminPanel, #player-stats, #adminOnly, #galleryAdminPanel, #playoffAdminPanel').forEach(function(el) {
                     el.setAttribute('contenteditable', 'false');
+                });
+                // Ensure all admin buttons are clickable (remove contenteditable)
+                document.querySelectorAll('#adminOnly button, #adminHeader button, #galleryAdminPanel button, #playoffAdminPanel button').forEach(function(el) {
+                    el.removeAttribute('contenteditable');
                 });
                 document.querySelectorAll('#adminOnly input, #adminOnly select, #adminOnly textarea, #adminOnly button').forEach(function(el) {
                     el.disabled = false;
