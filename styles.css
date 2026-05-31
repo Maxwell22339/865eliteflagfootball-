@@ -2694,3 +2694,495 @@ footer {
 
 /* --- Contact section map --- */
 .map-container iframe { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+
+/* =============================================
+   VISUAL IMPROVEMENTS — Animations & Polish
+   ============================================= */
+
+/* --- 1. Scroll-reveal animations --- */
+@keyframes revealUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes revealScale {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reveal-scale {
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-scale.revealed {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Staggered children reveal */
+.reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-stagger.revealed > *:nth-child(1) { transition-delay: 0.05s; }
+.reveal-stagger.revealed > *:nth-child(2) { transition-delay: 0.12s; }
+.reveal-stagger.revealed > *:nth-child(3) { transition-delay: 0.19s; }
+.reveal-stagger.revealed > *:nth-child(4) { transition-delay: 0.26s; }
+.reveal-stagger.revealed > *:nth-child(5) { transition-delay: 0.33s; }
+.reveal-stagger.revealed > *:nth-child(6) { transition-delay: 0.4s; }
+
+.reveal-stagger.revealed > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* --- 2. Gradient text effects on section headings --- */
+.gradient-text {
+    background: linear-gradient(135deg, #ff6f00 0%, #ffab40 50%, #ff6f00 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+}
+
+/* --- 3. Animated gradient border on hero CTA --- */
+.cta-glow {
+    position: relative;
+    z-index: 1;
+}
+
+.cta-glow::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #ff6f00, #ffc107, #ff6f00, #ff8f00);
+    background-size: 300% 300%;
+    animation: glowBorder 3s ease-in-out infinite;
+    z-index: -1;
+    opacity: 0.7;
+    filter: blur(6px);
+    transition: opacity 0.3s;
+}
+
+.cta-glow:hover::after {
+    opacity: 1;
+    filter: blur(8px);
+}
+
+@keyframes glowBorder {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* --- 4. Glass-morphism enhancements --- */
+.glass-card {
+    background: rgba(22, 33, 62, 0.6);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(255, 111, 0, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.3s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 111, 0, 0.35);
+}
+
+/* --- 5. Animated background patterns for sections --- */
+.pattern-dots {
+    position: relative;
+}
+
+.pattern-dots::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 111, 0, 0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pattern-dots > .container {
+    position: relative;
+    z-index: 1;
+}
+
+.pattern-grid {
+    position: relative;
+}
+
+.pattern-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 111, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 111, 0, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pattern-grid > .container {
+    position: relative;
+    z-index: 1;
+}
+
+/* --- 6. Decorative section dividers --- */
+.section-divider {
+    position: relative;
+    overflow: hidden;
+}
+
+.section-divider::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 111, 0, 0.5), transparent);
+}
+
+.section-divider-top::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 111, 0, 0.4), transparent);
+    z-index: 1;
+}
+
+/* --- 7. Pulse/glow on primary CTA --- */
+@keyframes ctaPulse {
+    0%, 100% {
+        box-shadow: 0 4px 18px rgba(255, 111, 0, 0.35),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    0 0 0 0 rgba(255, 111, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 18px rgba(255, 111, 0, 0.35),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    0 0 0 8px rgba(255, 111, 0, 0);
+    }
+}
+
+.cta-pulse {
+    animation: ctaPulse 2.5s ease-in-out infinite;
+}
+
+.cta-pulse:hover {
+    animation: none;
+}
+
+/* --- 8. Typography rhythm improvements --- */
+.text-balance {
+    text-wrap: balance;
+}
+
+.text-shadow-hero {
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
+                 0 8px 24px rgba(0, 0, 0, 0.3),
+                 0 0 60px rgba(255, 111, 0, 0.08);
+}
+
+/* Improved paragraph line-height in content sections */
+.about-text p,
+.hero-description,
+.hero-highlight p,
+.hero-info-card p,
+.faq-answer {
+    line-height: 1.75;
+}
+
+/* Better letter-spacing for small labels */
+.hero-eyebrow,
+.hero-highlight-label,
+.hero-info-label,
+.countdown-label,
+.latest-results-header,
+.signup-badge {
+    font-feature-settings: 'ss01' on, 'cv01' on;
+}
+
+/* --- 9. Hover micro-interactions --- */
+.hover-lift {
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hover-glow {
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.hover-glow:hover {
+    box-shadow: 0 0 20px rgba(255, 111, 0, 0.2),
+                0 8px 30px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 111, 0, 0.5);
+}
+
+/* Nav links underline animation */
+.nav-links a {
+    position: relative;
+}
+
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #ff8f00;
+    transition: width 0.3s ease, left 0.3s ease;
+    border-radius: 1px;
+}
+
+.nav-links a:hover::after,
+.nav-links a.active::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Table row hover shine effect */
+.schedule-table tbody tr,
+.teams-table tbody tr {
+    position: relative;
+    overflow: hidden;
+}
+
+.schedule-table tbody tr::after,
+.teams-table tbody tr::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 111, 0, 0.04), transparent);
+    transition: left 0.5s ease;
+    pointer-events: none;
+}
+
+.schedule-table tbody tr:hover::after,
+.teams-table tbody tr:hover::after {
+    left: 100%;
+}
+
+/* --- 10. Skeleton loading placeholders --- */
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.03) 25%,
+        rgba(255, 255, 255, 0.08) 50%,
+        rgba(255, 255, 255, 0.03) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+    border-radius: 6px;
+}
+
+.skeleton-text {
+    height: 1em;
+    margin-bottom: 0.6em;
+    border-radius: 4px;
+}
+
+.skeleton-card {
+    height: 180px;
+    border-radius: 12px;
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+/* --- Bonus: Floating particles in hero (CSS only) --- */
+.hero-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.hero-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 143, 0, 0.3);
+    border-radius: 50%;
+    animation: particleFloat 12s ease-in-out infinite;
+}
+
+.hero-particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; animation-duration: 14s; }
+.hero-particle:nth-child(2) { left: 25%; top: 60%; animation-delay: 2s; animation-duration: 11s; }
+.hero-particle:nth-child(3) { left: 50%; top: 30%; animation-delay: 4s; animation-duration: 16s; }
+.hero-particle:nth-child(4) { left: 70%; top: 70%; animation-delay: 1s; animation-duration: 13s; }
+.hero-particle:nth-child(5) { left: 85%; top: 40%; animation-delay: 3s; animation-duration: 10s; }
+.hero-particle:nth-child(6) { left: 40%; top: 80%; animation-delay: 5s; animation-duration: 15s; }
+.hero-particle:nth-child(7) { left: 15%; top: 45%; animation-delay: 6s; animation-duration: 12s; width: 3px; height: 3px; }
+.hero-particle:nth-child(8) { left: 60%; top: 15%; animation-delay: 7s; animation-duration: 17s; width: 5px; height: 5px; opacity: 0.2; }
+
+@keyframes particleFloat {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.3;
+    }
+    25% {
+        transform: translate(20px, -30px) scale(1.2);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate(-10px, -50px) scale(0.8);
+        opacity: 0.4;
+    }
+    75% {
+        transform: translate(15px, -20px) scale(1.1);
+        opacity: 0.5;
+    }
+}
+
+/* --- Smooth gradient animated header bottom border --- */
+header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ff6f00, #ffc107, #ff6f00, #ff8f00);
+    background-size: 300% 100%;
+    animation: headerBorderFlow 4s linear infinite;
+}
+
+@keyframes headerBorderFlow {
+    0% { background-position: 0% 0; }
+    100% { background-position: 300% 0; }
+}
+
+/* --- Subtle breathing glow on hero brand mark --- */
+@keyframes brandBreath {
+    0%, 100% {
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                    0 0 0 1px rgba(255, 143, 0, 0.1),
+                    0 0 30px rgba(255, 143, 0, 0);
+    }
+    50% {
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                    0 0 0 1px rgba(255, 143, 0, 0.1),
+                    0 0 30px rgba(255, 143, 0, 0.12);
+    }
+}
+
+.hero-brand-mark {
+    animation: brandBreath 3.5s ease-in-out infinite;
+}
+
+.hero-brand-mark:hover {
+    animation: none;
+}
+
+/* --- Improved focus-visible (keyboard only) --- */
+:focus-visible {
+    outline: 3px solid #ff8f00;
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal-scale,
+    .reveal-stagger > * {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+    .gradient-text {
+        animation: none;
+    }
+    .cta-glow::after {
+        animation: none;
+    }
+    .cta-pulse {
+        animation: none;
+    }
+    .hero-particle {
+        animation: none;
+        display: none;
+    }
+    header::after {
+        animation: none;
+    }
+    .hero-brand-mark {
+        animation: none;
+    }
+    @keyframes shimmer {
+        from, to { background-position: 0 0; }
+    }
+}

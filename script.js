@@ -5931,3 +5931,32 @@
                 if (playoffAdmin) playoffAdmin.classList.add('visible');
             }
         });
+
+/* =============================================
+   Scroll-Reveal Observer
+   ============================================= */
+(function initScrollReveal() {
+    if (!('IntersectionObserver' in window)) {
+        // Fallback: just reveal everything immediately
+        document.querySelectorAll('.reveal, .reveal-scale, .reveal-stagger').forEach(function(el) {
+            el.classList.add('revealed');
+        });
+        return;
+    }
+
+    var revealObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('revealed');
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.12,
+        rootMargin: '0px 0px -40px 0px'
+    });
+
+    document.querySelectorAll('.reveal, .reveal-scale, .reveal-stagger').forEach(function(el) {
+        revealObserver.observe(el);
+    });
+})();
