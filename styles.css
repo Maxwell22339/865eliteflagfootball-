@@ -321,7 +321,7 @@
             font-size: clamp(3rem, 6vw, 5rem);
             margin-bottom: 1rem;
             line-height: 1.08;
-            text-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 12px 28px rgba(0,0,0,0.3);
+            text-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3);
             text-transform: uppercase;
             letter-spacing: 3px;
             word-break: break-word;
@@ -2515,7 +2515,7 @@ footer {
     width: 78px;
     height: 78px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 143, 0, 0.7);
+    border: 2px solid rgba(255, 143, 0, 0.65);
     display: inline-flex;
     align-items: center;
     justify-content: center;
