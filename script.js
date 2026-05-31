@@ -465,6 +465,11 @@
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.seasonArchives) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives] != null) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] != null) localStorage.setItem('selectedSeasonArchive_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId] || ''));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.playoffBracket) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket] != null) localStorage.setItem('playoffBracket_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.playoffBracket]));
+                if (hasKey('hero_bg_position') && valueByKey['hero_bg_position'] != null) {
+                    localStorage.setItem('heroBgPosition_v1', String(valueByKey['hero_bg_position'] || 'center'));
+                    var hero = document.querySelector('.hero');
+                    if (hero) hero.style.setProperty('--hero-bg-position', String(valueByKey['hero_bg_position'] || 'center'));
+                }
                 membersState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members] : [];
             } catch (err) {
                 logSupabaseOperation('SharedState', 'error', 'Failed mirroring localStorage-backed public state.', err);
@@ -1211,17 +1216,43 @@
             if (!hero) return;
             var safeBackgroundUrl = normalizeBrandingImageUrl(backgroundUrl);
             var media = hero.querySelector(':scope > .hero-background-media');
+
+            // Cache-bust Supabase storage URLs to avoid stale images
+            if (safeBackgroundUrl && /^https?:\/\/[^/]*\.supabase\.co\//i.test(safeBackgroundUrl)) {
+                var separator = safeBackgroundUrl.indexOf('?') === -1 ? '?' : '&';
+                safeBackgroundUrl += separator + 'v=' + Date.now();
+            }
+
             if (safeBackgroundUrl) {
                 if (!media) {
                     media = document.createElement('img');
                     media.className = 'hero-background-media';
                     media.alt = '';
                     media.setAttribute('aria-hidden', 'true');
+                    media.loading = 'eager';
+                    media.fetchPriority = 'high';
+                    media.decoding = 'async';
                     hero.insertBefore(media, hero.firstChild);
                 }
+                // Show shimmer placeholder while loading
+                hero.classList.add('hero-background-loading');
+                // Reset loaded state for new image
+                media.classList.remove('loaded');
+                // Fade in when image loads
+                media.onload = function() {
+                    media.classList.add('loaded');
+                    hero.classList.remove('hero-background-loading');
+                };
+                // Error handler: remove broken image and fall back to gradient
+                media.onerror = function() {
+                    media.classList.remove('loaded');
+                    hero.classList.remove('hero-background-loading');
+                    media.remove();
+                };
                 media.src = safeBackgroundUrl;
             } else {
                 if (media) media.remove();
+                hero.classList.remove('hero-background-loading');
             }
         }
 
@@ -1332,6 +1363,14 @@
         }
 
         async function applySavedHeroBackground() {
+            // Restore saved background position
+            try {
+                var savedPos = localStorage.getItem('heroBgPosition_v1');
+                if (savedPos) {
+                    var hero = document.querySelector('.hero');
+                    if (hero) hero.style.setProperty('--hero-bg-position', savedPos);
+                }
+            } catch (err) {}
             try {
                 var savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
                 applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : '');
@@ -1506,9 +1545,9 @@
                     await handleBrandingUpload(file, {
                         filename: BRANDING_HOME_BACKGROUND_FILENAME,
                         storageKey: HOME_HERO_BACKGROUND_KEY,
-                        maxWidth: 1600,
-                        maxHeight: 900,
-                        quality: 0.85,
+                        maxWidth: 1920,
+                        maxHeight: 1080,
+                        quality: 0.80,
                         pendingMessage: 'Saving home background...',
                         successMessage: 'Home background saved.',
                         apply: function(value) {
@@ -1585,6 +1624,40 @@
                 input.accept = 'image/*';
                 input.hidden = true;
                 adminHeader.appendChild(input);
+            }
+
+            if (!document.getElementById('bgPositionSelect')) {
+                var select = document.createElement('select');
+                select.id = 'bgPositionSelect';
+                select.title = 'Background focal point';
+                select.style.cssText = 'margin-right:8px;padding:6px 10px;font-size:0.85rem;border-radius:4px;border:1px solid #ff6f00;background:#16213e;color:#e0e0e0;cursor:pointer;';
+                var positions = [
+                    { value: 'center', label: 'Center' },
+                    { value: 'center top', label: 'Top' },
+                    { value: 'center bottom', label: 'Bottom' },
+                    { value: 'left center', label: 'Left' },
+                    { value: 'right center', label: 'Right' }
+                ];
+                positions.forEach(function(pos) {
+                    var opt = document.createElement('option');
+                    opt.value = pos.value;
+                    opt.textContent = 'BG: ' + pos.label;
+                    select.appendChild(opt);
+                });
+                // Restore saved position
+                try {
+                    var savedPos = localStorage.getItem('heroBgPosition_v1') || 'center';
+                    select.value = savedPos;
+                } catch (err) {}
+                select.onchange = function() {
+                    var hero = document.querySelector('.hero');
+                    if (hero) hero.style.setProperty('--hero-bg-position', select.value);
+                    try { localStorage.setItem('heroBgPosition_v1', select.value); } catch (err) {}
+                    if (isAdminLoggedIn()) {
+                        queueSharedPublicStatePersist('hero_bg_position', select.value, 'BgPosition');
+                    }
+                };
+                adminHeader.appendChild(select);
             }
 
             const toggleBtn = document.getElementById('togglePageEditBtn');
