@@ -686,6 +686,10 @@
             var target = document.getElementById(id);
             if (target) {
                 target.style.display = 'block';
+                // Ensure reveal animation classes are applied so section is visible
+                if (target.classList.contains('reveal') || target.classList.contains('reveal-scale') || target.classList.contains('reveal-stagger')) {
+                    target.classList.add('revealed');
+                }
                 // Trigger fade-in animation
                 target.classList.remove('page-fade-in');
                 void target.offsetWidth; // force reflow
@@ -926,7 +930,13 @@
                     if (el) el.style.display = 'none';
                 });
                 var target = document.getElementById(id);
-                if (target) { target.style.display = 'block'; window.scrollTo(0, 0); }
+                if (target) {
+                    target.style.display = 'block';
+                    if (target.classList.contains('reveal') || target.classList.contains('reveal-scale') || target.classList.contains('reveal-stagger')) {
+                        target.classList.add('revealed');
+                    }
+                    window.scrollTo(0, 0);
+                }
                 updateHeaderScrollState();
             } else {
                 showPage('home');
