@@ -2117,7 +2117,7 @@
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
             return {
-                id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : crypto.randomUUID())).trim(),
+                id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }))).trim(),
                 name: String(item.name || '').trim(),
                 email: String(item.email || '').trim(),
                 type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
@@ -2838,7 +2838,7 @@
             requests.push({
                 id: window.crypto && typeof window.crypto.randomUUID === 'function'
                     ? window.crypto.randomUUID()
-                    : crypto.randomUUID(),
+                    : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }),
                 name,
                 email,
                 type,
