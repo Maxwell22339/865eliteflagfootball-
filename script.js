@@ -2100,7 +2100,14 @@
         }
 
         function logPaymentSupabaseError(type, message, error) {
-            console.error('[Signup][Supabase][' + type + '] ' + message, error || '');
+            console.error('[Signup][Supabase][' + type + '] ' + message);
+            if (error) {
+                console.error('[Signup][Supabase][' + type + '] Full error object:', JSON.stringify(error, null, 2));
+                console.error('[Signup][Supabase][' + type + '] error.message:', error.message);
+                console.error('[Signup][Supabase][' + type + '] error.details:', error.details);
+                console.error('[Signup][Supabase][' + type + '] error.hint:', error.hint);
+                console.error('[Signup][Supabase][' + type + '] error.code:', error.code);
+            }
             var details = String((error && (error.message || error.details || error.hint)) || '').toLowerCase();
             if (details.indexOf('row-level security') !== -1 || details.indexOf('rls') !== -1 || details.indexOf('permission denied') !== -1) {
                 console.error('[Signup][Supabase][RLS] Check RLS SELECT/INSERT/UPDATE policies for registrations table.', error || '');
@@ -2206,22 +2213,23 @@
 
         async function persistPaymentRequestsToSupabase(list) {
             var client = getSiteSupabaseClient();
-            if (!client) return false;
+            if (!client) return { ok: false, errorMessage: 'Supabase client is not configured.' };
             var config = getSiteSupabaseConfig();
             try {
                 var rows = normalizePaymentRequestList(list).map(mapPaymentSignupRecord);
+                console.info('[Signup][Supabase][Insert] Inserting into table "' + config.registrationsTable + '":', JSON.stringify(rows, null, 2));
                 var response = await client
                     .from(config.registrationsTable)
                     .upsert(rows, { onConflict: 'id' });
                 if (response.error) {
                     logPaymentSupabaseError('Insert', 'Failed to insert/update signup rows in table "' + config.registrationsTable + '".', response.error);
-                    return false;
+                    return { ok: false, errorMessage: response.error.message || 'Unknown Supabase error.' };
                 }
                 console.info('[Signup][Supabase][Insert] Success.', { rows: rows.length });
-                return true;
+                return { ok: true };
             } catch (err) {
                 logPaymentSupabaseError('Insert', 'Unexpected failure while saving signup rows.', err);
-                return false;
+                return { ok: false, errorMessage: (err && err.message) || 'Unexpected error while saving signup.' };
             }
         }
 
@@ -2242,16 +2250,16 @@
             paymentRequestsState = normalized;
             renderAdminPaymentRequests();
             renderAdminSignupNotifications();
-            if (skipRemote) return true;
-            var saved = await persistPaymentRequestsToSupabase(normalized);
-            if (!saved) {
+            if (skipRemote) return { ok: true };
+            var result = await persistPaymentRequestsToSupabase(normalized);
+            if (!result.ok) {
                 paymentRequestsState = previous;
                 renderAdminPaymentRequests();
                 renderAdminSignupNotifications();
                 logPaymentSignupEvent('warn', 'Signup change was not persisted to Supabase; reverting local state.');
-                return false;
+                return result;
             }
-            return true;
+            return { ok: true };
         }
 
         function renderAdminSignupNotifications() {
@@ -2455,10 +2463,10 @@
                         items[idx].reviewedAt = new Date().toISOString();
                         try {
                             const saved = await savePaymentRequests(items);
-                            if (!saved) {
-                                alert('Approval update failed to persist to Supabase. Check console for details.');
+                            if (!saved.ok) {
+                                alert('Approval update failed: ' + (saved.errorMessage || 'Check console for details.'));
                             }
-                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved, rows: items.length });
+                            logPaymentSignupEvent('info', 'Admin approved signup request.', { index: idx, savedToSupabase: saved.ok, rows: items.length });
                         } catch (err) {
                             alert('Failed to save approval update. Please try again.');
                             logPaymentSignupEvent('error', 'Failed saving admin approval update.', err);
@@ -2475,10 +2483,10 @@
                         items[idx].reviewedAt = new Date().toISOString();
                         try {
                             const saved = await savePaymentRequests(items);
-                            if (!saved) {
-                                alert('Denial update failed to persist to Supabase. Check console for details.');
+                            if (!saved.ok) {
+                                alert('Denial update failed: ' + (saved.errorMessage || 'Check console for details.'));
                             }
-                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved, rows: items.length });
+                            logPaymentSignupEvent('info', 'Admin denied signup request.', { index: idx, savedToSupabase: saved.ok, rows: items.length });
                         } catch (err) {
                             alert('Failed to save denial update. Please try again.');
                             logPaymentSignupEvent('error', 'Failed saving admin denial update.', err);
@@ -2845,13 +2853,13 @@
                 status: 'pending',
                 submittedAt: submittedAt
             });
-            const savedToSupabase = await savePaymentRequests(requests);
-            if (!savedToSupabase) {
+            const saveResult = await savePaymentRequests(requests);
+            if (!saveResult.ok) {
                 if (msg) {
                     msg.style.color = '#e65100';
-                    msg.textContent = 'Signup could not be saved to Supabase. Please try again after checking the console.';
+                    msg.textContent = 'Signup could not be saved: ' + (saveResult.errorMessage || 'Unknown error. Check console for details.');
                 }
-                logPaymentSignupEvent('warn', 'Signup insert failed and no browser-only fallback was used.', { submittedAt: submittedAt, email: email });
+                logPaymentSignupEvent('warn', 'Signup insert failed and no browser-only fallback was used.', { submittedAt: submittedAt, email: email, errorMessage: saveResult.errorMessage });
                 return;
             }
             logPaymentSignupEvent('info', 'Signup persisted to Supabase.', { submittedAt: submittedAt, email: email, rows: requests.length });
