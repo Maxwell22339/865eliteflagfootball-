@@ -1184,7 +1184,7 @@
         function renderBrandMark(markEl, logoUrl) {
             if (!markEl) return;
             markEl.href = '#home';
-            markEl.setAttribute('aria-label', logoUrl ? '865 Elite Flag Football logo' : '865 Elite Flag Football');
+            markEl.setAttribute('aria-label', 'Go to home page');
             markEl.classList.toggle('has-logo', !!logoUrl);
             markEl.replaceChildren();
             if (logoUrl) {
@@ -1325,7 +1325,7 @@
         function readFileAsDataUrl(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
-                reader.onload = function(event) { resolve(String(event.target && event.target.result || '')); };
+                reader.onload = function(event) { resolve(String((event.target && event.target.result) || '')); };
                 reader.onerror = function() { reject(new Error('Unable to read image.')); };
                 reader.readAsDataURL(file);
             });
@@ -1638,7 +1638,7 @@
             var existingBrandMark = logoDiv.querySelector(':scope > a.brand-mark');
             if (existingBrandMark && logoDiv.children.length === 1) {
                 existingBrandMark.href = '#home';
-                existingBrandMark.setAttribute('aria-label', '865 Elite Flag Football');
+                existingBrandMark.setAttribute('aria-label', 'Go to home page');
                 existingBrandMark.textContent = '865 Elite';
                 return;
             }
@@ -1646,7 +1646,7 @@
             var brandMark = document.createElement('a');
             brandMark.href = '#home';
             brandMark.className = 'brand-mark';
-            brandMark.setAttribute('aria-label', '865 Elite Flag Football');
+            brandMark.setAttribute('aria-label', 'Go to home page');
             brandMark.textContent = '865 Elite';
             logoDiv.appendChild(brandMark);
         }
