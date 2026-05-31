@@ -29,8 +29,8 @@ In `index.html`, set `window.__865EliteSupabaseConfig` once and keep the same UR
 window.__865EliteSupabaseConfig = {
   url: 'https://YOUR_PROJECT_REF.supabase.co',
   anonKey: 'YOUR_SUPABASE_ANON_KEY',
-  stateTable: 'league_site_data',
-  registrationsTable: 'registrations',
+  stateTable: 'site_content',
+  registrationsTable: 'signup_submissions',
   galleryImagesTable: 'gallery_images',
   galleryBucket: 'gallery-images'
 };
@@ -39,12 +39,12 @@ window.__865EliteSupabaseConfig = {
 ### 2) Run this SQL in Supabase
 
 ```sql
-create table if not exists public.league_site_data (
+create table if not exists public.site_content (
   key text primary key,
   value jsonb not null default '{}'::jsonb
 );
 
-create table if not exists public.registrations (
+create table if not exists public.signup_submissions (
   id text primary key,
   name text not null default '',
   email text not null default '',
@@ -70,54 +70,54 @@ create table if not exists public.gallery_images (
   created_at timestamptz not null default now()
 );
 
-alter table public.league_site_data enable row level security;
-alter table public.registrations enable row level security;
+alter table public.site_content enable row level security;
+alter table public.signup_submissions enable row level security;
 alter table public.gallery_images enable row level security;
 
 -- shared public state
 -- NOTE: The frontend admin login uses the anon key (not Supabase Auth), so
 -- INSERT/UPDATE policies must allow the `anon` role. Otherwise all admin saves
 -- (logo, page content, standings, etc.) fail silently and revert on page reload.
-drop policy if exists "league site data select" on public.league_site_data;
-create policy "league site data select"
-on public.league_site_data
+drop policy if exists "site content select" on public.site_content;
+create policy "site content select"
+on public.site_content
 for select
 to anon, authenticated
 using (true);
 
-drop policy if exists "league site data insert" on public.league_site_data;
-create policy "league site data insert"
-on public.league_site_data
+drop policy if exists "site content insert" on public.site_content;
+create policy "site content insert"
+on public.site_content
 for insert
 to anon, authenticated
 with check (true);
 
-drop policy if exists "league site data update" on public.league_site_data;
-create policy "league site data update"
-on public.league_site_data
+drop policy if exists "site content update" on public.site_content;
+create policy "site content update"
+on public.site_content
 for update
 to anon, authenticated
 using (true)
 with check (true);
 
 -- signup rows
-drop policy if exists "registrations select" on public.registrations;
-create policy "registrations select"
-on public.registrations
+drop policy if exists "signup submissions select" on public.signup_submissions;
+create policy "signup submissions select"
+on public.signup_submissions
 for select
 to anon, authenticated
 using (true);
 
-drop policy if exists "registrations insert" on public.registrations;
-create policy "registrations insert"
-on public.registrations
+drop policy if exists "signup submissions insert" on public.signup_submissions;
+create policy "signup submissions insert"
+on public.signup_submissions
 for insert
 to anon, authenticated
 with check (true);
 
-drop policy if exists "registrations update" on public.registrations;
-create policy "registrations update"
-on public.registrations
+drop policy if exists "signup submissions update" on public.signup_submissions;
+create policy "signup submissions update"
+on public.signup_submissions
 for update
 to anon, authenticated
 using (true)
@@ -182,11 +182,11 @@ using (bucket_id = 'gallery-images');
 
 ### 3) Expected production behavior
 
-- Signup submissions `INSERT` into `public.registrations`
-- Signup admin list/count `SELECT` from `public.registrations` on page load
+- Signup submissions `INSERT` into `public.signup_submissions`
+- Signup admin list/count `SELECT` from `public.signup_submissions` on page load
 - Gallery uploads store files in Supabase Storage and metadata rows in `public.gallery_images`
 - Gallery display `SELECT`s from `public.gallery_images` on page load
-- Admin content/settings updates `INSERT` or `UPDATE` rows in `public.league_site_data`
+- Admin content/settings updates `INSERT` or `UPDATE` rows in `public.site_content`
 - Production pages should not depend on browser-only localStorage/sessionStorage for shared public data
 - Console should show Supabase client initialization plus `SELECT` / `INSERT` success or error messages and row counts
 
