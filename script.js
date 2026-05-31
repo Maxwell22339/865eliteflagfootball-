@@ -1545,9 +1545,9 @@
                     await handleBrandingUpload(file, {
                         filename: BRANDING_HOME_BACKGROUND_FILENAME,
                         storageKey: HOME_HERO_BACKGROUND_KEY,
-                        maxWidth: 1920,
-                        maxHeight: 1080,
-                        quality: 0.80,
+                        maxWidth: 3840,
+                        maxHeight: 2160,
+                        quality: 0.92,
                         pendingMessage: 'Saving home background...',
                         successMessage: 'Home background saved.',
                         apply: function(value) {
