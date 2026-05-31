@@ -2117,7 +2117,7 @@
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
             return {
-                id: String(item.id || ('signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10))).trim(),
+                id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : crypto.randomUUID())).trim(),
                 name: String(item.name || '').trim(),
                 email: String(item.email || '').trim(),
                 type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
@@ -2837,8 +2837,8 @@
             const requests = loadPaymentRequests();
             requests.push({
                 id: window.crypto && typeof window.crypto.randomUUID === 'function'
-                    ? 'signup_' + window.crypto.randomUUID()
-                    : 'signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
+                    ? window.crypto.randomUUID()
+                    : crypto.randomUUID(),
                 name,
                 email,
                 type,
