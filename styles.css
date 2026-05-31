@@ -55,7 +55,7 @@
             align-items: center;
             gap: 12px;
             background: var(--logo-shell-bg);
-            border-radius: 999px;
+            border-radius: 50%;
             border: 2px solid rgba(255, 143, 0, 0.5);
             padding: 6px;
             box-shadow: var(--logo-shell-glow);
@@ -68,18 +68,18 @@
         }
 
         .brand-mark {
-            min-height: 82px;
-            padding: 0 24px;
+            width: 82px;
+            height: 82px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 999px;
+            border-radius: 50%;
             color: #fff;
             text-decoration: none;
             text-transform: uppercase;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.08em;
             font-weight: 900;
-            font-size: 1.05rem;
+            font-size: 0.75rem;
             border: 2px solid rgba(255, 143, 0, 0.55);
             background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.12), transparent 50%),
                         linear-gradient(155deg, #0a1530 0%, #142a52 50%, #0d1a3a 100%);
@@ -89,6 +89,10 @@
                         0 0 0 1px rgba(255, 143, 0, 0.12);
             text-shadow: 0 2px 6px rgba(0,0,0,0.5);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+            line-height: 1.1;
+            padding: 4px;
+            overflow: hidden;
         }
 
         .brand-mark:hover {
@@ -237,13 +241,12 @@
         }
 
         .hero-brand-mark {
-            max-width: min(100%, 360px);
-            min-height: 120px;
-            padding: 18px 26px;
+            width: min(160px, 45vw);
+            height: min(160px, 45vw);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 24px;
+            border-radius: 50%;
             border: 2px solid rgba(255, 143, 0, 0.55);
             background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), transparent 50%),
                         linear-gradient(155deg, rgba(6, 11, 30, 0.98) 0%, rgba(20, 36, 74, 0.96) 50%, rgba(10, 18, 40, 0.98) 100%);
@@ -253,10 +256,14 @@
             color: #fff;
             text-decoration: none;
             text-transform: uppercase;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.12em;
             font-weight: 900;
-            font-size: clamp(1rem, 2vw, 1.2rem);
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+            line-height: 1.1;
+            padding: 10px;
+            overflow: hidden;
         }
 
         .hero-brand-mark:hover {
@@ -2050,7 +2057,7 @@ button, a, input, select, textarea {
 .logo:focus {
     outline: 3px solid #ff8f00;
     outline-offset: 4px;
-    border-radius: 8px;
+    border-radius: 50%;
 }
 
 /* =============================================
