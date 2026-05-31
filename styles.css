@@ -1200,13 +1200,7 @@
             margin-bottom: 1rem;
         }
 
-        footer {
-            background: #0f0f23;
-            color: #aaa;
-            text-align: center;
-            padding: 20px;
-            border-top: 3px solid #ff6f00;
-        }
+        /* footer styles defined in "Enhanced Footer" section below */
 
         .login-modal {
             display: flex;
@@ -1706,18 +1700,7 @@ table.zebra tbody tr:hover {
     background: rgba(255, 111, 0, 0.1);
 }
 
-/* Screen reader only text */
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
-}
+/* Screen reader only text - defined earlier in stylesheet */
 
 /* ===================================
    PHASE 4: Mobile Improvements
