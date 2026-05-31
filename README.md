@@ -55,7 +55,7 @@ create table if not exists public.signup_submissions (
   team_years text not null default '',
   off_position text not null default '',
   def_position text not null default '',
-  experience text not null default '',
+  football_experience text not null default '',
   payment_username text not null default '',
   status text not null default 'pending',
   submitted_at timestamptz not null default now(),
