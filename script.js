@@ -165,7 +165,8 @@
             recapSeasonLabel: 'recap_season_label',
             seasonArchives: 'season_archives',
             selectedSeasonArchiveId: 'selected_season_archive_id',
-            playoffBracket: 'playoff_bracket'
+            playoffBracket: 'playoff_bracket',
+            heroBgPosition: 'hero_bg_position'
         };
         const ADMIN_MANAGED_PUBLIC_STATE_KEYS = Object.keys(SUPABASE_PUBLIC_STATE_KEYS).map(function(name) {
             return SUPABASE_PUBLIC_STATE_KEYS[name];
@@ -1252,17 +1253,20 @@
                 media.onload = function() {
                     media.classList.add('loaded');
                     hero.classList.remove('hero-background-loading');
+                    hero.classList.add('has-background-image');
                 };
                 // Error handler: remove broken image and fall back to gradient
                 media.onerror = function() {
                     media.classList.remove('loaded');
                     hero.classList.remove('hero-background-loading');
+                    hero.classList.remove('has-background-image');
                     media.remove();
                 };
                 media.src = safeBackgroundUrl;
             } else {
                 if (media) media.remove();
                 hero.classList.remove('hero-background-loading');
+                hero.classList.remove('has-background-image');
             }
         }
 
@@ -1343,7 +1347,11 @@
                     logSupabaseOperation('Branding', 'warn', 'Could not get public URL for "' + filename + '", falling back to data URL.');
                     return null;
                 }
-                return publicUrl + (publicUrl.indexOf('?') === -1 ? '?v=' : '&v=') + Date.now();
+                // Strip any pre-existing query string before storing — the display functions
+                // add a fresh cache-buster at render time, so we want the clean base URL in
+                // the state table and IndexedDB so it stays valid forever.
+                var baseUrl = publicUrl.split('?')[0];
+                return baseUrl;
             } catch (err) {
                 logSupabaseOperation('Branding', 'warn', 'Unexpected error uploading branding image, falling back to data URL.', err);
                 return null;
