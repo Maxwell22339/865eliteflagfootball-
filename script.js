@@ -1157,9 +1157,16 @@
         const BRANDING_STORAGE_FOLDER = 'branding';
         const BRANDING_LOGO_FILENAME = 'site-logo.jpg';
         const BRANDING_HOME_BACKGROUND_FILENAME = 'home-hero-background.jpg';
+        const BRAND_MARK_TEXT = '865 Elite';
 
-        function escapeCssUrlValue(value) {
-            return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        function normalizeBrandingImageUrl(value) {
+            var normalized = String(value || '').trim();
+            if (!normalized) return '';
+            if (/^data:image\//i.test(normalized)) return normalized;
+            if (/^https?:\/\//i.test(normalized)) return normalized;
+            if (/^blob:/i.test(normalized)) return normalized;
+            if (normalized.charAt(0) === '/') return normalized;
+            return '';
         }
 
         function setAdminSaveMessage(text, color, durationMs) {
@@ -1183,28 +1190,38 @@
 
         function renderBrandMark(markEl, logoUrl) {
             if (!markEl) return;
+            var safeLogoUrl = normalizeBrandingImageUrl(logoUrl);
             markEl.href = '#home';
             markEl.setAttribute('aria-label', 'Go to home page');
-            markEl.classList.toggle('has-logo', !!logoUrl);
+            markEl.classList.toggle('has-logo', !!safeLogoUrl);
             markEl.replaceChildren();
-            if (logoUrl) {
+            if (safeLogoUrl) {
                 var img = document.createElement('img');
-                img.src = logoUrl;
+                img.src = safeLogoUrl;
                 img.alt = '865 Elite Flag Football';
                 img.decoding = 'async';
                 markEl.appendChild(img);
                 return;
             }
-            markEl.textContent = '865 Elite';
+            markEl.textContent = BRAND_MARK_TEXT;
         }
 
         function applyHeroBackgroundToPage(backgroundUrl) {
             var hero = document.querySelector('.hero');
             if (!hero) return;
-            if (backgroundUrl) {
-                hero.style.setProperty('--hero-background-image', 'url("' + escapeCssUrlValue(backgroundUrl) + '")');
+            var safeBackgroundUrl = normalizeBrandingImageUrl(backgroundUrl);
+            var media = hero.querySelector(':scope > .hero-background-media');
+            if (safeBackgroundUrl) {
+                if (!media) {
+                    media = document.createElement('img');
+                    media.className = 'hero-background-media';
+                    media.alt = '';
+                    media.setAttribute('aria-hidden', 'true');
+                    hero.insertBefore(media, hero.firstChild);
+                }
+                media.src = safeBackgroundUrl;
             } else {
-                hero.style.removeProperty('--hero-background-image');
+                if (media) media.remove();
             }
         }
 
@@ -1366,7 +1383,7 @@
                 flushPersistSiteContent();
             } catch (err) {
                 logSupabaseOperation('Branding', 'error', 'Branding upload failed.', err);
-                setAdminSaveMessage('Unable to save image. Please try again.', '#ff5252', 4000);
+                setAdminSaveMessage(err && err.message ? err.message : 'Unable to save image. Please try again.', '#ff5252', 4000);
             } finally {
                 setBrandingControlsDisabled(false);
             }
@@ -1639,7 +1656,7 @@
             if (existingBrandMark && logoDiv.children.length === 1) {
                 existingBrandMark.href = '#home';
                 existingBrandMark.setAttribute('aria-label', 'Go to home page');
-                existingBrandMark.textContent = '865 Elite';
+                existingBrandMark.textContent = BRAND_MARK_TEXT;
                 return;
             }
             logoDiv.replaceChildren();
@@ -1647,7 +1664,7 @@
             brandMark.href = '#home';
             brandMark.className = 'brand-mark';
             brandMark.setAttribute('aria-label', 'Go to home page');
-            brandMark.textContent = '865 Elite';
+            brandMark.textContent = BRAND_MARK_TEXT;
             logoDiv.appendChild(brandMark);
         }
 
