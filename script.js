@@ -1184,7 +1184,7 @@
         function renderBrandMark(markEl, logoUrl) {
             if (!markEl) return;
             markEl.href = '#home';
-            markEl.setAttribute('aria-label', '865 Elite Flag Football home');
+            markEl.setAttribute('aria-label', logoUrl ? '865 Elite Flag Football logo' : '865 Elite Flag Football');
             markEl.classList.toggle('has-logo', !!logoUrl);
             markEl.replaceChildren();
             if (logoUrl) {
@@ -1638,7 +1638,7 @@
             var existingBrandMark = logoDiv.querySelector(':scope > a.brand-mark');
             if (existingBrandMark && logoDiv.children.length === 1) {
                 existingBrandMark.href = '#home';
-                existingBrandMark.setAttribute('aria-label', '865 Elite Flag Football home');
+                existingBrandMark.setAttribute('aria-label', '865 Elite Flag Football');
                 existingBrandMark.textContent = '865 Elite';
                 return;
             }
@@ -1646,7 +1646,7 @@
             var brandMark = document.createElement('a');
             brandMark.href = '#home';
             brandMark.className = 'brand-mark';
-            brandMark.setAttribute('aria-label', '865 Elite Flag Football home');
+            brandMark.setAttribute('aria-label', '865 Elite Flag Football');
             brandMark.textContent = '865 Elite';
             logoDiv.appendChild(brandMark);
         }
