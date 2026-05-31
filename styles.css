@@ -74,15 +74,19 @@
         }
 
         .brand-mark.has-logo {
-            padding: 8px 18px;
-            background: #fff;
+            padding: 6px 12px;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 143, 0, 0.35);
+            background: linear-gradient(145deg, #05070f 0%, #111a33 100%);
+            overflow: hidden;
         }
 
         .brand-mark img {
             display: block;
             max-height: 84px;
-            max-width: 220px;
+            max-width: min(220px, 38vw);
             width: auto;
+            height: auto;
             object-fit: contain;
         }
 
@@ -2374,14 +2378,23 @@ footer {
     margin-bottom: 10px;
 }
 .footer-brand-mark.has-logo {
+    width: auto;
+    min-width: 72px;
+    max-width: min(180px, 70vw);
+    height: auto;
+    min-height: 72px;
+    padding: 8px 12px;
+    border-radius: 24px;
+    border-color: rgba(255, 143, 0, 0.5);
+    background: linear-gradient(145deg, #05070f 0%, #111a33 100%);
     overflow: hidden;
-    padding: 0;
-    background: #fff;
 }
 .footer-brand-mark img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 56px;
+    object-fit: contain;
     display: block;
 }
 .footer-brand-name {
