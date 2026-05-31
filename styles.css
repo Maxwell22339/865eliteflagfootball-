@@ -474,6 +474,7 @@
 
         .schedule-team-logo,
         .schedule-admin-logo-preview,
+        .stats-team-logo,
         .team-logo {
             object-fit: cover;
             border-radius: 50%;
@@ -624,7 +625,7 @@
         .team-logo-upload-wrap {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         }
 
         .win {
