@@ -1,14 +1,21 @@
 # 865 Elite Flag Football
 
-Official website for 865 Elite Flag Football.
+Official website source for 865 Elite Flag Football.
 
 ## About
 
-This is the source code for the 865 Elite Flag Football website, hosted via GitHub Pages.
+This repository contains the static site for the league website, hosted with GitHub Pages.
 
 ## Development
 
-The site is a single-page static website contained in `index.html`. To preview changes locally, open `index.html` in a web browser.
+- Main markup: `index.html`
+- Main styles: `styles.css`
+- Main behavior: `script.js`
+- Local preview: open `index.html` in a browser
+
+## Static branding note
+
+The repository no longer ships bundled static logo or background image files for the site shell. By default the header branding, footer branding, and hero background use text and CSS only, but admins can upload a custom logo and home background that persist through the shared site state. Dynamic user-managed content such as gallery items and team logos remains data-driven.
 
 ## Supabase setup for shared production data
 

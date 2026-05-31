@@ -13,7 +13,6 @@
         }
 
         :root {
-            --hero-photo: url('assets/images/865-elite-background.jpeg');
             --header-offset: 152px;
             --hamburger-color: #001f5b;
             --hamburger-hover-border: #003080;
@@ -57,19 +56,41 @@
             box-shadow: 0 6px 16px rgba(0,0,0,0.35);
         }
 
-        .site-logo {
-            height: 80px;
-            width: auto;
-            object-fit: contain;
-            border-radius: 50%;
-            background: transparent;
-            padding: 2px;
+        .brand-mark {
+            min-height: 80px;
+            padding: 0 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            color: #fff;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-weight: 800;
+            font-size: 1.05rem;
+            background: radial-gradient(circle at top, rgba(255,255,255,0.16), transparent 55%), linear-gradient(145deg, #0f0f23 0%, #16213e 100%);
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
+        .brand-mark.has-logo {
+            padding: 8px 18px;
+            background: #fff;
+        }
+
+        .brand-mark img {
+            display: block;
+            max-height: 84px;
+            max-width: 220px;
+            width: auto;
+            object-fit: contain;
+        }
+
         @media (min-width: 769px) {
-            .site-logo {
-                height: 100px;
+            .brand-mark {
+                min-height: 100px;
+                padding: 0 28px;
+                font-size: 1.15rem;
             }
         }
 
@@ -96,19 +117,28 @@
 
         .hero {
             background-image: linear-gradient(135deg, rgba(11, 14, 34, 0.9) 0%, rgba(21, 31, 58, 0.8) 45%, rgba(10, 14, 34, 0.95) 100%),
-                              var(--hero-photo),
                               linear-gradient(160deg, rgba(255, 111, 0, 0.12), transparent 38%),
                               repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,111,0,0.05) 49px, rgba(255,111,0,0.05) 50px),
                               repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,111,0,0.05) 49px, rgba(255,111,0,0.05) 50px);
-            background-size: cover, cover, auto, auto, auto;
-            background-position: center, center, center, center, center;
-            background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat;
+            background-size: cover, auto, auto, auto;
+            background-position: center, center, center, center;
+            background-repeat: no-repeat, no-repeat, repeat, repeat;
             color: white;
             padding: 96px 0 88px;
             min-height: calc(100vh - var(--header-offset));
             border-bottom: 4px solid #ff6f00;
             position: relative;
             overflow: hidden;
+        }
+
+        .hero-background-media {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
         }
 
         .hero::before {
@@ -118,6 +148,7 @@
             background: radial-gradient(circle at top right, rgba(255, 143, 0, 0.18), transparent 32%),
                         radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.06), transparent 28%);
             pointer-events: none;
+            z-index: 0;
         }
 
         .hero .container {
@@ -1903,7 +1934,6 @@ body.light-mode .nav-links a { color: #1a1a2e; }
 body.light-mode .hero {
     background-image:
         linear-gradient(135deg, rgba(240,230,220,0.9) 0%, rgba(255,220,170,0.85) 40%, rgba(240,225,210,0.92) 100%),
-        var(--hero-photo),
         linear-gradient(160deg, rgba(255, 111, 0, 0.08), transparent 38%),
         repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,111,0,0.06) 49px, rgba(255,111,0,0.06) 50px),
         repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,111,0,0.06) 49px, rgba(255,111,0,0.06) 50px);
@@ -2326,13 +2356,33 @@ footer {
     margin-bottom: 32px;
 }
 .footer-brand { text-align: center; }
-.footer-logo {
+.footer-brand-mark {
     width: 72px;
     height: 72px;
     border-radius: 50%;
     border: 2px solid #ff6f00;
-    object-fit: cover;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(145deg, #0f0f23 0%, #16213e 100%);
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    font-weight: 800;
     margin-bottom: 10px;
+}
+.footer-brand-mark.has-logo {
+    overflow: hidden;
+    padding: 0;
+    background: #fff;
+}
+.footer-brand-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 .footer-brand-name {
     font-weight: 700;
