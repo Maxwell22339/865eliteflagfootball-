@@ -19,18 +19,18 @@
             --hamburger-hover-color: #0a3d9e;
             --logo-accent: #ff8f00;
             --logo-accent-soft: rgba(255, 143, 0, 0.4);
-            --logo-shell-bg: linear-gradient(145deg, #0b132d 0%, #1b2f55 100%);
-            --logo-shell-glow: 0 10px 24px rgba(0, 0, 0, 0.4);
+            --logo-shell-bg: linear-gradient(145deg, #060e24 0%, #122044 60%, #1a305a 100%);
+            --logo-shell-glow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 143, 0, 0.15);
         }
 
         header {
-            background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+            background: linear-gradient(135deg, #e65100 0%, #ff6f00 40%, #ff8f00 100%);
             color: white;
             padding: 1rem 0;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.1);
         }
 
         .container {
@@ -56,9 +56,15 @@
             gap: 12px;
             background: var(--logo-shell-bg);
             border-radius: 999px;
-            border: 1px solid var(--logo-accent-soft);
+            border: 2px solid rgba(255, 143, 0, 0.5);
             padding: 6px;
             box-shadow: var(--logo-shell-glow);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .logo:hover {
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 143, 0, 0.3);
         }
 
         .brand-mark {
@@ -71,23 +77,39 @@
             color: #fff;
             text-decoration: none;
             text-transform: uppercase;
-            letter-spacing: 0.16em;
-            font-weight: 800;
+            letter-spacing: 0.18em;
+            font-weight: 900;
             font-size: 1.05rem;
-            border: 1px solid var(--logo-accent-soft);
-            background: radial-gradient(circle at top, rgba(255,255,255,0.2), transparent 55%), linear-gradient(145deg, #101b3f 0%, #16213e 100%);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 6px 14px rgba(0,0,0,0.35);
-            text-shadow: 0 2px 4px rgba(0,0,0,0.35);
+            border: 2px solid rgba(255, 143, 0, 0.55);
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.12), transparent 50%),
+                        linear-gradient(155deg, #0a1530 0%, #142a52 50%, #0d1a3a 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18),
+                        inset 0 -2px 6px rgba(0,0,0,0.3),
+                        0 8px 20px rgba(0,0,0,0.4),
+                        0 0 0 1px rgba(255, 143, 0, 0.12);
+            text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .brand-mark:hover {
+            transform: scale(1.03);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2),
+                        inset 0 -2px 6px rgba(0,0,0,0.3),
+                        0 12px 28px rgba(0,0,0,0.5),
+                        0 0 12px rgba(255, 143, 0, 0.2);
         }
 
         .brand-mark.has-logo {
             width: 102px;
             height: 102px;
-            padding: 8px;
+            padding: 6px;
             border-radius: 50%;
-            border: 1px solid rgba(255, 143, 0, 0.55);
-            background: linear-gradient(145deg, #060b1e 0%, #14244a 100%);
+            border: 3px solid rgba(255, 143, 0, 0.65);
+            background: linear-gradient(155deg, #060b1e 0%, #14244a 60%, #0a1530 100%);
             overflow: hidden;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.4),
+                        0 8px 24px rgba(0,0,0,0.45),
+                        0 0 0 2px rgba(255, 143, 0, 0.1);
         }
 
         .brand-mark.has-logo img {
@@ -139,19 +161,38 @@
         .cta-button.small { padding: 6px 10px; font-size: 0.95rem; border-radius: 4px; }
 
         .hero {
-            background-image: linear-gradient(135deg, rgba(11, 14, 34, 0.9) 0%, rgba(21, 31, 58, 0.8) 45%, rgba(10, 14, 34, 0.95) 100%),
-                              linear-gradient(160deg, rgba(255, 111, 0, 0.12), transparent 38%),
-                              repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,111,0,0.05) 49px, rgba(255,111,0,0.05) 50px),
-                              repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,111,0,0.05) 49px, rgba(255,111,0,0.05) 50px);
+            background-image: linear-gradient(135deg, rgba(8, 11, 28, 0.94) 0%, rgba(18, 28, 52, 0.85) 40%, rgba(8, 14, 30, 0.96) 100%),
+                              linear-gradient(160deg, rgba(255, 111, 0, 0.15), transparent 35%),
+                              linear-gradient(320deg, rgba(255, 111, 0, 0.08), transparent 30%),
+                              repeating-linear-gradient(
+                                  -45deg,
+                                  transparent,
+                                  transparent 40px,
+                                  rgba(255, 111, 0, 0.03) 40px,
+                                  rgba(255, 111, 0, 0.03) 42px
+                              );
             background-size: cover, auto, auto, auto;
             background-position: center, center, center, center;
-            background-repeat: no-repeat, no-repeat, repeat, repeat;
+            background-repeat: no-repeat, no-repeat, no-repeat, repeat;
             color: white;
             padding: 96px 0 88px;
             min-height: calc(100vh - var(--header-offset));
             border-bottom: 4px solid #ff6f00;
             position: relative;
             overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 70%;
+            height: 200%;
+            background: radial-gradient(ellipse, rgba(255, 111, 0, 0.06) 0%, transparent 70%);
+            transform: rotate(-15deg);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .hero-background-media {
@@ -168,8 +209,9 @@
             content: "";
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at top right, rgba(255, 143, 0, 0.18), transparent 32%),
-                        radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.06), transparent 28%);
+            background: radial-gradient(ellipse at 80% 20%, rgba(255, 143, 0, 0.14), transparent 40%),
+                        radial-gradient(ellipse at 10% 80%, rgba(255, 255, 255, 0.04), transparent 35%),
+                        radial-gradient(circle at 50% 110%, rgba(255, 111, 0, 0.08), transparent 30%);
             pointer-events: none;
             z-index: 0;
         }
@@ -201,16 +243,27 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 30px;
-            border: 1px solid rgba(255, 143, 0, 0.48);
-            background: linear-gradient(145deg, rgba(6, 11, 30, 0.96) 0%, rgba(20, 36, 74, 0.94) 100%);
-            box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+            border-radius: 24px;
+            border: 2px solid rgba(255, 143, 0, 0.55);
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), transparent 50%),
+                        linear-gradient(155deg, rgba(6, 11, 30, 0.98) 0%, rgba(20, 36, 74, 0.96) 50%, rgba(10, 18, 40, 0.98) 100%);
+            box-shadow: 0 20px 44px rgba(0,0,0,0.4),
+                        inset 0 1px 0 rgba(255,255,255,0.1),
+                        0 0 0 1px rgba(255, 143, 0, 0.1);
             color: #fff;
             text-decoration: none;
             text-transform: uppercase;
-            letter-spacing: 0.16em;
-            font-weight: 800;
+            letter-spacing: 0.18em;
+            font-weight: 900;
             font-size: clamp(1rem, 2vw, 1.2rem);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .hero-brand-mark:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 24px 50px rgba(0,0,0,0.5),
+                        inset 0 1px 0 rgba(255,255,255,0.12),
+                        0 0 16px rgba(255, 143, 0, 0.15);
         }
 
         .hero-brand-mark.has-logo {
@@ -218,9 +271,14 @@
             height: min(180px, 55vw);
             min-height: 0;
             max-width: none;
-            padding: 12px;
+            padding: 10px;
             border-radius: 50%;
+            border: 3px solid rgba(255, 143, 0, 0.7);
             overflow: hidden;
+            background: linear-gradient(155deg, #050a1c 0%, #14244a 60%, #0a1530 100%);
+            box-shadow: 0 20px 44px rgba(0,0,0,0.45),
+                        inset 0 0 12px rgba(0,0,0,0.4),
+                        0 0 0 3px rgba(255, 143, 0, 0.08);
         }
 
         .hero-brand-mark.has-logo img {
@@ -246,26 +304,29 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 14px;
+            padding: 8px 16px;
             border-radius: 999px;
-            background: rgba(255, 111, 0, 0.12);
-            border: 1px solid rgba(255, 111, 0, 0.3);
+            background: rgba(255, 111, 0, 0.14);
+            border: 1px solid rgba(255, 111, 0, 0.4);
             color: #ffb366;
             font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
+            font-weight: 800;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
             margin-bottom: 1.25rem;
+            box-shadow: 0 2px 12px rgba(255, 111, 0, 0.1);
         }
 
         .hero-content h1 {
             font-size: clamp(3rem, 6vw, 5rem);
             margin-bottom: 1rem;
-            line-height: 1.12;
-            text-shadow: 0 12px 28px rgba(0,0,0,0.45);
+            line-height: 1.08;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 12px 28px rgba(0,0,0,0.3);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             word-break: break-word;
+            font-weight: 900;
+            font-style: italic;
         }
 
         .hero-subtitle {
@@ -388,25 +449,42 @@
 
         .cta-button {
             display: inline-block;
-            background: linear-gradient(135deg, #ff6f00, #ff8f00);
+            background: linear-gradient(135deg, #e65100 0%, #ff6f00 40%, #ff8f00 100%);
             color: white;
-            padding: 12px 30px;
+            padding: 14px 32px;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 6px;
             font-size: 1.1rem;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s;
+            letter-spacing: 1.5px;
+            transition: all 0.3s ease;
             border: none;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(255,111,0,0.3);
+            box-shadow: 0 4px 18px rgba(255,111,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .cta-button:hover::before {
+            left: 100%;
         }
 
         .cta-button:hover {
-            background: linear-gradient(135deg, #e65100, #ff6f00);
-            box-shadow: 0 6px 20px rgba(255,111,0,0.5);
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, #bf360c 0%, #e65100 40%, #ff6f00 100%);
+            box-shadow: 0 8px 24px rgba(255,111,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+            transform: translateY(-2px);
         }
 
         section {
@@ -2437,30 +2515,37 @@ footer {
     width: 78px;
     height: 78px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 143, 0, 0.65);
+    border: 2px solid rgba(255, 143, 0, 0.7);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
     text-transform: uppercase;
     color: #fff;
-    background: radial-gradient(circle at top, rgba(255,255,255,0.18), transparent 58%), linear-gradient(145deg, #0f1a3c 0%, #14244a 100%);
-    letter-spacing: 0.08em;
+    background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1), transparent 50%),
+                linear-gradient(155deg, #0a1530 0%, #14244a 60%, #0d1a3a 100%);
+    letter-spacing: 0.1em;
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 900;
     margin-bottom: 10px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 18px rgba(0,0,0,0.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16),
+                inset 0 -2px 4px rgba(0,0,0,0.25),
+                0 8px 18px rgba(0,0,0,0.35),
+                0 0 0 1px rgba(255, 143, 0, 0.1);
 }
 .footer-brand-mark.has-logo {
     width: 92px;
     height: 92px;
     min-width: 92px;
     min-height: 92px;
-    padding: 8px;
+    padding: 6px;
     border-radius: 50%;
-    border-color: rgba(255, 143, 0, 0.58);
-    background: linear-gradient(145deg, #060b1e 0%, #14244a 100%);
+    border: 3px solid rgba(255, 143, 0, 0.65);
+    background: linear-gradient(155deg, #060b1e 0%, #14244a 60%, #0a1530 100%);
     overflow: hidden;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.4),
+                0 8px 20px rgba(0,0,0,0.4),
+                0 0 0 2px rgba(255, 143, 0, 0.08);
 }
 .footer-brand-mark.has-logo img {
     width: 100%;
