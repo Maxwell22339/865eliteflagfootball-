@@ -184,8 +184,8 @@
             return {
                 url: String(config.url || '').trim(),
                 anonKey: String(config.anonKey || '').trim(),
-                stateTable: String(config.stateTable || config.dataTable || 'league_site_data').trim(),
-                registrationsTable: String(config.registrationsTable || config.signupsTable || 'registrations').trim(),
+                stateTable: String(config.stateTable || config.dataTable || 'site_content').trim(),
+                registrationsTable: String(config.registrationsTable || config.signupsTable || 'signup_submissions').trim(),
                 galleryImagesTable: String(config.galleryImagesTable || 'gallery_images').trim(),
                 galleryBucket: String(config.galleryBucket || 'gallery-images').trim(),
                 galleryKey: String(config.galleryKey || 'gallery').trim(),
