@@ -2117,7 +2117,7 @@
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
             return {
-                id: String(item.id || ('signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10))).trim(),
+                id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }))).trim(),
                 name: String(item.name || '').trim(),
                 email: String(item.email || '').trim(),
                 type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
@@ -2156,7 +2156,7 @@
                 teamYears: row && row.team_years,
                 offPosition: row && row.off_position,
                 defPosition: row && row.def_position,
-                experience: row && row.experience,
+                experience: row && row.football_experience,
                 paymentUsername: row && row.payment_username,
                 status: row && row.status,
                 submittedAt: row && row.submitted_at,
@@ -2177,7 +2177,7 @@
                 team_years: normalized.teamYears,
                 off_position: normalized.offPosition,
                 def_position: normalized.defPosition,
-                experience: normalized.experience,
+                football_experience: normalized.experience,
                 payment_username: normalized.paymentUsername,
                 status: normalized.status,
                 submitted_at: normalized.submittedAt || new Date().toISOString(),
@@ -2196,7 +2196,7 @@
             try {
                 var response = await client
                     .from(config.registrationsTable)
-                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, experience, payment_username, status, submitted_at, reviewed_at')
+                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, football_experience, payment_username, status, submitted_at, reviewed_at')
                     .order('submitted_at', { ascending: true });
                 if (response.error) {
                     logPaymentSupabaseError('Select', 'Failed to fetch signup rows from table "' + config.registrationsTable + '".', response.error);
@@ -2837,8 +2837,8 @@
             const requests = loadPaymentRequests();
             requests.push({
                 id: window.crypto && typeof window.crypto.randomUUID === 'function'
-                    ? 'signup_' + window.crypto.randomUUID()
-                    : 'signup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
+                    ? window.crypto.randomUUID()
+                    : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }),
                 name,
                 email,
                 type,
