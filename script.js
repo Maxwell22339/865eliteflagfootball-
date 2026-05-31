@@ -2217,7 +2217,7 @@
             var config = getSiteSupabaseConfig();
             try {
                 var rows = normalizePaymentRequestList(list).map(mapPaymentSignupRecord);
-                console.info('[Signup][Supabase][Insert] Inserting into table "' + config.registrationsTable + '":', JSON.stringify(rows, null, 2));
+                console.info('[Signup][Supabase][Insert] Inserting into table "' + config.registrationsTable + '", row count: ' + rows.length);
                 var response = await client
                     .from(config.registrationsTable)
                     .upsert(rows, { onConflict: 'id' });
