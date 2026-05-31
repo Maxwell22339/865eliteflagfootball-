@@ -1155,9 +1155,63 @@
         }
 
         const BRANDING_STORAGE_FOLDER = 'branding';
+        const BRANDING_LOGO_FILENAME = 'site-logo.jpg';
+        const BRANDING_HOME_BACKGROUND_FILENAME = 'home-hero-background.jpg';
 
-        function applyLogoToPage() {
-            // Static branding is text-only.
+        function escapeCssUrlValue(value) {
+            return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
+        function setAdminSaveMessage(text, color, durationMs) {
+            var msg = document.getElementById('saveMsg');
+            if (!msg) return;
+            if (setAdminSaveMessage._timer) {
+                clearTimeout(setAdminSaveMessage._timer);
+                setAdminSaveMessage._timer = null;
+            }
+            msg.style.color = color || '#fff';
+            msg.textContent = text || '';
+            if (text && durationMs) {
+                setAdminSaveMessage._timer = setTimeout(function() {
+                    if (msg.textContent === text) {
+                        msg.textContent = '';
+                        msg.style.color = '#fff';
+                    }
+                }, durationMs);
+            }
+        }
+
+        function renderBrandMark(markEl, logoUrl) {
+            if (!markEl) return;
+            markEl.href = '#home';
+            markEl.setAttribute('aria-label', '865 Elite Flag Football home');
+            markEl.classList.toggle('has-logo', !!logoUrl);
+            markEl.replaceChildren();
+            if (logoUrl) {
+                var img = document.createElement('img');
+                img.src = logoUrl;
+                img.alt = '865 Elite Flag Football';
+                img.decoding = 'async';
+                markEl.appendChild(img);
+                return;
+            }
+            markEl.textContent = '865 Elite';
+        }
+
+        function applyHeroBackgroundToPage(backgroundUrl) {
+            var hero = document.querySelector('.hero');
+            if (!hero) return;
+            if (backgroundUrl) {
+                hero.style.setProperty('--hero-background-image', 'url("' + escapeCssUrlValue(backgroundUrl) + '")');
+            } else {
+                hero.style.removeProperty('--hero-background-image');
+            }
+        }
+
+        function applyLogoToPage(logoUrl) {
+            enforceHeaderLogoLayout();
+            renderBrandMark(document.querySelector('header nav .brand-mark'), logoUrl);
+            renderBrandMark(document.querySelector('.footer-brand-mark'), logoUrl);
         }
 
         async function clearLegacyLogoCaches() {
@@ -1230,7 +1284,7 @@
                     logSupabaseOperation('Branding', 'warn', 'Could not get public URL for "' + filename + '", falling back to data URL.');
                     return null;
                 }
-                return publicUrl;
+                return publicUrl + (publicUrl.indexOf('?') === -1 ? '?v=' : '&v=') + Date.now();
             } catch (err) {
                 logSupabaseOperation('Branding', 'warn', 'Unexpected error uploading branding image, falling back to data URL.', err);
                 return null;
@@ -1239,9 +1293,13 @@
 
         async function applySavedBranding() {
             try {
-                await idbDelete(SITE_LOGO_KEY);
+                var savedLogo = '';
+                if (isSiteLogoOverrideEnabled()) {
+                    savedLogo = await idbGet(SITE_LOGO_KEY);
+                }
+                applyLogoToPage(savedLogo ? String(savedLogo) : '');
             } catch (err) {
-                // Ignore branding restore errors.
+                applyLogoToPage('');
             }
         }
 
@@ -1257,9 +1315,60 @@
 
         async function applySavedHeroBackground() {
             try {
-                await idbDelete(HOME_HERO_BACKGROUND_KEY);
+                var savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
+                applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : '');
             } catch (err) {
-                // Ignore hero background restore errors.
+                applyHeroBackgroundToPage('');
+            }
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onload = function(event) { resolve(String(event.target && event.target.result || '')); };
+                reader.onerror = function() { reject(new Error('Unable to read image.')); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function setBrandingControlsDisabled(disabled) {
+            ['changeLogoBtn', 'changeHomeBackgroundBtn'].forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) btn.disabled = !!disabled;
+            });
+        }
+
+        async function handleBrandingUpload(file, options) {
+            if (!file) return;
+            if (!/^image\//i.test(file.type || '')) {
+                setAdminSaveMessage('Please select an image file.', '#ffb300', 3000);
+                return;
+            }
+            setBrandingControlsDisabled(true);
+            setAdminSaveMessage(options.pendingMessage || 'Uploading image...', '#fff');
+            try {
+                var sourceDataUrl = await readFileAsDataUrl(file);
+                var compressedDataUrl = await compressImageDataUrl(sourceDataUrl, options.maxWidth, options.maxHeight, options.quality);
+                var persistedValue = await uploadBrandingImageToSupabase(compressedDataUrl, options.filename) || compressedDataUrl;
+                await idbSet(options.storageKey, persistedValue);
+                if (options.storageKey === SITE_LOGO_KEY) {
+                    try { localStorage.setItem(SITE_LOGO_OVERRIDE_FLAG_KEY, '1'); } catch (err) {}
+                    await clearLegacyLogoCaches();
+                }
+                options.apply(persistedValue);
+                var persistResults = await Promise.all(options.persistCalls(persistedValue));
+                var sharedSaved = persistResults.every(function(result) { return !!result; });
+                setAdminSaveMessage(
+                    sharedSaved ? options.successMessage : options.successMessage + ' Saved locally; shared sync failed.',
+                    sharedSaved ? '#4caf50' : '#ffb300',
+                    sharedSaved ? 3000 : 5000
+                );
+                flushPersistSiteContent();
+            } catch (err) {
+                logSupabaseOperation('Branding', 'error', 'Branding upload failed.', err);
+                setAdminSaveMessage('Unable to save image. Please try again.', '#ff5252', 4000);
+            } finally {
+                setBrandingControlsDisabled(false);
             }
         }
 
@@ -1321,7 +1430,81 @@
         }
 
         function bindAdminBrandingControls() {
-            return;
+            var logoBtn = document.getElementById('changeLogoBtn');
+            var logoInput = document.getElementById('siteLogoUploadInput');
+            var backgroundBtn = document.getElementById('changeHomeBackgroundBtn');
+            var backgroundInput = document.getElementById('homeBackgroundUploadInput');
+
+            if (logoBtn && logoInput && !logoBtn.dataset.bound) {
+                logoBtn.dataset.bound = 'true';
+                logoBtn.onclick = function() {
+                    if (!isAdminLoggedIn()) {
+                        setAdminSaveMessage('Admin login required to change the logo.', '#ffb300', 3000);
+                        return;
+                    }
+                    logoInput.click();
+                };
+            }
+            if (logoInput && !logoInput.dataset.bound) {
+                logoInput.dataset.bound = 'true';
+                logoInput.addEventListener('change', async function() {
+                    var file = this.files && this.files[0];
+                    await handleBrandingUpload(file, {
+                        filename: BRANDING_LOGO_FILENAME,
+                        storageKey: SITE_LOGO_KEY,
+                        maxWidth: 600,
+                        maxHeight: 600,
+                        quality: 0.9,
+                        pendingMessage: 'Saving logo...',
+                        successMessage: 'Logo saved.',
+                        apply: function(value) {
+                            applyLogoToPage(value);
+                        },
+                        persistCalls: function(value) {
+                            return [
+                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, value, 'BrandingLogo'),
+                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'BrandingLogo')
+                            ];
+                        }
+                    });
+                    this.value = '';
+                });
+            }
+
+            if (backgroundBtn && backgroundInput && !backgroundBtn.dataset.bound) {
+                backgroundBtn.dataset.bound = 'true';
+                backgroundBtn.onclick = function() {
+                    if (!isAdminLoggedIn()) {
+                        setAdminSaveMessage('Admin login required to change the home background.', '#ffb300', 3000);
+                        return;
+                    }
+                    backgroundInput.click();
+                };
+            }
+            if (backgroundInput && !backgroundInput.dataset.bound) {
+                backgroundInput.dataset.bound = 'true';
+                backgroundInput.addEventListener('change', async function() {
+                    var file = this.files && this.files[0];
+                    await handleBrandingUpload(file, {
+                        filename: BRANDING_HOME_BACKGROUND_FILENAME,
+                        storageKey: HOME_HERO_BACKGROUND_KEY,
+                        maxWidth: 1600,
+                        maxHeight: 900,
+                        quality: 0.85,
+                        pendingMessage: 'Saving home background...',
+                        successMessage: 'Home background saved.',
+                        apply: function(value) {
+                            applyHeroBackgroundToPage(value);
+                        },
+                        persistCalls: function(value) {
+                            return [
+                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, value, 'BrandingBackground')
+                            ];
+                        }
+                    });
+                    this.value = '';
+                });
+            }
         }
 
         function ensureAdminBrandingUI() {
@@ -1346,6 +1529,44 @@
                 btn.textContent = 'Enable Editing';
                 btn.onclick = togglePageEdit;
                 adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('changeLogoBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeLogoBtn';
+                btn.type = 'button';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Logo';
+                adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('changeHomeBackgroundBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'changeHomeBackgroundBtn';
+                btn.type = 'button';
+                btn.className = 'cta-button small';
+                btn.style.marginRight = '8px';
+                btn.textContent = 'Change Home Background';
+                adminHeader.appendChild(btn);
+            }
+
+            if (!document.getElementById('siteLogoUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'siteLogoUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.hidden = true;
+                adminHeader.appendChild(input);
+            }
+
+            if (!document.getElementById('homeBackgroundUploadInput')) {
+                const input = document.createElement('input');
+                input.id = 'homeBackgroundUploadInput';
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.hidden = true;
+                adminHeader.appendChild(input);
             }
 
             const toggleBtn = document.getElementById('togglePageEditBtn');

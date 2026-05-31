@@ -15,7 +15,7 @@ This repository contains the static site for the league website, hosted with Git
 
 ## Static branding note
 
-The repository no longer ships bundled static logo or background image files for the site shell. Header branding, footer branding, and the hero background now use text and CSS only. Dynamic user-managed content such as gallery items and team logos remains data-driven.
+The repository no longer ships bundled static logo or background image files for the site shell. By default the header branding, footer branding, and hero background use text and CSS only, but admins can upload a custom logo and home background that persist through the shared site state. Dynamic user-managed content such as gallery items and team logos remains data-driven.
 
 ## Supabase setup for shared production data
 
