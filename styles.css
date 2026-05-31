@@ -56,11 +56,9 @@
             align-items: center;
             gap: 12px;
             background: none;
-            border-radius: 50%;
             border: none;
-            padding: 6px;
             box-shadow: none;
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            transition: transform 0.25s ease;
             position: fixed;
             top: 12px;
             left: 20px;
@@ -78,7 +76,6 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
             color: #fff;
             text-decoration: none;
             text-transform: uppercase;
@@ -89,7 +86,7 @@
             background: none;
             box-shadow: none;
             text-shadow: 0 2px 6px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: transform 0.3s ease;
             text-align: center;
             line-height: 1.1;
             padding: 4px;
@@ -105,7 +102,6 @@
             width: 102px;
             height: 102px;
             padding: 6px;
-            border-radius: 50%;
             border: none;
             background: none;
             overflow: hidden;
