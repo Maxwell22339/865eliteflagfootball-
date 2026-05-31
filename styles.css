@@ -157,19 +157,7 @@
         .cta-button.small { padding: 6px 10px; font-size: 0.95rem; border-radius: 4px; }
 
         .hero {
-            background-image: linear-gradient(135deg, rgba(8, 11, 28, 0.94) 0%, rgba(18, 28, 52, 0.85) 40%, rgba(8, 14, 30, 0.96) 100%),
-                              linear-gradient(160deg, rgba(255, 111, 0, 0.15), transparent 35%),
-                              linear-gradient(320deg, rgba(255, 111, 0, 0.08), transparent 30%),
-                              repeating-linear-gradient(
-                                  -45deg,
-                                  transparent,
-                                  transparent 40px,
-                                  rgba(255, 111, 0, 0.03) 40px,
-                                  rgba(255, 111, 0, 0.03) 42px
-                              );
-            background-size: cover, auto, auto, auto;
-            background-position: center, center, center, center;
-            background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+            background-color: #001f5b;
             color: white;
             padding: 96px 0 88px;
             min-height: calc(100vh - var(--header-offset));
