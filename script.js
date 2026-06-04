@@ -3234,7 +3234,8 @@
         // --- Documents (admin upload + member signing) ---
         let documentIdCounter = 0;
         const DOCUMENTS_STORAGE_FOLDER = 'documents';
-        const DOCUMENTS_STORAGE_CACHE_SECONDS = 3600;
+        const DOCUMENTS_STORAGE_CACHE_CONTROL = '3600';
+        let documentsSaveToken = 0;
 
         function logDocumentSupabaseError(type, message, error) {
             console.error('[Documents][Supabase][' + type + '] ' + message, error || '');
@@ -3312,7 +3313,7 @@
                 var uploadResponse = await client.storage
                     .from(config.documentsBucket)
                     .upload(storagePath, file, {
-                        cacheControl: DOCUMENTS_STORAGE_CACHE_SECONDS,
+                        cacheControl: DOCUMENTS_STORAGE_CACHE_CONTROL,
                         upsert: true,
                         contentType: file && file.type ? file.type : 'application/octet-stream'
                     });
@@ -3364,19 +3365,24 @@
             } catch (err) { return []; }
         }
         async function saveDocuments(list) {
+            const saveToken = ++documentsSaveToken;
             var previousDocuments = Array.isArray(documentsState) ? documentsState.slice() : [];
             documentsState = normalizeDocumentList(list);
             await idbSet('documents', documentsState);
             var persisted = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.documents, documentsState, 'Documents');
             if (!persisted && !isLocalPreviewMode()) {
-                documentsState = previousDocuments;
-                await idbSet('documents', documentsState);
-                await renderDocsAdmin();
-                await renderDocumentsList();
+                if (saveToken === documentsSaveToken) {
+                    documentsState = previousDocuments;
+                    await idbSet('documents', documentsState);
+                    await renderDocsAdmin();
+                    await renderDocumentsList();
+                }
                 return false;
             }
-            await renderDocsAdmin();
-            await renderDocumentsList();
+            if (saveToken === documentsSaveToken) {
+                await renderDocsAdmin();
+                await renderDocumentsList();
+            }
             return true;
         }
 
@@ -3653,8 +3659,10 @@
             });
             const persisted = await saveDocuments(docs);
             if (!persisted) {
-                await deleteDocumentFileFromSupabase(uploadResult.storagePath);
-                setDocumentUploadMessage('Document metadata did not save to Supabase. Upload was rolled back.', true);
+                const removed = await deleteDocumentFileFromSupabase(uploadResult.storagePath);
+                setDocumentUploadMessage(removed
+                    ? 'Document metadata did not save to Supabase. Upload was rolled back.'
+                    : 'Document metadata did not save to Supabase. The upload was removed from the list, but the storage file may need manual cleanup.', true);
                 return;
             }
 
