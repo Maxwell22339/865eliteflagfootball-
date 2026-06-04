@@ -415,14 +415,18 @@
             try {
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.pageContent) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent]) await idbSet(PAGE_CONTENT_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.pageContent] || ''));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground]) {
-                    await idbSet(HOME_HERO_BACKGROUND_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground] || ''));
+                    var bgRaw = valueByKey[SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground];
+                    var bgUrl = (bgRaw && typeof bgRaw === 'object' && bgRaw.url) ? String(bgRaw.url) : String(bgRaw || '');
+                    await idbSet(HOME_HERO_BACKGROUND_KEY, bgUrl);
                 } else if (existingBg) {
                     // Same fallback for the hero background.
                     await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
                 }
                 if (logoOverrideEnabled && hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
                     // Supabase has valid logo data — use it as the source of truth.
-                    await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
+                    var logoRaw = valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo];
+                    var logoUrl = (logoRaw && typeof logoRaw === 'object' && logoRaw.url) ? String(logoRaw.url) : String(logoRaw || '');
+                    await idbSet(SITE_LOGO_KEY, logoUrl);
                 } else if (existingLogoOverrideEnabled && existingLogo) {
                     // Supabase is missing or has incomplete logo data but we have a
                     // locally-cached admin-uploaded logo.  Preserve it so the admin's
@@ -1545,7 +1549,7 @@
                         },
                         persistCalls: function(value) {
                             return [
-                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, value, 'BrandingLogo'),
+                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogo, { url: value }, 'BrandingLogo'),
                                 queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled, true, 'BrandingLogo')
                             ];
                         }
@@ -1581,7 +1585,7 @@
                         },
                         persistCalls: function(value) {
                             return [
-                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, value, 'BrandingBackground')
+                                queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.homeHeroBackground, { url: value }, 'BrandingBackground')
                             ];
                         }
                     });
