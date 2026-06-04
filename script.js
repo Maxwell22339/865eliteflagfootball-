@@ -3234,7 +3234,7 @@
         // --- Documents (admin upload + member signing) ---
         let documentIdCounter = 0;
         const DOCUMENTS_STORAGE_FOLDER = 'documents';
-        const DOCUMENTS_STORAGE_CACHE_SECONDS = '3600';
+        const DOCUMENTS_STORAGE_CACHE_SECONDS = 3600;
 
         function logDocumentSupabaseError(type, message, error) {
             console.error('[Documents][Supabase][' + type + '] ' + message, error || '');
@@ -3276,6 +3276,10 @@
                 publicUrl: publicUrl,
                 uploadedAt: uploadedAt
             };
+        }
+
+        function normalizeDocumentList(list) {
+            return (Array.isArray(list) ? list : []).map(normalizeDocumentItem).filter(Boolean);
         }
 
         function getDocumentUrl(doc) {
@@ -3350,18 +3354,18 @@
         async function loadDocuments() {
             try {
                 if (Array.isArray(documentsState) && documentsState.length) {
-                    documentsState = documentsState.map(normalizeDocumentItem).filter(Boolean);
+                    documentsState = normalizeDocumentList(documentsState);
                     return documentsState.slice();
                 }
                 var stored = await idbGet('documents');
                 if (!stored) return [];
-                documentsState = (Array.isArray(stored) ? stored : []).map(normalizeDocumentItem).filter(Boolean);
+                documentsState = normalizeDocumentList(stored);
                 return documentsState.slice();
             } catch (err) { return []; }
         }
         async function saveDocuments(list) {
             var previousDocuments = Array.isArray(documentsState) ? documentsState.slice() : [];
-            documentsState = (Array.isArray(list) ? list : []).map(normalizeDocumentItem).filter(Boolean);
+            documentsState = normalizeDocumentList(list);
             await idbSet('documents', documentsState);
             var persisted = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.documents, documentsState, 'Documents');
             if (!persisted && !isLocalPreviewMode()) {
