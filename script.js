@@ -189,6 +189,7 @@
                 registrationsTable: String(config.registrationsTable || config.signupsTable || 'signup_submissions').trim(),
                 galleryImagesTable: String(config.galleryImagesTable || 'gallery_images').trim(),
                 galleryBucket: String(config.galleryBucket || 'gallery-images').trim(),
+                documentsBucket: String(config.documentsBucket || config.galleryBucket || 'gallery-images').trim(),
                 galleryKey: String(config.galleryKey || 'gallery').trim(),
                 paymentRequestsKey: String(config.paymentRequestsKey || 'payment_requests').trim()
             };
@@ -258,7 +259,8 @@
                 stateTable: config.stateTable,
                 registrationsTable: config.registrationsTable,
                 galleryImagesTable: config.galleryImagesTable,
-                galleryBucket: config.galleryBucket
+                galleryBucket: config.galleryBucket,
+                documentsBucket: config.documentsBucket
             });
             return siteSupabaseClient;
         }
@@ -3230,21 +3232,184 @@
         // --- Member logout already defined above as memberLogout() ---
 
         // --- Documents (admin upload + member signing) ---
+        let documentIdCounter = 0;
+        const DOCUMENTS_STORAGE_FOLDER = 'documents';
+        const DOCUMENTS_STORAGE_CACHE_CONTROL = '3600';
+        let documentsSaveToken = 0;
+
+        function logDocumentSupabaseError(type, message, error) {
+            console.error('[Documents][Supabase][' + type + '] ' + message, error || '');
+            logSupabaseRlsHint('Documents', error);
+        }
+
+        function generateDocumentId() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return 'doc_' + window.crypto.randomUUID();
+            }
+            documentIdCounter += 1;
+            return 'doc_' + Date.now() + '_' + documentIdCounter + '_' + Math.random().toString(36).slice(2, 10);
+        }
+
+        function sanitizeDocumentFileName(name) {
+            var rawName = String(name || 'document').trim() || 'document';
+            var extensionMatch = rawName.match(/(\.[^.]+)$/);
+            var rawExtension = extensionMatch ? extensionMatch[1] : '';
+            var baseName = extensionMatch ? rawName.slice(0, -rawExtension.length) : rawName;
+            var safeBaseName = String(baseName || 'document')
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '') || 'document';
+            var safeExtension = String(rawExtension || '')
+                .toLowerCase()
+                .replace(/[^.a-z0-9]+/g, '');
+            if (safeExtension && safeExtension.charAt(0) !== '.') safeExtension = '.' + safeExtension;
+            return safeBaseName + safeExtension;
+        }
+
+        function buildDocumentPublicUrl(storagePath) {
+            if (!storagePath) return '';
+            var client = getSiteSupabaseClient();
+            if (!client) return '';
+            var config = getSiteSupabaseConfig();
+            var publicUrlResponse = client.storage.from(config.documentsBucket).getPublicUrl(storagePath);
+            if (publicUrlResponse && publicUrlResponse.error) {
+                logDocumentSupabaseError('StorageUrl', 'Failed to generate public URL for "' + storagePath + '".', publicUrlResponse.error);
+                return '';
+            }
+            return publicUrlResponse && publicUrlResponse.data ? String(publicUrlResponse.data.publicUrl || '').trim() : '';
+        }
+
+        function normalizeDocumentItem(item) {
+            if (!item || typeof item !== 'object') return null;
+            var id = String(item.id || '').trim() || generateDocumentId();
+            var title = String(item.title || '').trim();
+            var filename = String(item.filename || item.name || 'document').trim() || 'document';
+            var mimeType = String(item.mimeType || item.type || '').trim();
+            var storagePath = String(item.storagePath || item.storage_path || item.path || '').trim();
+            var publicUrl = String(item.publicUrl || item.url || item.dataUrl || '').trim() || buildDocumentPublicUrl(storagePath);
+            var uploadedAt = String(item.uploadedAt || item.createdAt || item.created_at || new Date().toISOString()).trim();
+            if (!publicUrl) return null;
+            return {
+                id: id,
+                title: title,
+                filename: filename,
+                mimeType: mimeType,
+                storagePath: storagePath,
+                publicUrl: publicUrl,
+                uploadedAt: uploadedAt
+            };
+        }
+
+        function normalizeDocumentList(list) {
+            return (Array.isArray(list) ? list : []).map(normalizeDocumentItem).filter(Boolean);
+        }
+
+        function getDocumentUrl(doc) {
+            return String(doc && (doc.publicUrl || doc.url || doc.dataUrl) || '').trim();
+        }
+
+        function getDocumentUploadMessageEl() {
+            return document.getElementById('docUploadMsg');
+        }
+
+        function setDocumentUploadMessage(message, isError) {
+            var el = getDocumentUploadMessageEl();
+            if (!el) return;
+            el.textContent = message || '';
+            el.style.color = isError ? '#ff6f61' : '#4caf50';
+        }
+
+        async function uploadDocumentFileToSupabase(file, id) {
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            var safeName = sanitizeDocumentFileName(file && file.name);
+            var extension = '';
+            var extensionMatch = safeName.match(/(\.[a-z0-9]+)$/);
+            if (extensionMatch) extension = extensionMatch[1];
+            if (!extension && file && file.type === 'application/pdf') extension = '.pdf';
+            if (!extension) extension = '.bin';
+            var storagePath = DOCUMENTS_STORAGE_FOLDER + '/' + id + extension;
+            try {
+                var uploadResponse = await client.storage
+                    .from(config.documentsBucket)
+                    .upload(storagePath, file, {
+                        cacheControl: DOCUMENTS_STORAGE_CACHE_CONTROL,
+                        upsert: true,
+                        contentType: file && file.type ? file.type : 'application/octet-stream'
+                    });
+                if (uploadResponse.error) {
+                    logDocumentSupabaseError('StorageUpload', 'Failed upload to storage bucket "' + config.documentsBucket + '" at path "' + storagePath + '".', uploadResponse.error);
+                    return null;
+                }
+                var publicUrlResponse = client.storage.from(config.documentsBucket).getPublicUrl(storagePath);
+                if (publicUrlResponse && publicUrlResponse.error) {
+                    logDocumentSupabaseError('StorageUpload', 'Upload succeeded but public URL generation failed for "' + storagePath + '".', publicUrlResponse.error);
+                    return null;
+                }
+                var publicUrl = publicUrlResponse && publicUrlResponse.data ? publicUrlResponse.data.publicUrl : '';
+                if (!publicUrl) {
+                    logDocumentSupabaseError('StorageUpload', 'Upload succeeded but public URL could not be generated for "' + storagePath + '".', null);
+                    return null;
+                }
+                return { storagePath: storagePath, url: publicUrl };
+            } catch (err) {
+                logDocumentSupabaseError('StorageUpload', 'Unexpected failure while uploading document "' + storagePath + '".', err);
+                return null;
+            }
+        }
+
+        async function deleteDocumentFileFromSupabase(storagePath) {
+            if (!storagePath || isLocalPreviewMode()) return true;
+            var client = getSiteSupabaseClient();
+            if (!client) return false;
+            var config = getSiteSupabaseConfig();
+            try {
+                var removeResponse = await client.storage.from(config.documentsBucket).remove([storagePath]);
+                if (removeResponse.error) {
+                    logDocumentSupabaseError('StorageDelete', 'Failed to delete storage object "' + storagePath + '".', removeResponse.error);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                logDocumentSupabaseError('StorageDelete', 'Unexpected failure while deleting storage object "' + storagePath + '".', err);
+                return false;
+            }
+        }
+
         async function loadDocuments() {
             try {
-                if (Array.isArray(documentsState) && documentsState.length) return documentsState.slice();
+                if (Array.isArray(documentsState) && documentsState.length) {
+                    documentsState = normalizeDocumentList(documentsState);
+                    return documentsState.slice();
+                }
                 var stored = await idbGet('documents');
                 if (!stored) return [];
-                documentsState = Array.isArray(stored) ? stored : [];
+                documentsState = normalizeDocumentList(stored);
                 return documentsState.slice();
             } catch (err) { return []; }
         }
         async function saveDocuments(list) {
-            documentsState = Array.isArray(list) ? list.slice() : [];
+            const saveToken = ++documentsSaveToken;
+            var previousDocuments = Array.isArray(documentsState) ? documentsState.slice() : [];
+            documentsState = normalizeDocumentList(list);
             await idbSet('documents', documentsState);
-            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.documents, documentsState, 'Documents');
-            await renderDocsAdmin();
-            await renderDocumentsList();
+            var persisted = await queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.documents, documentsState, 'Documents');
+            if (!persisted && !isLocalPreviewMode()) {
+                if (saveToken === documentsSaveToken) {
+                    documentsState = previousDocuments;
+                    await idbSet('documents', documentsState);
+                    await renderDocsAdmin();
+                    await renderDocumentsList();
+                }
+                return false;
+            }
+            if (saveToken === documentsSaveToken) {
+                await renderDocsAdmin();
+                await renderDocumentsList();
+            }
+            return true;
         }
 
         async function renderDocsAdmin() {
@@ -3257,26 +3422,58 @@
                 const tr = document.createElement('tr');
                 const uploaded = new Date(d.uploadedAt).toLocaleString();
                 const signedCount = loadMembers().filter(m => (m.signedDocs || []).some(s => s.docId === d.id)).length;
-                tr.innerHTML = `
-                    <td>${d.title || d.filename}</td>
-                    <td><a href="${d.dataUrl}" download="${d.filename}">Download</a></td>
-                    <td>${uploaded}</td>
-                    <td>${signedCount}</td>
-                    <td><button data-action="deleteDoc" data-idx="${idx}" class="doc-delete">Delete</button></td>
-                `;
+                const titleCell = document.createElement('td');
+                titleCell.textContent = d.title || d.filename;
+                const fileCell = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = getDocumentUrl(d);
+                link.download = d.filename;
+                link.textContent = 'Download';
+                fileCell.appendChild(link);
+                const uploadedCell = document.createElement('td');
+                uploadedCell.textContent = uploaded;
+                const signedCell = document.createElement('td');
+                signedCell.textContent = String(signedCount);
+                const actionsCell = document.createElement('td');
+                const button = document.createElement('button');
+                button.dataset.action = 'deleteDoc';
+                button.dataset.idx = String(idx);
+                button.className = 'doc-delete';
+                button.type = 'button';
+                button.textContent = 'Delete';
+                actionsCell.appendChild(button);
+                tr.appendChild(titleCell);
+                tr.appendChild(fileCell);
+                tr.appendChild(uploadedCell);
+                tr.appendChild(signedCell);
+                tr.appendChild(actionsCell);
                 tbody.appendChild(tr);
             });
             tbody.querySelectorAll('button[data-action="deleteDoc"]').forEach(btn => {
                 btn.addEventListener('click', async function() {
                     const idx = Number(this.dataset.idx);
                     const docs = await loadDocuments();
-                    const docId = docs[idx].id;
-                    docs.splice(idx, 1);
-                    await saveDocuments(docs);
+                    const documentToDelete = docs[idx];
+                    if (!documentToDelete) return;
+                    const docId = documentToDelete.id;
+                    const nextDocs = docs.filter((_, docIdx) => docIdx !== idx);
+                    const persisted = await saveDocuments(nextDocs);
+                    if (!persisted) {
+                        setDocumentUploadMessage('Could not remove the document from Supabase state.', true);
+                        return;
+                    }
                     // remove signed records for removed doc
                     const members = loadMembers();
                     members.forEach(m => { m.signedDocs = (m.signedDocs || []).filter(s => s.docId !== docId); });
                     saveMembers(members);
+                    if (documentToDelete.storagePath) {
+                        const removed = await deleteDocumentFileFromSupabase(documentToDelete.storagePath);
+                        if (!removed) {
+                            setDocumentUploadMessage('Document removed from the list, but the file could not be deleted from storage. Check console for details.', true);
+                            return;
+                        }
+                    }
+                    setDocumentUploadMessage('Document deleted.', false);
                 });
             });
         }
@@ -3290,23 +3487,70 @@
             docs.forEach(d => {
                 const tr = document.createElement('tr');
                 const uploaded = new Date(d.uploadedAt).toLocaleDateString();
-                let actionHtml = `<a href="${d.dataUrl}" download="${d.filename}" class="doc-actions">Download</a>`;
+                const titleCell = document.createElement('td');
+                titleCell.textContent = d.title || d.filename;
+                const fileCell = document.createElement('td');
+                const fileLink = document.createElement('a');
+                fileLink.href = getDocumentUrl(d);
+                fileLink.download = d.filename;
+                fileLink.textContent = d.filename;
+                fileCell.appendChild(fileLink);
+                const uploadedCell = document.createElement('td');
+                uploadedCell.textContent = uploaded;
+                const actionCell = document.createElement('td');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = getDocumentUrl(d);
+                downloadLink.download = d.filename;
+                downloadLink.className = 'doc-actions';
+                downloadLink.textContent = 'Download';
+                actionCell.appendChild(downloadLink);
                 let signed = false;
                 if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                     const username = sessionStorage.getItem('memberUsername');
                     const isGuest = sessionStorage.getItem('memberIsGuest') === 'true';
                     if (isGuest) {
-                        actionHtml += ` <button class="doc-actions secondary" data-action="loginToSign">Register to sign</button>`;
+                        const button = document.createElement('button');
+                        button.className = 'doc-actions secondary';
+                        button.dataset.action = 'loginToSign';
+                        button.type = 'button';
+                        button.textContent = 'Register to sign';
+                        actionCell.appendChild(document.createTextNode(' '));
+                        actionCell.appendChild(button);
                     } else {
                         const m = loadMembers().find(u => u.username === username);
                         signed = !!(m && (m.signedDocs || []).some(s => s.docId === d.id));
-                        if (signed) actionHtml += ' <span style="color:#4caf50; font-weight:bold;">Signed</span>';
-                        else actionHtml += ` <button class="doc-actions" data-docid="${d.id}" data-action="sign">Sign</button>`;
+                        if (signed) {
+                            const signedLabel = document.createElement('span');
+                            signedLabel.style.color = '#4caf50';
+                            signedLabel.style.fontWeight = 'bold';
+                            signedLabel.textContent = 'Signed';
+                            actionCell.appendChild(document.createTextNode(' '));
+                            actionCell.appendChild(signedLabel);
+                        } else {
+                            const signButton = document.createElement('button');
+                            signButton.className = 'doc-actions';
+                            signButton.dataset.docid = d.id;
+                            signButton.dataset.action = 'sign';
+                            signButton.type = 'button';
+                            signButton.textContent = 'Sign';
+                            actionCell.appendChild(document.createTextNode(' '));
+                            actionCell.appendChild(signButton);
+                        }
                     }
                 } else {
-                    actionHtml += ` <button class="doc-actions secondary" data-docid="${d.id}" data-action="loginToSign">Login to sign</button>`;
+                    const button = document.createElement('button');
+                    button.className = 'doc-actions secondary';
+                    button.dataset.docid = d.id;
+                    button.dataset.action = 'loginToSign';
+                    button.type = 'button';
+                    button.textContent = 'Login to sign';
+                    actionCell.appendChild(document.createTextNode(' '));
+                    actionCell.appendChild(button);
                 }
-                tr.innerHTML = `<td>${d.title || d.filename}</td><td><a href="${d.dataUrl}" download="${d.filename}">${d.filename}</a></td><td>${uploaded}</td><td>${actionHtml}</td>`;
+                tr.appendChild(titleCell);
+                tr.appendChild(fileCell);
+                tr.appendChild(uploadedCell);
+                tr.appendChild(actionCell);
                 tbody.appendChild(tr);
             });
             tbody.querySelectorAll('button[data-action="sign"]').forEach(btn => btn.addEventListener('click', e => openSignModal(e.currentTarget.dataset.docid)));
@@ -3321,8 +3565,9 @@
             document.getElementById('signModal').classList.remove('hidden');
             const iframe = document.getElementById('docPreviewFrame');
             const img = document.getElementById('docPreviewImg');
-            if (doc.mimeType && doc.mimeType.startsWith('image/')) { img.src = doc.dataUrl; img.style.display = 'block'; iframe.style.display = 'none'; }
-            else { iframe.src = doc.dataUrl; iframe.style.display = 'block'; img.style.display = 'none'; }
+            const documentUrl = getDocumentUrl(doc);
+            if (doc.mimeType && doc.mimeType.startsWith('image/')) { img.src = documentUrl; img.style.display = 'block'; iframe.style.display = 'none'; }
+            else { iframe.src = documentUrl; iframe.style.display = 'block'; img.style.display = 'none'; }
             currentSigningDocId = docId;
             clearSignature();
             document.getElementById('signMsg').textContent = '';
@@ -3392,15 +3637,64 @@
 
         // admin upload handlers
         document.getElementById('docUploadBtn').addEventListener('click', () => document.getElementById('docUploadInput').click());
-        document.getElementById('docUploadInput').addEventListener('change', function(e) {
-            const file = e.target.files[0]; if (!file) return; const title = document.getElementById('docTitleInput').value.trim() || file.name;
-            const reader = new FileReader(); reader.onload = async function(ev) {
-                const docs = await loadDocuments();
-                docs.push({ id: Date.now().toString(), title, filename: file.name, mimeType: file.type || '', dataUrl: ev.target.result, uploadedAt: new Date().toISOString() });
-                await saveDocuments(docs);
-                e.target.value = ''; document.getElementById('docTitleInput').value = '';
-            };
-            reader.readAsDataURL(file);
+        document.getElementById('docUploadInput').addEventListener('change', async function(e) {
+            const input = e.target;
+            const file = input.files[0];
+            if (!file) return;
+            const titleInput = document.getElementById('docTitleInput');
+            const title = titleInput.value.trim() || file.name;
+            setDocumentUploadMessage('Uploading document...', false);
+
+            if (isLocalPreviewMode()) {
+                const reader = new FileReader();
+                reader.onload = async function(ev) {
+                    const docs = await loadDocuments();
+                    docs.push({
+                        id: generateDocumentId(),
+                        title: title,
+                        filename: file.name,
+                        mimeType: file.type || '',
+                        publicUrl: ev.target.result,
+                        uploadedAt: new Date().toISOString()
+                    });
+                    await saveDocuments(docs);
+                    input.value = '';
+                    titleInput.value = '';
+                    setDocumentUploadMessage('Document saved locally for preview mode.', false);
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
+            const docId = generateDocumentId();
+            const uploadResult = await uploadDocumentFileToSupabase(file, docId);
+            if (!uploadResult) {
+                setDocumentUploadMessage('Document upload failed before metadata could be saved. Check console for Supabase details.', true);
+                return;
+            }
+
+            const docs = await loadDocuments();
+            docs.push({
+                id: docId,
+                title: title,
+                filename: file.name,
+                mimeType: file.type || '',
+                storagePath: uploadResult.storagePath,
+                publicUrl: uploadResult.url,
+                uploadedAt: new Date().toISOString()
+            });
+            const persisted = await saveDocuments(docs);
+            if (!persisted) {
+                const removed = await deleteDocumentFileFromSupabase(uploadResult.storagePath);
+                setDocumentUploadMessage(removed
+                    ? 'Document metadata did not save to Supabase. Upload was rolled back.'
+                    : 'Document metadata did not save to Supabase. The uploaded file may need manual cleanup from storage.', true);
+                return;
+            }
+
+            input.value = '';
+            titleInput.value = '';
+            setDocumentUploadMessage('Document uploaded and saved to Supabase.', false);
         });
 
         // render lists on load
