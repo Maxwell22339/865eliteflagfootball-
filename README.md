@@ -32,7 +32,8 @@ window.__865EliteSupabaseConfig = {
   stateTable: 'site_content',
   registrationsTable: 'signup_submissions',
   galleryImagesTable: 'gallery_images',
-  galleryBucket: 'gallery-images'
+  galleryBucket: 'gallery-images',
+  documentsBucket: 'gallery-images'
 };
 ```
 
@@ -185,6 +186,7 @@ using (bucket_id = 'gallery-images');
 - Signup submissions `INSERT` into `public.signup_submissions`
 - Signup admin list/count `SELECT` from `public.signup_submissions` on page load
 - Gallery uploads store files in Supabase Storage and metadata rows in `public.gallery_images`
+- Document uploads store files in Supabase Storage and document metadata in the shared `documents` site-content key
 - Gallery display `SELECT`s from `public.gallery_images` on page load
 - Admin content/settings updates `INSERT` or `UPDATE` rows in `public.site_content`
 - Production pages should not depend on browser-only localStorage/sessionStorage for shared public data
@@ -193,7 +195,7 @@ using (bucket_id = 'gallery-images');
 ### 4) Verification checklist
 
 1. Deploy the updated code to GitHub Pages.
-2. Open the live site in Edge and create a signup or gallery item.
+2. Open the live site in Edge and create a signup, gallery item, or uploaded document.
 3. Open the same live URL in Safari private mode and refresh.
 4. Confirm the same item appears there.
 5. Add another item in Safari and confirm it appears in Edge after refresh.

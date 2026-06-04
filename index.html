@@ -908,6 +908,7 @@
                 <input id="docUploadInput" type="file" accept=".pdf,image/*" style="padding:6px;">
                 <button id="docUploadBtn" class="cta-button" type="button">Upload Document</button>
             </div>
+            <p id="docUploadMsg" style="text-align:center; margin:0 0 12px; min-height:1.2em;"></p>
             <table class="teams-table documents-table">
                 <thead>
                     <tr><th>Title</th><th>File</th><th>Uploaded</th><th>Signed</th><th>Actions</th></tr>
@@ -1205,10 +1206,11 @@
             stateTable: 'site_content',
             registrationsTable: 'signup_submissions',
             galleryImagesTable: 'gallery_images',
-            galleryBucket: 'gallery-images'
+            galleryBucket: 'gallery-images',
+            documentsBucket: 'gallery-images'
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="script.js?v=20260531b"></script>
+    <script src="script.js?v=20260604a"></script>
 </body>
 </html>
