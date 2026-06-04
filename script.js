@@ -421,11 +421,12 @@
                     await idbSet(HOME_HERO_BACKGROUND_KEY, existingBg);
                 }
                 if (logoOverrideEnabled && hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogo) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo]) {
+                    // Supabase has valid logo data — use it as the source of truth.
                     await idbSet(SITE_LOGO_KEY, String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.siteLogo] || ''));
-                } else if (!hasKey(SUPABASE_PUBLIC_STATE_KEYS.siteLogoOverrideEnabled) && existingLogoOverrideEnabled && existingLogo) {
-                    // Supabase has no record of the logo override — a prior write may have been
-                    // blocked by RLS or failed transiently. Preserve the locally-cached logo so
-                    // the change survives page reloads on this browser until Supabase is updated.
+                } else if (existingLogoOverrideEnabled && existingLogo) {
+                    // Supabase is missing or has incomplete logo data but we have a
+                    // locally-cached admin-uploaded logo.  Preserve it so the admin's
+                    // branding change survives page reloads until Supabase is updated.
                     await idbSet(SITE_LOGO_KEY, existingLogo);
                     logoOverrideEnabled = true;
                 } else {
@@ -1214,6 +1215,11 @@
             markEl.classList.toggle('has-logo', !!safeLogoUrl);
             markEl.replaceChildren();
             if (safeLogoUrl) {
+                // Cache-bust Supabase storage URLs to avoid stale images when admin re-uploads
+                if (/^https?:\/\/[^/]*\.supabase\.co\//i.test(safeLogoUrl)) {
+                    var separator = safeLogoUrl.indexOf('?') === -1 ? '?' : '&';
+                    safeLogoUrl += separator + 'v=' + Date.now();
+                }
                 var img = document.createElement('img');
                 img.src = safeLogoUrl;
                 img.alt = '865 Elite Flag Football';
