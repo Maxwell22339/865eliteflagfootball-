@@ -3251,11 +3251,33 @@
         }
 
         function sanitizeDocumentFileName(name) {
-            return String(name || 'document')
+            var rawName = String(name || 'document').trim() || 'document';
+            var extensionMatch = rawName.match(/(\.[^.]+)$/);
+            var rawExtension = extensionMatch ? extensionMatch[1] : '';
+            var baseName = extensionMatch ? rawName.slice(0, -rawExtension.length) : rawName;
+            var safeBaseName = String(baseName || 'document')
                 .toLowerCase()
                 .replace(/[^a-z0-9._-]+/g, '-')
                 .replace(/-+/g, '-')
                 .replace(/^-|-$/g, '') || 'document';
+            var safeExtension = String(rawExtension || '')
+                .toLowerCase()
+                .replace(/[^.a-z0-9]+/g, '');
+            if (safeExtension && safeExtension.charAt(0) !== '.') safeExtension = '.' + safeExtension;
+            return safeBaseName + safeExtension;
+        }
+
+        function buildDocumentPublicUrl(storagePath) {
+            if (!storagePath) return '';
+            var client = getSiteSupabaseClient();
+            if (!client) return '';
+            var config = getSiteSupabaseConfig();
+            var publicUrlResponse = client.storage.from(config.documentsBucket).getPublicUrl(storagePath);
+            if (publicUrlResponse && publicUrlResponse.error) {
+                logDocumentSupabaseError('StorageUrl', 'Failed to generate public URL for "' + storagePath + '".', publicUrlResponse.error);
+                return '';
+            }
+            return publicUrlResponse && publicUrlResponse.data ? String(publicUrlResponse.data.publicUrl || '').trim() : '';
         }
 
         function normalizeDocumentItem(item) {
@@ -3265,7 +3287,7 @@
             var filename = String(item.filename || item.name || 'document').trim() || 'document';
             var mimeType = String(item.mimeType || item.type || '').trim();
             var storagePath = String(item.storagePath || item.storage_path || item.path || '').trim();
-            var publicUrl = String(item.publicUrl || item.url || item.dataUrl || '').trim();
+            var publicUrl = String(item.publicUrl || item.url || item.dataUrl || '').trim() || buildDocumentPublicUrl(storagePath);
             var uploadedAt = String(item.uploadedAt || item.createdAt || item.created_at || new Date().toISOString()).trim();
             if (!publicUrl) return null;
             return {
@@ -3322,6 +3344,10 @@
                     return null;
                 }
                 var publicUrlResponse = client.storage.from(config.documentsBucket).getPublicUrl(storagePath);
+                if (publicUrlResponse && publicUrlResponse.error) {
+                    logDocumentSupabaseError('StorageUpload', 'Upload succeeded but public URL generation failed for "' + storagePath + '".', publicUrlResponse.error);
+                    return null;
+                }
                 var publicUrl = publicUrlResponse && publicUrlResponse.data ? publicUrlResponse.data.publicUrl : '';
                 if (!publicUrl) {
                     logDocumentSupabaseError('StorageUpload', 'Upload succeeded but public URL could not be generated for "' + storagePath + '".', null);
@@ -3443,7 +3469,7 @@
                     if (documentToDelete.storagePath) {
                         const removed = await deleteDocumentFileFromSupabase(documentToDelete.storagePath);
                         if (!removed) {
-                            setDocumentUploadMessage('Document removed from the list, but storage cleanup failed. Check console for details.', true);
+                            setDocumentUploadMessage('Document removed from the list, but the file could not be deleted from storage. Check console for details.', true);
                             return;
                         }
                     }
@@ -3662,7 +3688,7 @@
                 const removed = await deleteDocumentFileFromSupabase(uploadResult.storagePath);
                 setDocumentUploadMessage(removed
                     ? 'Document metadata did not save to Supabase. Upload was rolled back.'
-                    : 'Document metadata did not save to Supabase. The upload was removed from the list, but the storage file may need manual cleanup.', true);
+                    : 'Document metadata did not save to Supabase. The uploaded file may need manual cleanup from storage.', true);
                 return;
             }
 
