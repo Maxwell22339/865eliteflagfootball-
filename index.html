@@ -963,6 +963,22 @@
                 <p id="countdownAdminMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
             </div>
 
+            <h2 style="margin-top:24px;">Signup Deadline</h2>
+            <div id="signupDeadlineEditor" class="registration-form" style="max-width:600px; margin-top:12px;" data-no-admin-edit="true" contenteditable="false">
+                <p style="color:#bbb; margin-bottom:10px; font-size:0.95rem;">Set a deadline date for sign-ups. After that date the signup form will be greyed out and the <strong style="color:#ff6f00;">Join Our League</strong> button will show as inactive. Clear the deadline (or set a future date for the next season) to reopen sign-ups.</p>
+                <div class="registration-grid" style="grid-template-columns:1fr; gap:12px;">
+                    <div>
+                        <label for="signupDeadlineDateInput">Sign-Up Deadline Date</label>
+                        <input id="signupDeadlineDateInput" type="date" style="width:100%; padding:8px;">
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                    <button id="saveSignupDeadlineBtn" type="button" class="cta-button small">Save Deadline</button>
+                    <button id="clearSignupDeadlineBtn" type="button" class="cta-button small" style="background:#555;">Clear Deadline (Reopen Signup)</button>
+                </div>
+                <p id="signupDeadlineAdminMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
+            </div>
+
             <h2 style="margin-top:24px;">Payment Approvals</h2>
             <table class="teams-table documents-table">
                 <thead>

@@ -3215,3 +3215,42 @@ header::after {
         from, to { background-position: 0 0; }
     }
 }
+
+/* =====================================================
+   SIGNUP DEADLINE — greyed-out state
+   ===================================================== */
+.signup-deadline-closed {
+    position: relative;
+}
+.signup-deadline-closed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 4px;
+}
+.signup-closed-banner {
+    background: #444;
+    color: #ccc;
+    text-align: center;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 10;
+    border: 1px solid #666;
+}
+.signup-deadline-closed-btn {
+    background: linear-gradient(135deg, #555 0%, #777 100%) !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+    pointer-events: none;
+}
+.signup-deadline-closed-btn::after {
+    display: none !important;
+}

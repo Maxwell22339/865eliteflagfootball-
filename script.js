@@ -175,7 +175,8 @@
             seasonArchives: 'season_archives',
             selectedSeasonArchiveId: 'selected_season_archive_id',
             playoffBracket: 'playoff_bracket',
-            heroBgPosition: 'hero_bg_position'
+            heroBgPosition: 'hero_bg_position',
+            signupDeadline: 'signup_deadline'
         };
         const ADMIN_MANAGED_PUBLIC_STATE_KEYS = Object.keys(SUPABASE_PUBLIC_STATE_KEYS).map(function(name) {
             return SUPABASE_PUBLIC_STATE_KEYS[name];
@@ -298,6 +299,7 @@
                 'selectedSeasonArchive_v1',
                 'playoffBracket_v1',
                 'galleryMeta_v1',
+                'signupDeadline_v1',
                 PAYMENT_REQUESTS_KEY,
                 SUPABASE_PUBLIC_STATE_KEYS.siteLogo,
                 SITE_LOGO_OVERRIDE_FLAG_KEY,
@@ -482,6 +484,15 @@
                     localStorage.setItem('heroBgPosition_v1', String(valueByKey['hero_bg_position'] || 'center'));
                     var hero = document.querySelector('.hero');
                     if (hero) hero.style.setProperty('--hero-bg-position', String(valueByKey['hero_bg_position'] || 'center'));
+                }
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline)) {
+                    var dlVal = valueByKey[SUPABASE_PUBLIC_STATE_KEYS.signupDeadline];
+                    if (dlVal != null) {
+                        localStorage.setItem('signupDeadline_v1', String(dlVal));
+                    } else {
+                        localStorage.removeItem('signupDeadline_v1');
+                    }
+                    if (typeof applySignupDeadlineState === 'function') applySignupDeadlineState();
                 }
                 membersState = Array.isArray(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members]) ? valueByKey[SUPABASE_PUBLIC_STATE_KEYS.members] : [];
             } catch (err) {
@@ -1950,6 +1961,9 @@
             bindPayPalSettingsControls();
             bindCtaButtonControls();
             renderPayPalSettings();
+            applySignupDeadlineState();
+            populateSignupDeadlineEditor();
+            bindSignupDeadlineAdminControls();
             try {
                 await syncPaymentRequestsFromSupabase();
             } catch (err) {
@@ -2605,6 +2619,9 @@
             bindCtaButtonControls();
             renderPayPalSettings();
             renderPaymentMethodsInfo();
+            applySignupDeadlineState();
+            populateSignupDeadlineEditor();
+            bindSignupDeadlineAdminControls();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                 const username = sessionStorage.getItem('memberUsername');
@@ -5685,6 +5702,121 @@
         }
 
         // =====================================================
+        // SIGNUP DEADLINE
+        // =====================================================
+        const SIGNUP_DEADLINE_KEY = 'signupDeadline_v1';
+
+        function getSignupDeadline() {
+            try { return localStorage.getItem(SIGNUP_DEADLINE_KEY) || ''; } catch (e) { return ''; }
+        }
+
+        function isSignupClosed() {
+            var dl = getSignupDeadline();
+            if (!dl) return false;
+            var d = new Date(dl);
+            if (isNaN(d.getTime())) return false;
+            return new Date() > d;
+        }
+
+        function applySignupDeadlineState() {
+            var closed = isSignupClosed();
+            var paymentsSection = document.getElementById('payments');
+            var heroBtn = document.getElementById('heroCtaBtn');
+
+            if (paymentsSection) {
+                if (closed) {
+                    paymentsSection.classList.add('signup-deadline-closed');
+                    // Disable all interactive form elements inside the payments section
+                    paymentsSection.querySelectorAll('input, select, textarea, button').forEach(function(el) {
+                        el.disabled = true;
+                    });
+                    // Show or update the closed banner
+                    var banner = paymentsSection.querySelector('.signup-closed-banner');
+                    if (!banner) {
+                        banner = document.createElement('div');
+                        banner.className = 'signup-closed-banner';
+                        paymentsSection.querySelector('.container').insertAdjacentElement('afterbegin', banner);
+                    }
+                    var dl = getSignupDeadline();
+                    var dateStr = '';
+                    try { dateStr = new Date(dl).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch(e) {}
+                    banner.textContent = '🔒 Registration is currently closed' + (dateStr ? ' (deadline: ' + dateStr + ')' : '') + '. Check back for next season!';
+                } else {
+                    paymentsSection.classList.remove('signup-deadline-closed');
+                    paymentsSection.querySelectorAll('input, select, textarea, button').forEach(function(el) {
+                        el.disabled = false;
+                    });
+                    var existingBanner = paymentsSection.querySelector('.signup-closed-banner');
+                    if (existingBanner) existingBanner.remove();
+                }
+            }
+
+            if (heroBtn) {
+                if (closed) {
+                    heroBtn.classList.remove('cta-glow', 'cta-pulse');
+                    heroBtn.classList.add('signup-deadline-closed-btn');
+                } else {
+                    heroBtn.classList.add('cta-glow', 'cta-pulse');
+                    heroBtn.classList.remove('signup-deadline-closed-btn');
+                }
+            }
+        }
+
+        function populateSignupDeadlineEditor() {
+            var dateInput = document.getElementById('signupDeadlineDateInput');
+            if (!dateInput) return;
+            var dl = getSignupDeadline();
+            if (dl) {
+                try {
+                    var d = new Date(dl);
+                    if (!isNaN(d.getTime())) {
+                        dateInput.value = d.getFullYear() + '-' +
+                            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                            String(d.getDate()).padStart(2, '0');
+                    }
+                } catch (e) {}
+            } else {
+                dateInput.value = '';
+            }
+        }
+
+        function bindSignupDeadlineAdminControls() {
+            var saveBtn = document.getElementById('saveSignupDeadlineBtn');
+            var clearBtn = document.getElementById('clearSignupDeadlineBtn');
+            var msgEl = document.getElementById('signupDeadlineAdminMsg');
+            if (saveBtn && !saveBtn.dataset.bound) {
+                saveBtn.dataset.bound = '1';
+                saveBtn.addEventListener('click', function() {
+                    if (!isAdminLoggedIn()) return;
+                    var dateInput = document.getElementById('signupDeadlineDateInput');
+                    var val = dateInput ? dateInput.value : '';
+                    if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a deadline date.'; } return; }
+                    // Store end-of-day for the chosen date
+                    var iso = val + 'T23:59:59';
+                    try {
+                        localStorage.setItem(SIGNUP_DEADLINE_KEY, iso);
+                        queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline, iso, 'SignupDeadline');
+                    } catch (e) {}
+                    applySignupDeadlineState();
+                    populateSignupDeadlineEditor();
+                    if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Deadline saved!'; setTimeout(function() { msgEl.textContent = ''; }, 2500); }
+                });
+            }
+            if (clearBtn && !clearBtn.dataset.bound) {
+                clearBtn.dataset.bound = '1';
+                clearBtn.addEventListener('click', function() {
+                    if (!isAdminLoggedIn()) return;
+                    try { localStorage.removeItem(SIGNUP_DEADLINE_KEY); } catch (e) {}
+                    queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline, null, 'SignupDeadline');
+                    var dateInput = document.getElementById('signupDeadlineDateInput');
+                    if (dateInput) dateInput.value = '';
+                    applySignupDeadlineState();
+                    if (msgEl) { msgEl.style.color = '#4caf50'; msgEl.textContent = 'Deadline cleared — signup is open!'; setTimeout(function() { msgEl.textContent = ''; }, 2500); }
+                });
+            }
+        }
+
+        // =====================================================
         // LATEST RESULTS WIDGET
         // =====================================================
         function renderLatestResultsWidget() {
@@ -6347,6 +6479,7 @@
         function runNewFeatureInits() {
             initDarkMode();
             initCountdownTimer();
+            applySignupDeadlineState();
             renderLatestResultsWidget();
             renderPlayoffBracket();
             initFAQ();
@@ -6358,6 +6491,8 @@
                 if (isAdminLoggedIn()) {
                     populatePlayoffEditor();
                     populateCountdownEditor();
+                    populateSignupDeadlineEditor();
+                    bindSignupDeadlineAdminControls();
                 }
             }, 600);
         }
@@ -6365,6 +6500,7 @@
         // Re-run on window.load as well to catch any timing issues
         window.addEventListener('load', function() {
             initDarkMode();
+            applySignupDeadlineState();
             renderLatestResultsWidget();
             renderPlayoffBracket();
             initFAQ();
@@ -6373,6 +6509,8 @@
             if (isAdminLoggedIn()) {
                 populatePlayoffEditor();
                 populateCountdownEditor();
+                populateSignupDeadlineEditor();
+                bindSignupDeadlineAdminControls();
                 // Show gallery admin panel
                 var galAdmin = document.getElementById('galleryAdminPanel');
                 if (galAdmin) galAdmin.classList.add('visible');
