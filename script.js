@@ -1196,6 +1196,7 @@
             if (/^https?:\/\//i.test(normalized)) return normalized;
             if (/^blob:/i.test(normalized)) return normalized;
             if (normalized.charAt(0) === '/') return normalized;
+            if (/^\.\//.test(normalized)) return normalized;
             return '';
         }
 
@@ -1383,9 +1384,9 @@
                 if (isSiteLogoOverrideEnabled()) {
                     savedLogo = await idbGet(SITE_LOGO_KEY);
                 }
-                applyLogoToPage(savedLogo ? String(savedLogo) : '');
+                applyLogoToPage(savedLogo ? String(savedLogo) : './assets/logo.png');
             } catch (err) {
-                applyLogoToPage('');
+                applyLogoToPage('./assets/logo.png');
             }
         }
 
@@ -1410,9 +1411,9 @@
             } catch (err) {}
             try {
                 var savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
-                applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : '');
+                applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : './assets/logo.png');
             } catch (err) {
-                applyHeroBackgroundToPage('');
+                applyHeroBackgroundToPage('./assets/logo.png');
             }
         }
 
