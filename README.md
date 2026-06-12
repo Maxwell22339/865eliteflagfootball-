@@ -200,7 +200,7 @@ The signup season window is stored in `site_content` under the `signup_season` k
 }
 ```
 
-Admins manage those dates from the dashboard, the public signup form disables itself outside the window, and the insert policy above blocks new Supabase signup rows after the close date or before the open date.
+Admins manage those dates from the dashboard. The public signup form disables itself outside the window. The insert policy above blocks new Supabase signup rows after the close date or before the open date.
 
 ### 3) Expected production behavior
 

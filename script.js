@@ -1139,7 +1139,13 @@
         function formatSignupSeasonDate(value) {
             var parsed = new Date(value);
             if (isNaN(parsed.getTime())) return '';
-            return parsed.toLocaleString();
+            return parsed.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
         }
 
         function toLocalDatetimeInputValue(value) {
@@ -1178,12 +1184,14 @@
             if (msg) {
                 if (status.isOpen) {
                     msg.style.color = '';
-                    if (msg.textContent === 'Signups are closed until next season.' || /^Signups open on /i.test(msg.textContent || '')) {
+                    if (msg.dataset.signupSeasonStatus === 'closed') {
                         msg.textContent = '';
                     }
+                    delete msg.dataset.signupSeasonStatus;
                 } else {
                     msg.style.color = '#ffb366';
                     msg.textContent = status.message;
+                    msg.dataset.signupSeasonStatus = 'closed';
                 }
             }
             if (status.isOpen) {
@@ -3094,7 +3102,7 @@
                     msg.style.color = '#e65100';
                     msg.textContent = availability.message;
                 }
-                logPaymentSignupEvent('warn', 'Blocked signup submission because the signup window is closed or unavailable.', availability.status || availability.message);
+                logPaymentSignupEvent('warn', 'Blocked signup submission because the signup window is closed or unavailable.', availability.status || { message: availability.message });
                 return;
             }
             const name = document.getElementById('payName').value.trim();
