@@ -5715,7 +5715,8 @@
             if (!dl) return false;
             var d = new Date(dl);
             if (isNaN(d.getTime())) return false;
-            return new Date() > d;
+            var now = new Date();
+            return now > d;
         }
 
         function applySignupDeadlineState() {
@@ -5726,9 +5727,13 @@
             if (paymentsSection) {
                 if (closed) {
                     paymentsSection.classList.add('signup-deadline-closed');
-                    // Disable all interactive form elements inside the payments section
+                    // Disable only elements not already disabled for other reasons;
+                    // mark each one we disable so we can selectively re-enable later.
                     paymentsSection.querySelectorAll('input, select, textarea, button').forEach(function(el) {
-                        el.disabled = true;
+                        if (!el.disabled) {
+                            el.disabled = true;
+                            el.dataset.deadlineDisabled = '1';
+                        }
                     });
                     // Show or update the closed banner
                     var banner = paymentsSection.querySelector('.signup-closed-banner');
@@ -5743,8 +5748,10 @@
                     banner.textContent = '🔒 Registration is currently closed' + (dateStr ? ' (deadline: ' + dateStr + ')' : '') + '. Check back for next season!';
                 } else {
                     paymentsSection.classList.remove('signup-deadline-closed');
-                    paymentsSection.querySelectorAll('input, select, textarea, button').forEach(function(el) {
+                    // Only re-enable elements that this feature disabled
+                    paymentsSection.querySelectorAll('[data-deadline-disabled]').forEach(function(el) {
                         el.disabled = false;
+                        delete el.dataset.deadlineDisabled;
                     });
                     var existingBanner = paymentsSection.querySelector('.signup-closed-banner');
                     if (existingBanner) existingBanner.remove();
@@ -5791,8 +5798,8 @@
                     var dateInput = document.getElementById('signupDeadlineDateInput');
                     var val = dateInput ? dateInput.value : '';
                     if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a deadline date.'; } return; }
-                    // Store end-of-day for the chosen date
-                    var iso = val + 'T23:59:59';
+                    // Store end-of-day for the chosen date (converted to UTC ISO string)
+                    var iso = new Date(val + 'T23:59:59').toISOString();
                     try {
                         localStorage.setItem(SIGNUP_DEADLINE_KEY, iso);
                         queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline, iso, 'SignupDeadline');
