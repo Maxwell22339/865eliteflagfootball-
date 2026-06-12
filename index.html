@@ -649,6 +649,7 @@
                 <div class="signup-badge">Elite Registration</div>
                 <p>Choose your payment type and continue to secure checkout.</p>
             </div>
+            <p id="signupStatusNotice" class="signup-status-banner" role="status" aria-live="polite">Signups are closed until next season.</p>
 
             <div class="payments-grid">
                 <div class="payment-card">
@@ -961,6 +962,25 @@
                     <button id="clearCountdownSettings" type="button" class="cta-button small" style="background:#555;">Clear Timer</button>
                 </div>
                 <p id="countdownAdminMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
+            </div>
+
+            <h2 style="margin-top:24px;">Signup Season Window</h2>
+            <div id="signupSeasonEditor" class="registration-form" style="max-width:600px; margin-top:12px;" data-no-admin-edit="true" contenteditable="false">
+                <div class="registration-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label for="signupOpenDateInput">Signup Open Date &amp; Time</label>
+                        <input id="signupOpenDateInput" type="datetime-local" style="width:100%; padding:8px;">
+                    </div>
+                    <div>
+                        <label for="signupCloseDateInput">Signup Close Date &amp; Time</label>
+                        <input id="signupCloseDateInput" type="datetime-local" style="width:100%; padding:8px;">
+                    </div>
+                </div>
+                <div style="margin-top:12px; text-align:center; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                    <button id="saveSignupSeasonSettings" type="button" class="cta-button small">Save Signup Dates</button>
+                    <button id="clearSignupSeasonSettings" type="button" class="cta-button small" style="background:#555;">Clear Signup Dates</button>
+                </div>
+                <p id="signupSeasonAdminMsg" style="text-align:center; margin-top:8px; font-size:0.9rem;"></p>
             </div>
 
             <h2 style="margin-top:24px;">Payment Approvals</h2>

@@ -49,6 +49,7 @@ create table if not exists public.signup_submissions (
   id text primary key,
   name text not null default '',
   email text not null default '',
+  phone text not null default '',
   type text not null default 'team',
   method text not null default 'paypal',
   team_name text not null default '',
@@ -114,7 +115,17 @@ create policy "signup submissions insert"
 on public.signup_submissions
 for insert
 to anon, authenticated
-with check (true);
+with check (
+  exists (
+    select 1
+    from public.site_content sc
+    where sc.key = 'signup_season'
+      and nullif(sc.value->>'openDate', '') is not null
+      and nullif(sc.value->>'closeDate', '') is not null
+      and now() >= (sc.value->>'openDate')::timestamptz
+      and now() <= (sc.value->>'closeDate')::timestamptz
+  )
+);
 
 drop policy if exists "signup submissions update" on public.signup_submissions;
 create policy "signup submissions update"
@@ -180,6 +191,17 @@ for delete
 to anon, authenticated
 using (bucket_id = 'gallery-images');
 ```
+
+The signup season window is stored in `site_content` under the `signup_season` key as JSON:
+
+```json
+{
+  "openDate": "2026-08-01T12:00:00.000Z",
+  "closeDate": "2026-08-31T23:59:00.000Z"
+}
+```
+
+Admins manage those dates from the dashboard, the public signup form disables itself outside the window, and the insert policy above blocks new Supabase signup rows after the close date or before the open date.
 
 ### 3) Expected production behavior
 
