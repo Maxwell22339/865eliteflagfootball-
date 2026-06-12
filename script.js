@@ -116,7 +116,7 @@
         ];
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const PAGE_CONTENT_VERSION_KEY = 'siteContentVersion_v1';
-        const PAGE_CONTENT_TEMPLATE_VERSION = '20260530_remake_v1';
+        const PAGE_CONTENT_TEMPLATE_VERSION = '20260612_signup_v2';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const SITE_LOGO_OVERRIDE_FLAG_KEY = 'siteLogoOverrideEnabled_v1';
         const LOGO_CACHE_VERSION_KEY = 'logoCacheVersion_v1';
@@ -139,9 +139,18 @@
         let PAYMENT_NOTIFICATION_SETTINGS = {
             adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
             publicKey: '',
-            serviceId: '',
+            serviceId: 'service_sp3bqul',
             templateId: ''
         };
+        const REGISTRATION_TYPE_LABELS = {
+            freeAgent: 'Free Agent ($50)',
+            teamHasJerseys: 'Team — Has Jerseys ($350)',
+            teamNeedsJerseys: 'Team — Needs Jerseys ($500)',
+            team: 'Team Registration ($500)'
+        };
+        function isTeamRegistrationType(type) {
+            return type === 'teamHasJerseys' || type === 'teamNeedsJerseys' || type === 'team';
+        }
         const SUPABASE_PUBLIC_STATE_KEYS = {
             pageContent: 'page_content',
             pageContentVersion: 'page_content_version',
@@ -1024,7 +1033,7 @@
                 PAYMENT_NOTIFICATION_SETTINGS = {
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: saved.publicKey || '',
-                    serviceId: saved.serviceId || '',
+                    serviceId: saved.serviceId || 'service_sp3bqul',
                     templateId: saved.templateId || ''
                 };
                 if (saved.adminEmail !== DEFAULT_ADMIN_NOTIFICATION_EMAIL) {
@@ -1034,7 +1043,7 @@
                 PAYMENT_NOTIFICATION_SETTINGS = {
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: '',
-                    serviceId: '',
+                    serviceId: 'service_sp3bqul',
                     templateId: ''
                 };
                 localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
@@ -1078,15 +1087,17 @@
             }
 
             try {
+                var typeLabel = REGISTRATION_TYPE_LABELS[details.type] || details.type || 'Unknown';
                 await window.emailjs.send(
                     PAYMENT_NOTIFICATION_SETTINGS.serviceId,
                     PAYMENT_NOTIFICATION_SETTINGS.templateId,
                     {
                         to_email: PAYMENT_NOTIFICATION_SETTINGS.adminEmail,
                         admin_email: PAYMENT_NOTIFICATION_SETTINGS.adminEmail,
-                        registration_type: details.type === 'team' ? 'Team Registration' : 'Free Agent',
+                        registration_type: typeLabel,
                         payer_name: details.name,
                         payer_email: details.email,
+                        payer_phone: details.phone || 'N/A',
                         team_name: details.teamName || 'N/A',
                         team_member_count: details.teamMembers || 'N/A',
                         team_years: details.teamYears || 'N/A',
@@ -1096,7 +1107,7 @@
                         payment_username: details.paymentUsername || 'N/A',
                         paypal_link: details.paypalLink || 'Not configured',
                         submitted_at: details.submittedAt,
-                        message: 'A new ' + (details.type === 'team' ? 'team registration' : 'free agent') + ' payment request was submitted.'
+                        message: 'A new ' + typeLabel + ' signup was submitted.'
                     },
                     {
                         publicKey: PAYMENT_NOTIFICATION_SETTINGS.publicKey
@@ -2136,11 +2147,21 @@
 
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
+            // Normalise type: map legacy 'team' to teamNeedsJerseys; keep other valid values as-is
+            var rawType;
+            if (item.type === 'freeAgent') {
+                rawType = 'freeAgent';
+            } else if (item.type === 'teamHasJerseys') {
+                rawType = 'teamHasJerseys';
+            } else {
+                rawType = 'teamNeedsJerseys';
+            }
             return {
                 id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }))).trim(),
                 name: String(item.name || '').trim(),
                 email: String(item.email || '').trim(),
-                type: item.type === 'freeAgent' ? 'freeAgent' : 'team',
+                phone: String(item.phone || '').trim(),
+                type: rawType,
                 method: item.method === 'cashapp' || item.method === 'venmo' ? item.method : 'paypal',
                 teamName: String(item.teamName || '').trim(),
                 teamMembers: String(item.teamMembers || '').trim(),
@@ -2169,6 +2190,7 @@
                 id: row && row.id,
                 name: row && row.name,
                 email: row && row.email,
+                phone: row && row.phone,
                 type: row && row.type,
                 method: row && row.method,
                 teamName: row && row.team_name,
@@ -2190,6 +2212,7 @@
                 id: normalized.id,
                 name: normalized.name,
                 email: normalized.email,
+                phone: normalized.phone,
                 type: normalized.type,
                 method: normalized.method,
                 team_name: normalized.teamName,
@@ -2216,7 +2239,7 @@
             try {
                 var response = await client
                     .from(config.registrationsTable)
-                    .select('id, name, email, type, method, team_name, team_members, team_years, off_position, def_position, experience, payment_username, status, submitted_at, reviewed_at')
+                    .select('id, name, email, phone, type, method, team_name, team_members, team_years, off_position, def_position, experience, payment_username, status, submitted_at, reviewed_at')
                     .order('submitted_at', { ascending: true });
                 if (response.error) {
                     logPaymentSupabaseError('Select', 'Failed to fetch signup rows from table "' + config.registrationsTable + '".', response.error);
@@ -2331,7 +2354,7 @@
             const emailInput = document.getElementById('payEmail');
             if (!typeInput || !teamMembersWrap || !teamYearsWrap || !experienceWrap) return;
 
-            const isTeam = typeInput.value === 'team';
+            const isTeam = isTeamRegistrationType(typeInput.value);
             const isFreeAgent = typeInput.value === 'freeAgent';
             teamMembersWrap.style.display = isTeam ? 'block' : 'none';
             teamYearsWrap.style.display = isTeam ? 'block' : 'none';
@@ -2389,16 +2412,18 @@
         function updatePaymentMethodLink() {
             loadPaymentLinks();
             const method = (document.getElementById('payMethod') || {}).value || '';
+            const type = (document.getElementById('payType') || {}).value || '';
             const linkWrap = document.getElementById('payMethodLinkWrap');
             const submitBtn = document.getElementById('paySubmitBtn');
             const usernameWrap = document.getElementById('paymentUsernameWrap');
             const usernameInput = document.getElementById('paymentUsername');
+            const amountLabel = type === 'teamNeedsJerseys' ? ' ($500)' : type === 'teamHasJerseys' ? ' ($350)' : ' ($50)';
             if (method === 'cashapp') {
-                if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp' + amountLabel;
             } else if (method === 'venmo') {
-                if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo';
+                if (submitBtn) submitBtn.textContent = 'Submit & Open Venmo' + amountLabel;
             } else if (method === 'paypal') {
-                if (submitBtn) submitBtn.textContent = 'Continue To PayPal';
+                if (submitBtn) submitBtn.textContent = 'Continue To PayPal' + amountLabel;
             } else {
                 if (submitBtn) submitBtn.textContent = 'Continue To Payment';
             }
@@ -2421,18 +2446,19 @@
                 const items = loadPaymentRequests();
                 tbody.innerHTML = '';
                 if (!items.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#777; padding:20px;">No payment requests yet.</td></tr>';
                     return;
                 }
                 items.forEach((p, idx) => {
                     const tr = document.createElement('tr');
-                    const label = p.type === 'team' ? 'Team Registration' : 'Free Agent';
+                    const label = REGISTRATION_TYPE_LABELS[p.type] || p.type || 'Unknown';
                     const positionInfo = p.offPosition
                         ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
                         : (p.position ? 'Position: ' + p.position : '');
-                    const details = p.type === 'freeAgent'
-                        ? (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A')
-                        : 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A');
+                    const isTeam = isTeamRegistrationType(p.type);
+                    const details = isTeam
+                        ? 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A')
+                        : (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A');
                     const methodLabels = { paypal: 'PayPal', cashapp: 'CashApp', venmo: 'Venmo' };
                     const payInfo = (methodLabels[p.method] || p.method || '') + (p.paymentUsername ? ' — ' + p.paymentUsername : '');
                     const submitted = p.submittedAt ? new Date(p.submittedAt).toLocaleString() : 'N/A';
@@ -2447,6 +2473,7 @@
 
                     appendCell(p.name || '');
                     appendCell(p.email || '');
+                    appendCell(p.phone || '');
                     appendCell(label);
                     appendCell(details);
                     appendCell(payInfo || 'N/A');
@@ -2750,6 +2777,7 @@
             }
             if (e.target.id === 'payType') {
                 updatePaymentTypeFields();
+                updatePaymentMethodLink();
                 return;
             }
             if (e.target.id === 'payMethod') {
@@ -2798,14 +2826,16 @@
             e.preventDefault();
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
+            const phone = (document.getElementById('payPhone') || {}).value ? document.getElementById('payPhone').value.trim() : '';
             const type = document.getElementById('payType').value;
             const method = (document.getElementById('payMethod') || {}).value || '';
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
             const teamName = document.getElementById('payTeamName').value.trim();
-            const offPosition = type === 'team' ? '' : document.getElementById('payOffPosition').value.trim();
-            const defPosition = type === 'team' ? '' : document.getElementById('payDefPosition').value.trim();
-            const experience = type === 'team' ? '' : document.getElementById('payExperience').value.trim();
+            const isTeam = isTeamRegistrationType(type);
+            const offPosition = isTeam ? '' : document.getElementById('payOffPosition').value.trim();
+            const defPosition = isTeam ? '' : document.getElementById('payDefPosition').value.trim();
+            const experience = isTeam ? '' : document.getElementById('payExperience').value.trim();
             const paymentUsername = document.getElementById('paymentUsername').value.trim();
             loadPaymentLinks();
             loadPaymentNotificationSettings();
@@ -2815,12 +2845,21 @@
             } else if (method === 'venmo') {
                 link = PAYMENT_LINKS.venmo || '';
             } else {
-                link = type === 'team' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
+                // $500 only for teamNeedsJerseys; all others are $50
+                link = type === 'teamNeedsJerseys' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
             }
             const msg = document.getElementById('paymentMsg');
             logPaymentSignupEvent('info', 'Signup form submit received.', { type: type, method: method, email: email });
 
-            if (type === 'team' && (!teamName || !teamMembers || !teamYears)) {
+            if (!phone) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = 'Please enter your phone number so we can reach you.';
+                }
+                return;
+            }
+
+            if (isTeam && (!teamName || !teamMembers || !teamYears)) {
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = 'Team registrations must provide the team name, team members, and years playing together.';
@@ -2828,7 +2867,7 @@
                 return;
             }
 
-            if (type === 'team' && Number(teamMembers) > 16) {
+            if (isTeam && Number(teamMembers) > 16) {
                 if (msg) {
                     msg.style.color = '#e65100';
                     msg.textContent = 'Team registrations cannot exceed 16 players.';
@@ -2861,6 +2900,7 @@
                     : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }),
                 name,
                 email,
+                phone,
                 type,
                 method,
                 teamName,
@@ -2887,6 +2927,7 @@
             const notificationResult = await sendAdminPaymentNotification({
                 name,
                 email,
+                phone,
                 type,
                 teamName,
                 teamMembers,
