@@ -1177,6 +1177,7 @@
             }
             if (msg) {
                 if (status.isOpen) {
+                    msg.style.color = '';
                     if (msg.textContent === 'Signups are closed until next season.' || /^Signups open on /i.test(msg.textContent || '')) {
                         msg.textContent = '';
                     }
@@ -1186,7 +1187,6 @@
                 }
             }
             if (status.isOpen) {
-                updatePaymentTypeFields();
                 updatePaymentMethodLink();
             }
             return status;
@@ -1233,22 +1233,24 @@
                         }
                         return;
                     }
-                    var openIso = new Date(openValue).toISOString();
-                    var closeIso = new Date(closeValue).toISOString();
-                    if (isNaN(new Date(openIso).getTime()) || isNaN(new Date(closeIso).getTime())) {
+                    var openMs = new Date(openValue).getTime();
+                    var closeMs = new Date(closeValue).getTime();
+                    if (isNaN(openMs) || isNaN(closeMs)) {
                         if (msg) {
                             msg.style.color = '#e65100';
                             msg.textContent = 'Enter valid signup dates.';
                         }
                         return;
                     }
-                    if (new Date(closeIso).getTime() <= new Date(openIso).getTime()) {
+                    if (closeMs <= openMs) {
                         if (msg) {
                             msg.style.color = '#e65100';
                             msg.textContent = 'The signup close date must be after the open date.';
                         }
                         return;
                     }
+                    var openIso = new Date(openMs).toISOString();
+                    var closeIso = new Date(closeMs).toISOString();
                     saveSignupSeasonSettings({
                         openDate: openIso,
                         closeDate: closeIso
@@ -2374,7 +2376,6 @@
                     teamMembersInput.value = '16';
                 }
             }
-            renderSignupSeasonAvailability();
         }
 
         function logPaymentSignupEvent(type, details, extra) {

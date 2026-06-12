@@ -49,7 +49,6 @@ create table if not exists public.signup_submissions (
   id text primary key,
   name text not null default '',
   email text not null default '',
-  phone text not null default '',
   type text not null default 'team',
   method text not null default 'paypal',
   team_name text not null default '',
