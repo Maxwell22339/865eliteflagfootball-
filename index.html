@@ -305,7 +305,7 @@
                         <li style="margin-bottom: 1rem;"><strong>🥇 Championship Trophies:</strong> Awarded</li>
                         <li style="margin-bottom: 1rem;"><strong>⭐ League MVP:</strong> Celebrated</li>
                         <li style="margin-bottom: 1rem;"><strong>🌟 Player of the Year:</strong> Celebrated</li>
-                        <li style="margin-bottom: 1rem;"><strong>💰 League Signup Fee:</strong> $500</li>
+                        <li style="margin-bottom: 1rem;"><strong>💰 League Signup Fee:</strong> $50–$500</li>
                     </ul>
                 </div>
             </div>
@@ -652,14 +652,19 @@
 
             <div class="payments-grid">
                 <div class="payment-card">
-                    <h3>Team Registration Fee</h3>
-                    <p class="payment-amount">$500</p>
-                    <p style="margin-top:8px;">For full team entry into the league season.</p>
+                    <h3>Free Agent</h3>
+                    <p class="payment-amount">$50</p>
+                    <p style="margin-top:8px;">For individual free agent placement into a team.</p>
                 </div>
                 <div class="payment-card">
-                    <h3>Free Agent Fee</h3>
+                    <h3>Team Registration</h3>
                     <p class="payment-amount">$50</p>
-                    <p style="margin-top:8px;">For individual free agent placement pool.</p>
+                    <p style="margin-top:8px;">Your team <strong>already has jerseys</strong> — just need league entry.</p>
+                </div>
+                <div class="payment-card">
+                    <h3>Team Registration + Jerseys</h3>
+                    <p class="payment-amount">$500</p>
+                    <p style="margin-top:8px;">Full team entry <strong>including jerseys</strong> provided by the league.</p>
                 </div>
             </div>
 
@@ -673,17 +678,22 @@
                         <label for="payEmail" id="payEmailLabel" data-team-label="Email Associated With the Team" data-free-label="Free Agent Email">Email Associated With the Team</label>
                         <input id="payEmail" type="email" required placeholder="Email associated with the team" data-team-placeholder="Email associated with the team" data-free-placeholder="Free agent signup email">
                     </div>
+                    <div>
+                        <label for="payPhone">Phone Number</label>
+                        <input id="payPhone" type="tel" required placeholder="e.g. (865) 555-1234">
+                    </div>
                     <div id="teamNameWrap">
                         <label for="payTeamName">Team Name</label>
                         <input id="payTeamName" type="text" placeholder="Team name">
                     </div>
                     <div>
-                        <label for="payType">Payment Type</label>
+                        <label for="payType">Registration Type</label>
                         <select id="payType" required>
-                            <option value="team" selected>Team Registration ($500)</option>
-                            <option value="freeAgent">Free Agent ($50)</option>
+                            <option value="freeAgent" selected>Free Agent ($50)</option>
+                            <option value="teamHasJerseys">Team — Already Has Jerseys ($50)</option>
+                            <option value="teamNeedsJerseys">Team — Needs Jerseys ($500)</option>
                         </select>
-                        <p class="signup-note">Choose team or free agent and the required signup boxes will appear right below.</p>
+                        <p class="signup-note">Choose your registration type and the required signup boxes will appear below.</p>
                     </div>
                     <div>
                         <label for="payMethod">Payment Method</label>
@@ -776,11 +786,11 @@
             <div id="paypalSettings" class="registration-form" style="max-width:900px;" data-no-admin-edit="true" contenteditable="false">
                 <div class="registration-grid">
                     <div>
-                        <label for="paypalTeamLink">Team Registration PayPal Link</label>
+                        <label for="paypalTeamLink">$500 Team Registration PayPal Link (Team Needs Jerseys)</label>
                         <input id="paypalTeamLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
                     </div>
                     <div>
-                        <label for="paypalFreeAgentLink">Free Agent PayPal Link</label>
+                        <label for="paypalFreeAgentLink">$50 Registration PayPal Link (Free Agent &amp; Team w/ Jerseys)</label>
                         <input id="paypalFreeAgentLink" type="url" value="https://paypal.me/tfick123" placeholder="https://paypal.me/tfick123">
                     </div>
                     <div>
@@ -956,7 +966,7 @@
             <h2 style="margin-top:24px;">Payment Approvals</h2>
             <table class="teams-table documents-table">
                 <thead>
-                    <tr><th>Name</th><th>Email</th><th>Type</th><th>Details</th><th>Payment</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                    <tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Details</th><th>Payment</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="adminPaymentsTbody"></tbody>
             </table>
@@ -1023,7 +1033,7 @@
                 <div class="faq-item">
                     <button class="faq-question" aria-expanded="false">How much does it cost to sign up? <span class="faq-icon" aria-hidden="true">+</span></button>
                     <div class="faq-answer" hidden>
-                        <p>Team registration is <strong>$500</strong> per season. Free agent placement is <strong>$50</strong> per player. Fees cover all league games, certified referees, and end-of-season awards.</p>
+                        <p>Free agent placement is <strong>$50</strong> per player. Team registration is <strong>$50</strong> if your team already has jerseys, or <strong>$500</strong> if your team needs jerseys provided by the league. Fees cover all league games, certified referees, and end-of-season awards.</p>
                     </div>
                 </div>
                 <div class="faq-item">
