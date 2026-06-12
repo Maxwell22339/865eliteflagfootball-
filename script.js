@@ -142,6 +142,15 @@
             serviceId: '',
             templateId: ''
         };
+        const REGISTRATION_TYPE_LABELS = {
+            freeAgent: 'Free Agent ($50)',
+            teamHasJerseys: 'Team — Has Jerseys ($50)',
+            teamNeedsJerseys: 'Team — Needs Jerseys ($500)',
+            team: 'Team Registration ($500)'
+        };
+        function isTeamRegistrationType(type) {
+            return type === 'teamHasJerseys' || type === 'teamNeedsJerseys' || type === 'team';
+        }
         const SUPABASE_PUBLIC_STATE_KEYS = {
             pageContent: 'page_content',
             pageContentVersion: 'page_content_version',
@@ -1078,8 +1087,7 @@
             }
 
             try {
-                var typeLabels = { freeAgent: 'Free Agent ($50)', teamHasJerseys: 'Team — Has Jerseys ($50)', teamNeedsJerseys: 'Team — Needs Jerseys ($500)' };
-                var typeLabel = typeLabels[details.type] || (details.type === 'team' ? 'Team Registration ($500)' : details.type || 'Unknown');
+                var typeLabel = REGISTRATION_TYPE_LABELS[details.type] || details.type || 'Unknown';
                 await window.emailjs.send(
                     PAYMENT_NOTIFICATION_SETTINGS.serviceId,
                     PAYMENT_NOTIFICATION_SETTINGS.templateId,
@@ -2139,10 +2147,15 @@
 
         function normalizePaymentRequest(item) {
             if (!item || typeof item !== 'object') return null;
-            // Normalise legacy 'team' type: treat as teamNeedsJerseys for backwards compat
-            var rawType = item.type === 'freeAgent' ? 'freeAgent'
-                : (item.type === 'teamHasJerseys' ? 'teamHasJerseys'
-                : 'teamNeedsJerseys');
+            // Normalise type: map legacy 'team' to teamNeedsJerseys; keep other valid values as-is
+            var rawType;
+            if (item.type === 'freeAgent') {
+                rawType = 'freeAgent';
+            } else if (item.type === 'teamHasJerseys') {
+                rawType = 'teamHasJerseys';
+            } else {
+                rawType = 'teamNeedsJerseys';
+            }
             return {
                 id: String(item.id || (window.crypto && typeof window.crypto.randomUUID === 'function' ? window.crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) { return (c ^ (window.crypto || crypto).getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16); }))).trim(),
                 name: String(item.name || '').trim(),
@@ -2341,7 +2354,7 @@
             const emailInput = document.getElementById('payEmail');
             if (!typeInput || !teamMembersWrap || !teamYearsWrap || !experienceWrap) return;
 
-            const isTeam = typeInput.value === 'teamHasJerseys' || typeInput.value === 'teamNeedsJerseys';
+            const isTeam = isTeamRegistrationType(typeInput.value);
             const isFreeAgent = typeInput.value === 'freeAgent';
             teamMembersWrap.style.display = isTeam ? 'block' : 'none';
             teamYearsWrap.style.display = isTeam ? 'block' : 'none';
@@ -2438,12 +2451,11 @@
                 }
                 items.forEach((p, idx) => {
                     const tr = document.createElement('tr');
-                    const typeLabels = { freeAgent: 'Free Agent ($50)', teamHasJerseys: 'Team w/ Jerseys ($50)', teamNeedsJerseys: 'Team Needs Jerseys ($500)' };
-                    const label = typeLabels[p.type] || (p.type === 'team' ? 'Team Reg ($500)' : p.type || 'Unknown');
+                    const label = REGISTRATION_TYPE_LABELS[p.type] || p.type || 'Unknown';
                     const positionInfo = p.offPosition
                         ? 'Off: ' + p.offPosition + ' | Def: ' + (p.defPosition || 'N/A')
                         : (p.position ? 'Position: ' + p.position : '');
-                    const isTeam = p.type === 'teamHasJerseys' || p.type === 'teamNeedsJerseys' || p.type === 'team';
+                    const isTeam = isTeamRegistrationType(p.type);
                     const details = isTeam
                         ? 'Team Name: ' + (p.teamName || 'N/A') + ' | Team Members: ' + (p.teamMembers || 'N/A') + ' | Team Years: ' + (p.teamYears || 'N/A')
                         : (positionInfo ? positionInfo + ' | ' : '') + 'Experience: ' + (p.experience || 'N/A');
@@ -2820,7 +2832,7 @@
             const teamMembers = document.getElementById('payTeamMembers').value.trim();
             const teamYears = document.getElementById('payTeamYears').value.trim();
             const teamName = document.getElementById('payTeamName').value.trim();
-            const isTeam = type === 'teamHasJerseys' || type === 'teamNeedsJerseys';
+            const isTeam = isTeamRegistrationType(type);
             const offPosition = isTeam ? '' : document.getElementById('payOffPosition').value.trim();
             const defPosition = isTeam ? '' : document.getElementById('payDefPosition').value.trim();
             const experience = isTeam ? '' : document.getElementById('payExperience').value.trim();
