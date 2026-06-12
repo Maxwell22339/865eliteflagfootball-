@@ -144,7 +144,7 @@
         };
         const REGISTRATION_TYPE_LABELS = {
             freeAgent: 'Free Agent ($50)',
-            teamHasJerseys: 'Team — Has Jerseys ($50)',
+            teamHasJerseys: 'Team — Has Jerseys ($350)',
             teamNeedsJerseys: 'Team — Needs Jerseys ($500)',
             team: 'Team Registration ($500)'
         };
@@ -2417,7 +2417,7 @@
             const submitBtn = document.getElementById('paySubmitBtn');
             const usernameWrap = document.getElementById('paymentUsernameWrap');
             const usernameInput = document.getElementById('paymentUsername');
-            const amountLabel = type === 'teamNeedsJerseys' ? ' ($500)' : ' ($50)';
+            const amountLabel = type === 'teamNeedsJerseys' ? ' ($500)' : type === 'teamHasJerseys' ? ' ($350)' : ' ($50)';
             if (method === 'cashapp') {
                 if (submitBtn) submitBtn.textContent = 'Submit & Open CashApp' + amountLabel;
             } else if (method === 'venmo') {
