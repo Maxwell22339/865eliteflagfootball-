@@ -139,7 +139,7 @@
         let PAYMENT_NOTIFICATION_SETTINGS = {
             adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
             publicKey: '',
-            serviceId: '',
+            serviceId: 'service_sp3bqul',
             templateId: ''
         };
         const REGISTRATION_TYPE_LABELS = {
@@ -1033,7 +1033,7 @@
                 PAYMENT_NOTIFICATION_SETTINGS = {
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: saved.publicKey || '',
-                    serviceId: saved.serviceId || '',
+                    serviceId: saved.serviceId || 'service_sp3bqul',
                     templateId: saved.templateId || ''
                 };
                 if (saved.adminEmail !== DEFAULT_ADMIN_NOTIFICATION_EMAIL) {
@@ -1043,7 +1043,7 @@
                 PAYMENT_NOTIFICATION_SETTINGS = {
                     adminEmail: DEFAULT_ADMIN_NOTIFICATION_EMAIL,
                     publicKey: '',
-                    serviceId: '',
+                    serviceId: 'service_sp3bqul',
                     templateId: ''
                 };
                 localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(PAYMENT_NOTIFICATION_SETTINGS));
