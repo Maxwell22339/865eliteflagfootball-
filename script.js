@@ -1411,9 +1411,9 @@
             } catch (err) {}
             try {
                 var savedBackground = await idbGet(HOME_HERO_BACKGROUND_KEY);
-                applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : './assets/logo.png');
+                applyHeroBackgroundToPage(savedBackground ? String(savedBackground) : './assets/background.png');
             } catch (err) {
-                applyHeroBackgroundToPage('./assets/logo.png');
+                applyHeroBackgroundToPage('./assets/background.png');
             }
         }
 
