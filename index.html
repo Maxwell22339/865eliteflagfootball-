@@ -442,20 +442,22 @@
             </table>
             <div id="leagueScheduleAdminPanel" class="admin-only" data-no-admin-edit="true" contenteditable="false" style="margin-top:24px;">
                 <h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.75rem; text-align:center;">Manage League Schedule</h3>
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>Week</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Teams</th>
-                            <th>Location</th>
-                            <th>Results</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leagueScheduleAdminBody"></tbody>
-                </table>
+                <div class="schedule-admin-table-wrap">
+                    <table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Teams</th>
+                                <th>Location</th>
+                                <th>Results</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leagueScheduleAdminBody"></tbody>
+                    </table>
+                </div>
                 <div style="text-align:center; margin:12px 0;">
                     <button type="button" class="cta-button small" onclick="addLeagueAdminRow('schedule')">+ Add Schedule Row</button>
                     <button type="button" class="cta-button small" style="margin-left:8px;" onclick="saveScheduleFromAdminForm()">Save Schedule</button>
