@@ -1549,6 +1549,32 @@
                 min-width: 900px;
             }
 
+            .stats-grid-table {
+                min-width: 100%;
+                table-layout: fixed;
+            }
+
+            .stats-grid-table th,
+            .stats-grid-table td {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+
+            .stats-filter-row {
+                display: none;
+            }
+
+            .stats-team-cell {
+                min-width: 0;
+                gap: 6px;
+            }
+
+            .stats-team-cell span {
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+
             .schedule-admin-matchup {
                 grid-template-columns: 1fr;
             }
@@ -1987,7 +2013,27 @@ table.zebra tbody tr:hover {
     }
 
     .stats-grid-table {
-        min-width: 840px;
+        min-width: 100%;
+        table-layout: fixed;
+    }
+
+    .stats-grid-table th,
+    .stats-grid-table td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-size: 0.7rem;
+        line-height: 1.25;
+    }
+
+    .stats-team-logo,
+    .stats-team-logo-placeholder {
+        width: 28px;
+        height: 28px;
+    }
+
+    .stats-filter-row {
+        display: none;
     }
 
     .hero-actions {
