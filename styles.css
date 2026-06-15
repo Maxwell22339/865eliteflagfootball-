@@ -602,6 +602,31 @@
             color: #e0e0e0;
         }
 
+        .stats-table-wrapper {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+
+        .stats-grid-table {
+            min-width: 980px;
+            margin: 0;
+        }
+
+        .stats-grid-table th,
+        .stats-grid-table td {
+            white-space: nowrap;
+        }
+
+        .recap-stats-admin-btns {
+            text-align: center;
+            margin: 10px 0;
+            display: none;
+        }
+
         .schedule-table tr:hover {
             background: #1e2d50;
         }
@@ -1304,6 +1329,12 @@
             padding: 4px;
         }
 
+        .stats-remove-btn {
+            background: #c62828;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+        }
+
         .doc-actions button {
             background: #ff6f00;
             color: white;
@@ -1512,6 +1543,10 @@
             .schedule-table th,
             .schedule-table td {
                 padding: 10px;
+            }
+
+            .stats-grid-table {
+                min-width: 900px;
             }
 
             .schedule-admin-matchup {
@@ -1949,6 +1984,10 @@ table.zebra tbody tr:hover {
     .schedule-table th,
     .schedule-table td {
         padding: 8px 6px;
+    }
+
+    .stats-grid-table {
+        min-width: 840px;
     }
 
     .hero-actions {

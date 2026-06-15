@@ -801,46 +801,72 @@
                             '<p id="seasonRecapUpdatedNote" style="text-align:center; margin-top:10px; color:#bbb;"></p>' +
                         '</div>' +
                         '<h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.5rem; text-align:center;">Offensive Season Recap</h3>' +
-                        '<table class="schedule-table" id="recapOffensiveStatsTable">' +
-                            '<thead>' +
-                                '<tr>' +
-                                    '<th>Team</th>' +
-                                    '<th>Player Name</th>' +
-                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                '</tr>' +
-                            '</thead>' +
-                            '<tbody id="recapOffensiveStatsBody">' +
-                                '<tr><td colspan="11" style="text-align:center; color:#aaa;">No archived offensive stats yet.</td></tr>' +
-                            '</tbody>' +
-                        '</table>' +
+                        '<div class="stats-table-wrapper">' +
+                            '<table class="schedule-table stats-grid-table" id="recapOffensiveStatsTable">' +
+                                '<thead>' +
+                                    '<tr>' +
+                                        '<th>Team</th>' +
+                                        '<th>Player Name</th>' +
+                                        '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody id="recapOffensiveStatsBody">' +
+                                    '<tr><td colspan="11" style="text-align:center; color:#aaa;">No archived offensive stats yet.</td></tr>' +
+                                '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                        '<div id="recapOffensiveStatsAdminBtns" class="recap-stats-admin-btns" aria-hidden="true"><button class="cta-button small" type="button" onclick="addSeasonArchiveStatsRow(\'offensive\')">+ Add Archived Offensive Player</button></div>' +
                         '<h3 style="color:#ff6f00; margin-top:2rem; margin-bottom:0.5rem; text-align:center;">Defensive Season Recap</h3>' +
-                        '<table class="schedule-table" id="recapDefensiveStatsTable">' +
-                            '<thead>' +
-                                '<tr>' +
-                                    '<th>Team</th>' +
-                                    '<th>Player Name</th>' +
-                                    '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                    '<th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                '</tr>' +
-                            '</thead>' +
-                            '<tbody id="recapDefensiveStatsBody">' +
-                                '<tr><td colspan="7" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>' +
-                            '</tbody>' +
-                        '</table>' +
+                        '<div class="stats-table-wrapper">' +
+                            '<table class="schedule-table stats-grid-table" id="recapDefensiveStatsTable">' +
+                                '<thead>' +
+                                    '<tr>' +
+                                        '<th>Team</th>' +
+                                        '<th>Player Name</th>' +
+                                        '<th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody id="recapDefensiveStatsBody">' +
+                                    '<tr><td colspan="8" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>' +
+                                '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                        '<div id="recapDefensiveStatsAdminBtns" class="recap-stats-admin-btns" aria-hidden="true"><button class="cta-button small" type="button" onclick="addSeasonArchiveStatsRow(\'defensive\')">+ Add Archived Defensive Player</button></div>' +
                     '</div>' +
                 '</section>';
+        }
+
+        function ensureStatsTableWrapper(tableId) {
+            var table = document.getElementById(tableId);
+            if (!table) return;
+            table.classList.add('stats-grid-table');
+            if (table.parentElement && table.parentElement.classList.contains('stats-table-wrapper')) return;
+            var wrapper = document.createElement('div');
+            wrapper.className = 'stats-table-wrapper';
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+        }
+
+        function insertStatsAdminButtonsAfterTable(tableId, containerId, buttonText, type) {
+            var table = document.getElementById(tableId);
+            if (!table || document.getElementById(containerId)) return;
+            var anchor = table.parentElement && table.parentElement.classList.contains('stats-table-wrapper')
+                ? table.parentElement
+                : table;
+            anchor.insertAdjacentHTML('afterend', '<div id="' + containerId + '" class="recap-stats-admin-btns" aria-hidden="true"><button class="cta-button small" type="button" onclick="addSeasonArchiveStatsRow(\'' + type + '\')">' + buttonText + '</button></div>');
         }
 
         function ensureSeasonStatsAndRecapUI() {
@@ -884,6 +910,10 @@
             if (!document.getElementById('season-recap') && statsSection) {
                 statsSection.insertAdjacentHTML('afterend', buildSeasonRecapSectionMarkup());
             }
+
+            ['offensiveStatsTable', 'defensiveStatsTable', 'recapOffensiveStatsTable', 'recapDefensiveStatsTable'].forEach(ensureStatsTableWrapper);
+            insertStatsAdminButtonsAfterTable('recapOffensiveStatsTable', 'recapOffensiveStatsAdminBtns', '+ Add Archived Offensive Player', 'offensive');
+            insertStatsAdminButtonsAfterTable('recapDefensiveStatsTable', 'recapDefensiveStatsAdminBtns', '+ Add Archived Defensive Player', 'defensive');
 
             var recapTableHead = document.querySelector('#recapOffensiveStatsTable thead tr');
             if (recapTableHead) {
@@ -4295,6 +4325,12 @@
             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.selectedSeasonArchiveId, id || '', 'SeasonArchives');
         }
 
+        function cloneStatsMatrix(rows) {
+            return Array.isArray(rows) ? rows.map(function(row) {
+                return Array.isArray(row) ? row.slice() : [];
+            }) : [];
+        }
+
         function migrateLegacyRecapArchive() {
             var archives = loadSeasonArchives();
             if (archives.length) return archives;
@@ -4326,6 +4362,40 @@
             var selected = archives.find(function(item) { return item.id === selectedId; }) || archives[0];
             if (selected && selected.id !== selectedId) setSelectedSeasonArchiveId(selected.id);
             return selected || null;
+        }
+
+        function updateSelectedSeasonArchive(mutator) {
+            var selectedArchive = getSelectedSeasonArchive();
+            if (!selectedArchive) return null;
+            var archives = migrateLegacyRecapArchive();
+            var archiveIndex = archives.findIndex(function(item) { return item.id === selectedArchive.id; });
+            if (archiveIndex === -1) return null;
+            var nextArchive = {
+                id: selectedArchive.id,
+                label: String(selectedArchive.label || 'Archived Season'),
+                archivedAt: new Date().toISOString(),
+                offensive: cloneStatsMatrix(selectedArchive.offensive),
+                defensive: cloneStatsMatrix(selectedArchive.defensive)
+            };
+            if (typeof mutator === 'function') mutator(nextArchive);
+            archives[archiveIndex] = nextArchive;
+            saveSeasonArchives(archives);
+            setSelectedSeasonArchiveId(nextArchive.id);
+            saveSeasonLabel(RECAP_SEASON_LABEL_KEY, nextArchive.label);
+            return nextArchive;
+        }
+
+        function loadSelectedSeasonArchiveStats(type) {
+            var selectedArchive = getSelectedSeasonArchive();
+            if (!selectedArchive) return [];
+            var rows = type === 'offensive' ? selectedArchive.offensive : selectedArchive.defensive;
+            return cloneStatsMatrix(rows);
+        }
+
+        function saveSelectedSeasonArchiveStats(type, rows) {
+            return updateSelectedSeasonArchive(function(archive) {
+                archive[type === 'offensive' ? 'offensive' : 'defensive'] = cloneStatsMatrix(rows);
+            });
         }
 
         function renderSeasonLabels() {
@@ -4965,15 +5035,16 @@
             });
         }
 
-        function renderStatsTable(bodyId, key, cols, type, allowEditing, useBlankFallback, overrideData) {
+        function renderStatsTable(bodyId, key, cols, type, allowEditing, useBlankFallback, overrideData, adminOptions) {
             const tbody = document.getElementById(bodyId);
             if (!tbody) return;
             const isAdmin = !!allowEditing;
             const fallbackRows = useBlankFallback === false ? [] : [cols.map(function() { return ''; })];
             const data = Array.isArray(overrideData) ? overrideData : (loadPlayerStats(key) || fallbackRows);
+            const editorConfig = adminOptions || {};
             const sortedRows = getSortedStatsRows(data, type);
             if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="' + cols.length + '" style="text-align:center; color:#aaa;">No stats recorded yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="' + (cols.length + (isAdmin ? 1 : 0)) + '" style="text-align:center; color:#aaa;">No stats recorded yet.</td></tr>';
                 return;
             }
             let html = '';
@@ -4997,20 +5068,34 @@
                     }
                 });
                 if (isAdmin) {
-                    html += '<td><button class="cta-button small" style="background:#c62828;padding:2px 8px;font-size:0.75rem;" onclick="removeStatsRow(\'' + bodyId + '\',\'' + key + '\',' + rIdx + ')">✕</button></td>';
+                    html += '<td><button type="button" class="cta-button small stats-remove-btn" data-stats-remove-row="' + rIdx + '">✕</button></td>';
                 }
                 html += '</tr>';
             });
             tbody.innerHTML = html;
 
             if (isAdmin) {
+                var loadRows = typeof editorConfig.loadHandler === 'function'
+                    ? editorConfig.loadHandler
+                    : function() { return loadPlayerStats(key) || []; };
+                var saveRows = typeof editorConfig.saveHandler === 'function'
+                    ? editorConfig.saveHandler
+                    : function(nextRows) { savePlayerStats(key, nextRows); };
+
                 tbody.querySelectorAll('input[type="text"]').forEach(function(inp) {
                     inp.addEventListener('input', function() {
                         var r = Number(this.dataset.row);
                         var c = Number(this.dataset.col);
-                        var k = this.dataset.statskey;
-                        var d = loadPlayerStats(k) || [];
-                        if (d[r]) { d[r][c] = this.value; savePlayerStats(k, d); markUnsaved(); }
+                        var d = loadRows();
+                        if (d[r]) { d[r][c] = this.value; saveRows(d); markUnsaved(); }
+                    });
+                });
+
+                tbody.querySelectorAll('.stats-remove-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var rowIndex = Number(this.getAttribute('data-stats-remove-row'));
+                        if (typeof editorConfig.removeHandler === 'function') editorConfig.removeHandler(rowIndex);
+                        else removeStatsRow(bodyId, key, rowIndex);
                     });
                 });
 
@@ -5019,8 +5104,7 @@
                         var file = this.files && this.files[0];
                         if (!file) return;
                         var r = Number(this.dataset.row);
-                        var k = this.dataset.statskey;
-                        var d = loadPlayerStats(k) || [];
+                        var d = loadRows();
                         var teamName = d[r] ? String(d[r][0] || '').trim() : '';
                         if (!teamName) {
                             alert('Please enter the team name before uploading a team logo.');
@@ -5094,13 +5178,61 @@
             }
         }
 
+        function addSeasonArchiveStatsRow(type) {
+            if (!isAdminLoggedIn()) return;
+            var selectedArchive = getSelectedSeasonArchive();
+            if (!selectedArchive) {
+                alert('Archive a season before adding recap stats.');
+                return;
+            }
+            var cols = type === 'offensive' ? offensiveCols : defensiveCols;
+            var rows = loadSelectedSeasonArchiveStats(type);
+            rows.push(cols.map(function() { return ''; }));
+            saveSelectedSeasonArchiveStats(type, rows);
+            renderSeasonRecapStats();
+            markUnsaved();
+        }
+
+        function removeSeasonArchiveStatsRow(type, rowIdx) {
+            if (!isAdminLoggedIn()) return;
+            var rows = loadSelectedSeasonArchiveStats(type);
+            if (rowIdx < 0 || rowIdx >= rows.length) return;
+            rows.splice(rowIdx, 1);
+            saveSelectedSeasonArchiveStats(type, rows);
+            renderSeasonRecapStats();
+            markUnsaved();
+        }
+
         function renderSeasonRecapStats() {
             var selectedArchive = getSelectedSeasonArchive();
+            var isAdmin = isAdminLoggedIn();
+            var recapOffBtn = document.getElementById('recapOffensiveStatsAdminBtns');
+            var recapDefBtn = document.getElementById('recapDefensiveStatsAdminBtns');
+            if (recapOffBtn) {
+                recapOffBtn.style.display = isAdmin ? 'block' : 'none';
+                recapOffBtn.setAttribute('aria-hidden', isAdmin ? 'false' : 'true');
+                var offAddBtn = recapOffBtn.querySelector('button');
+                if (offAddBtn) offAddBtn.disabled = !selectedArchive;
+            }
+            if (recapDefBtn) {
+                recapDefBtn.style.display = isAdmin ? 'block' : 'none';
+                recapDefBtn.setAttribute('aria-hidden', isAdmin ? 'false' : 'true');
+                var defAddBtn = recapDefBtn.querySelector('button');
+                if (defAddBtn) defAddBtn.disabled = !selectedArchive;
+            }
             ensureAllStatsFilterUI();
             bindStatsHeaderSorting();
             renderSeasonArchiveSelect();
-            renderStatsTable('recapOffensiveStatsBody', '__recapOffensiveVirtual__', offensiveCols, 'recapOffensive', false, false, selectedArchive ? selectedArchive.offensive : []);
-            renderStatsTable('recapDefensiveStatsBody', '__recapDefensiveVirtual__', defensiveCols, 'recapDefensive', false, false, selectedArchive ? selectedArchive.defensive : []);
+            renderStatsTable('recapOffensiveStatsBody', '__recapOffensiveVirtual__', offensiveCols, 'recapOffensive', isAdmin, false, selectedArchive ? selectedArchive.offensive : [], {
+                loadHandler: function() { return loadSelectedSeasonArchiveStats('offensive'); },
+                saveHandler: function(rows) { saveSelectedSeasonArchiveStats('offensive', rows); },
+                removeHandler: function(rowIndex) { removeSeasonArchiveStatsRow('offensive', rowIndex); }
+            });
+            renderStatsTable('recapDefensiveStatsBody', '__recapDefensiveVirtual__', defensiveCols, 'recapDefensive', isAdmin, false, selectedArchive ? selectedArchive.defensive : [], {
+                loadHandler: function() { return loadSelectedSeasonArchiveStats('defensive'); },
+                saveHandler: function(rows) { saveSelectedSeasonArchiveStats('defensive', rows); },
+                removeHandler: function(rowIndex) { removeSeasonArchiveStatsRow('defensive', rowIndex); }
+            });
         }
 
         function addStatsRow(bodyId, type) {
@@ -5115,7 +5247,7 @@
 
         function removeStatsRow(bodyId, key, rowIdx) {
             var data = loadPlayerStats(key) || [];
-            if (data.length <= 1) { alert('Cannot remove the last row.'); return; }
+            if (rowIdx < 0 || rowIdx >= data.length) return;
             data.splice(rowIdx, 1);
             savePlayerStats(key, data);
             renderAllStats();
@@ -5131,19 +5263,21 @@
             if (defBtn) defBtn.style.display = isAdmin ? 'block' : 'none';
             if (seasonPanel) seasonPanel.style.display = isAdmin ? 'block' : 'none';
 
-            var offThead = document.querySelector('#offensiveStatsTable thead tr');
-            var defThead = document.querySelector('#defensiveStatsTable thead tr');
-            if (isAdmin) {
-                if (offThead && !offThead.querySelector('.admin-remove-th')) {
-                    var th = document.createElement('th'); th.textContent = ''; th.className = 'admin-remove-th'; offThead.appendChild(th);
+            ['#offensiveStatsTable thead tr', '#defensiveStatsTable thead tr', '#recapOffensiveStatsTable thead tr', '#recapDefensiveStatsTable thead tr'].forEach(function(selector) {
+                var thead = document.querySelector(selector);
+                if (!thead) return;
+                if (isAdmin) {
+                    if (!thead.querySelector('.admin-remove-th')) {
+                        var th = document.createElement('th');
+                        th.textContent = '';
+                        th.className = 'admin-remove-th';
+                        thead.appendChild(th);
+                    }
+                } else {
+                    var rmTh = thead.querySelector('.admin-remove-th');
+                    if (rmTh) rmTh.remove();
                 }
-                if (defThead && !defThead.querySelector('.admin-remove-th')) {
-                    var th2 = document.createElement('th'); th2.textContent = ''; th2.className = 'admin-remove-th'; defThead.appendChild(th2);
-                }
-            } else {
-                if (offThead) { var rmTh = offThead.querySelector('.admin-remove-th'); if (rmTh) rmTh.remove(); }
-                if (defThead) { var rmTh2 = defThead.querySelector('.admin-remove-th'); if (rmTh2) rmTh2.remove(); }
-            }
+            });
 
             renderSeasonLabels();
             bindSeasonRecapSelect();
