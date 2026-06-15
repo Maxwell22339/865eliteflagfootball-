@@ -3447,8 +3447,9 @@
                     // Also persist logo to statsTeamLogos store (keyed by team name) so that
                     // resolveScheduleTeamLogo's fallback can find it after a page reload,
                     // even if the inline homeLogo/awayLogo field is later cleared or lost.
-                    var teamKey = String(input.dataset.key || '').replace('Logo', 'Team');
-                    var teamNameInput = block ? block.querySelector('input[data-key="' + teamKey + '"]') : null;
+                    var logoKey = String(input.dataset.key || '');
+                    var teamKey = logoKey.endsWith('Logo') ? logoKey.slice(0, -4) + 'Team' : '';
+                    var teamNameInput = (teamKey && block) ? block.querySelector('input[data-key="' + teamKey + '"]') : null;
                     var teamName = teamNameInput ? teamNameInput.value.trim() : '';
                     if (teamName) {
                         setStatsTeamLogo(teamName, compressed);
@@ -4210,7 +4211,7 @@
             var logo = getStatsTeamLogo(teamName);
             var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
             var logoMarkup = logo
-                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'stats-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">'
+                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" data-placeholder-class="stats-team-logo-placeholder" onerror="handleTeamLogoError(this)">'
                 : '<div class="stats-team-logo-placeholder">' + initials + '</div>';
             return '<div class="stats-team-cell">' + logoMarkup + '<span>' + safeName + '</span></div>';
         }
@@ -4496,6 +4497,16 @@
             return row;
         }
 
+        // Shared onerror handler for team logo <img> elements.
+        // Stores placeholder class + initials in data attributes so this single
+        // function can serve both schedule and standings/stats logo images.
+        function handleTeamLogoError(img) {
+            var d = document.createElement('div');
+            d.className = (img.dataset && img.dataset.placeholderClass) || 'stats-team-logo-placeholder';
+            d.textContent = (img.dataset && img.dataset.initials) || '?';
+            if (img.parentNode) img.parentNode.replaceChild(d, img);
+        }
+
         function getScheduleTeamInitials(name) {
             var words = String(name || '').trim().split(/\s+/).filter(Boolean);
             if (!words.length) return 'TBD';
@@ -4565,7 +4576,7 @@
                     : '';
             var initials = escapeHtml(getScheduleTeamInitials(teamName));
             var logoMarkup = resolvedLogo
-                ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'schedule-team-logo schedule-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">'
+                ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo" data-initials="' + initials + '" data-placeholder-class="schedule-team-logo schedule-team-logo-placeholder" onerror="handleTeamLogoError(this)">'
                 : '<div class="schedule-team-logo schedule-team-logo-placeholder">' + initials + '</div>';
 
             return '<div class="schedule-team ' + sideClass + '">' +
@@ -4705,7 +4716,7 @@
             var logo = getStatsTeamLogo(teamName);
             var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
             if (logo) {
-                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'stats-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">';
+                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" data-placeholder-class="stats-team-logo-placeholder" onerror="handleTeamLogoError(this)">';
             }
             return '<div class="stats-team-logo-placeholder">' + initials + '</div>';
         }
