@@ -5719,6 +5719,52 @@
             return now > d;
         }
 
+        function getSignupDeadlineDateParts(deadlineIso) {
+            var d = new Date(deadlineIso);
+            if (isNaN(d.getTime())) return null;
+            return {
+                year: d.getUTCFullYear(),
+                month: d.getUTCMonth() + 1,
+                day: d.getUTCDate()
+            };
+        }
+
+        function formatSignupDeadlineInputValue(deadlineIso) {
+            var parts = getSignupDeadlineDateParts(deadlineIso);
+            if (!parts) return '';
+            return parts.year + '-' +
+                String(parts.month).padStart(2, '0') + '-' +
+                String(parts.day).padStart(2, '0');
+        }
+
+        function setDeadlineDisabledLinkState(link, disabled) {
+            if (!link) return;
+            if (disabled) {
+                if (link.dataset.deadlineDisabled === '1') return;
+                link.dataset.deadlineDisabled = '1';
+                if (link.hasAttribute('href')) {
+                    link.dataset.deadlineHref = link.getAttribute('href') || '';
+                    link.removeAttribute('href');
+                }
+                link.dataset.deadlineTabindex = link.hasAttribute('tabindex') ? link.getAttribute('tabindex') : '';
+                link.setAttribute('tabindex', '-1');
+                link.setAttribute('aria-disabled', 'true');
+            } else if (link.dataset.deadlineDisabled === '1') {
+                if (Object.prototype.hasOwnProperty.call(link.dataset, 'deadlineHref')) {
+                    link.setAttribute('href', link.dataset.deadlineHref);
+                    delete link.dataset.deadlineHref;
+                }
+                if (link.dataset.deadlineTabindex) {
+                    link.setAttribute('tabindex', link.dataset.deadlineTabindex);
+                } else {
+                    link.removeAttribute('tabindex');
+                }
+                link.removeAttribute('aria-disabled');
+                delete link.dataset.deadlineTabindex;
+                delete link.dataset.deadlineDisabled;
+            }
+        }
+
         function applySignupDeadlineState() {
             var closed = isSignupClosed();
             var paymentsSection = document.getElementById('payments');
@@ -5735,23 +5781,30 @@
                             el.dataset.deadlineDisabled = '1';
                         }
                     });
+                    paymentsSection.querySelectorAll('a').forEach(function(link) {
+                        setDeadlineDisabledLinkState(link, true);
+                    });
                     // Show or update the closed banner
                     var banner = paymentsSection.querySelector('.signup-closed-banner');
                     if (!banner) {
                         banner = document.createElement('div');
                         banner.className = 'signup-closed-banner';
-                        paymentsSection.querySelector('.container').insertAdjacentElement('afterbegin', banner);
+                        (paymentsSection.querySelector('.container') || paymentsSection).insertAdjacentElement('afterbegin', banner);
                     }
                     var dl = getSignupDeadline();
                     var dateStr = '';
-                    try { dateStr = new Date(dl).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch(e) {}
+                    try { dateStr = new Date(dl).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); } catch(e) {}
                     banner.textContent = '🔒 Registration is currently closed' + (dateStr ? ' (deadline: ' + dateStr + ')' : '') + '. Check back for next season!';
                 } else {
                     paymentsSection.classList.remove('signup-deadline-closed');
                     // Only re-enable elements that this feature disabled
                     paymentsSection.querySelectorAll('[data-deadline-disabled]').forEach(function(el) {
-                        el.disabled = false;
-                        delete el.dataset.deadlineDisabled;
+                        if (el.tagName === 'A') {
+                            setDeadlineDisabledLinkState(el, false);
+                        } else {
+                            el.disabled = false;
+                            delete el.dataset.deadlineDisabled;
+                        }
                     });
                     var existingBanner = paymentsSection.querySelector('.signup-closed-banner');
                     if (existingBanner) existingBanner.remove();
@@ -5762,9 +5815,11 @@
                 if (closed) {
                     heroBtn.classList.remove('cta-glow', 'cta-pulse');
                     heroBtn.classList.add('signup-deadline-closed-btn');
+                    setDeadlineDisabledLinkState(heroBtn, true);
                 } else {
                     heroBtn.classList.add('cta-glow', 'cta-pulse');
                     heroBtn.classList.remove('signup-deadline-closed-btn');
+                    setDeadlineDisabledLinkState(heroBtn, false);
                 }
             }
         }
@@ -5775,12 +5830,7 @@
             var dl = getSignupDeadline();
             if (dl) {
                 try {
-                    var d = new Date(dl);
-                    if (!isNaN(d.getTime())) {
-                        dateInput.value = d.getFullYear() + '-' +
-                            String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                            String(d.getDate()).padStart(2, '0');
-                    }
+                    dateInput.value = formatSignupDeadlineInputValue(dl);
                 } catch (e) {}
             } else {
                 dateInput.value = '';
@@ -5798,8 +5848,13 @@
                     var dateInput = document.getElementById('signupDeadlineDateInput');
                     var val = dateInput ? dateInput.value : '';
                     if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a deadline date.'; } return; }
-                    // Store end-of-day for the chosen date (converted to UTC ISO string)
-                    var iso = new Date(val + 'T23:59:59').toISOString();
+                    var parts = val.split('-').map(function(part) { return parseInt(part, 10); });
+                    if (parts.length !== 3 || parts.some(function(part) { return !Number.isFinite(part); })) {
+                        if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a valid deadline date.'; }
+                        return;
+                    }
+                    // Store end-of-day UTC for the chosen date.
+                    var iso = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59)).toISOString();
                     try {
                         localStorage.setItem(SIGNUP_DEADLINE_KEY, iso);
                         queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline, iso, 'SignupDeadline');
