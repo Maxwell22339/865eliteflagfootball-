@@ -4526,16 +4526,21 @@
             return left > right ? { home: 'win', away: 'loss' } : { home: 'loss', away: 'win' };
         }
 
+        function resolveScheduleTeamLogo(logo, teamName) {
+            return String(logo || '').trim() || getStatsTeamLogo(teamName);
+        }
+
         function renderScheduleTeamMarkup(name, logo, sideClass, outcome) {
             var teamName = name || 'TBD';
             var safeName = escapeHtml(teamName);
-            var safeLogo = escapeHtml(logo || '');
+            var resolvedLogo = resolveScheduleTeamLogo(logo, teamName);
+            var safeLogo = escapeHtml(resolvedLogo || '');
             var badgeMarkup = outcome === 'win'
                 ? '<div class="schedule-team-badge win">W</div>'
                 : outcome === 'loss'
                     ? '<div class="schedule-team-badge loss">L</div>'
                     : '';
-            var logoMarkup = logo
+            var logoMarkup = resolvedLogo
                 ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo">'
                 : '<div class="schedule-team-logo schedule-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName)) + '</div>';
 
