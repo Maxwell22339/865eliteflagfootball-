@@ -116,7 +116,7 @@
         ];
         const PAGE_CONTENT_KEY = 'siteContentHTML_v4';
         const PAGE_CONTENT_VERSION_KEY = 'siteContentVersion_v1';
-        const PAGE_CONTENT_TEMPLATE_VERSION = '20260612_signup_v2';
+        const PAGE_CONTENT_TEMPLATE_VERSION = '20260612_signup_v3';
         const SITE_LOGO_KEY = 'siteLogoDataUrl_v1';
         const SITE_LOGO_OVERRIDE_FLAG_KEY = 'siteLogoOverrideEnabled_v1';
         const LOGO_CACHE_VERSION_KEY = 'logoCacheVersion_v1';
@@ -130,6 +130,7 @@
         const PAYMENT_LINKS_KEY = 'paypalPaymentLinks_v1';
         const PAYMENT_REQUESTS_KEY = 'paymentRequests';
         const PAYMENT_NOTIFICATION_SETTINGS_KEY = 'paymentNotificationSettings_v1';
+        const SIGNUP_SEASON_SETTINGS_KEY = 'signupSeasonSettings_v1';
         let PAYMENT_LINKS = {
             team: DEFAULT_PAYPAL_URL,
             freeAgent: DEFAULT_PAYPAL_URL,
@@ -160,6 +161,7 @@
             ctaButton: 'cta_button',
             paymentLinks: 'payment_links',
             paymentNotificationSettings: 'payment_notification_settings',
+            signupSeason: 'signup_season',
             members: 'members',
             documents: 'documents',
             countdown: 'countdown',
@@ -283,6 +285,7 @@
                 CTA_BUTTON_KEY,
                 PAYMENT_LINKS_KEY,
                 PAYMENT_NOTIFICATION_SETTINGS_KEY,
+                SIGNUP_SEASON_SETTINGS_KEY,
                 'members',
                 'countdownDate_v1',
                 'leagueStandings_v1',
@@ -465,6 +468,8 @@
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.ctaButton) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton] != null) localStorage.setItem(CTA_BUTTON_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.ctaButton]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentLinks) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks] != null) localStorage.setItem(PAYMENT_LINKS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentLinks]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings] != null) localStorage.setItem(PAYMENT_NOTIFICATION_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.signupSeason) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.signupSeason] != null) localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.signupSeason]));
+                else if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.signupSeason)) localStorage.removeItem(SIGNUP_SEASON_SETTINGS_KEY);
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.countdown) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown] != null) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueStandings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings] != null) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule] != null) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
@@ -1075,6 +1080,265 @@
             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.paymentNotificationSettings, PAYMENT_NOTIFICATION_SETTINGS, 'PaymentNotifications');
         }
 
+        function normalizeSignupSeasonSettings(settings) {
+            var openDate = settings && settings.openDate ? String(settings.openDate).trim() : '';
+            var closeDate = settings && settings.closeDate ? String(settings.closeDate).trim() : '';
+            if (openDate && isNaN(new Date(openDate).getTime())) openDate = '';
+            if (closeDate && isNaN(new Date(closeDate).getTime())) closeDate = '';
+            return {
+                openDate: openDate,
+                closeDate: closeDate
+            };
+        }
+
+        function loadSignupSeasonSettings() {
+            try {
+                var normalized = normalizeSignupSeasonSettings(JSON.parse(localStorage.getItem(SIGNUP_SEASON_SETTINGS_KEY) || 'null'));
+                localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(normalized));
+                return normalized;
+            } catch (err) {
+                var fallback = normalizeSignupSeasonSettings(null);
+                localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(fallback));
+                return fallback;
+            }
+        }
+
+        function getSignupSeasonStatus(settings, nowMs) {
+            var normalized = normalizeSignupSeasonSettings(settings);
+            var openMs = normalized.openDate ? new Date(normalized.openDate).getTime() : NaN;
+            var closeMs = normalized.closeDate ? new Date(normalized.closeDate).getTime() : NaN;
+            var currentMs = typeof nowMs === 'number' ? nowMs : Date.now();
+            if (!normalized.openDate || !normalized.closeDate || isNaN(openMs) || isNaN(closeMs) || closeMs <= openMs) {
+                return {
+                    isOpen: false,
+                    phase: 'closed',
+                    message: 'Signups are closed until next season.'
+                };
+            }
+            if (currentMs < openMs) {
+                return {
+                    isOpen: false,
+                    phase: 'upcoming',
+                    message: 'Signups open on ' + formatSignupSeasonDate(normalized.openDate) + '.'
+                };
+            }
+            if (currentMs > closeMs) {
+                return {
+                    isOpen: false,
+                    phase: 'closed',
+                    message: 'Signups are closed until next season.'
+                };
+            }
+            return {
+                isOpen: true,
+                phase: 'open',
+                message: 'Signups are open until ' + formatSignupSeasonDate(normalized.closeDate) + '.'
+            };
+        }
+
+        function formatSignupSeasonDate(value) {
+            var parsed = new Date(value);
+            if (isNaN(parsed.getTime())) return '';
+            return parsed.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+
+        function toLocalDatetimeInputValue(value) {
+            var parsed = new Date(value);
+            if (isNaN(parsed.getTime())) return '';
+            return parsed.getFullYear() + '-' +
+                String(parsed.getMonth() + 1).padStart(2, '0') + '-' +
+                String(parsed.getDate()).padStart(2, '0') + 'T' +
+                String(parsed.getHours()).padStart(2, '0') + ':' +
+                String(parsed.getMinutes()).padStart(2, '0');
+        }
+
+        function renderSignupSeasonAvailability(settings) {
+            var normalized = normalizeSignupSeasonSettings(settings || loadSignupSeasonSettings());
+            var status = getSignupSeasonStatus(normalized);
+            var notice = document.getElementById('signupStatusNotice');
+            var form = document.getElementById('paymentForm');
+            var msg = document.getElementById('paymentMsg');
+            var submitBtn = document.getElementById('paySubmitBtn');
+            if (notice) {
+                notice.textContent = status.message;
+                notice.className = 'signup-status-banner ' + (status.isOpen ? 'signup-status-open' : 'signup-status-closed');
+            }
+            if (form) {
+                form.classList.toggle('signup-form-closed', !status.isOpen);
+                Array.from(form.querySelectorAll('input, select, button, textarea')).forEach(function(field) {
+                    field.disabled = !status.isOpen;
+                });
+            }
+            if (submitBtn) {
+                submitBtn.disabled = !status.isOpen;
+                if (!status.isOpen) {
+                    submitBtn.textContent = 'Signups Closed';
+                }
+            }
+            if (msg) {
+                if (status.isOpen) {
+                    msg.style.color = '';
+                    if (msg.dataset.signupSeasonStatus === 'closed') {
+                        msg.textContent = '';
+                    }
+                    delete msg.dataset.signupSeasonStatus;
+                } else {
+                    msg.style.color = '#ffb366';
+                    msg.textContent = status.message;
+                    msg.dataset.signupSeasonStatus = 'closed';
+                }
+            }
+            if (status.isOpen) {
+                updatePaymentMethodLink();
+            }
+            return status;
+        }
+
+        function saveSignupSeasonSettings(settings) {
+            var normalized = normalizeSignupSeasonSettings(settings);
+            localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(normalized));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupSeason, normalized, 'SignupSeason');
+            renderSignupSeasonAvailability(normalized);
+        }
+
+        function clearSignupSeasonSettings() {
+            var cleared = normalizeSignupSeasonSettings(null);
+            localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(cleared));
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupSeason, null, 'SignupSeason');
+            renderSignupSeasonAvailability(cleared);
+        }
+
+        function populateSignupSeasonEditor() {
+            var settings = loadSignupSeasonSettings();
+            var openInput = document.getElementById('signupOpenDateInput');
+            var closeInput = document.getElementById('signupCloseDateInput');
+            if (openInput) openInput.value = settings.openDate ? toLocalDatetimeInputValue(settings.openDate) : '';
+            if (closeInput) closeInput.value = settings.closeDate ? toLocalDatetimeInputValue(settings.closeDate) : '';
+        }
+
+        function bindSignupSeasonAdminControls() {
+            var saveBtn = document.getElementById('saveSignupSeasonSettings');
+            var clearBtn = document.getElementById('clearSignupSeasonSettings');
+            var msg = document.getElementById('signupSeasonAdminMsg');
+            if (saveBtn && !saveBtn.dataset.bound) {
+                saveBtn.dataset.bound = '1';
+                saveBtn.addEventListener('click', function() {
+                    if (!isAdminLoggedIn()) return;
+                    var openInput = document.getElementById('signupOpenDateInput');
+                    var closeInput = document.getElementById('signupCloseDateInput');
+                    var openValue = openInput ? openInput.value : '';
+                    var closeValue = closeInput ? closeInput.value : '';
+                    if (!openValue || !closeValue) {
+                        if (msg) {
+                            msg.style.color = '#e65100';
+                            msg.textContent = 'Select both a signup open date and close date.';
+                        }
+                        return;
+                    }
+                    var openMs = new Date(openValue).getTime();
+                    var closeMs = new Date(closeValue).getTime();
+                    if (isNaN(openMs) || isNaN(closeMs)) {
+                        if (msg) {
+                            msg.style.color = '#e65100';
+                            msg.textContent = 'Enter valid signup dates.';
+                        }
+                        return;
+                    }
+                    if (closeMs <= openMs) {
+                        if (msg) {
+                            msg.style.color = '#e65100';
+                            msg.textContent = 'The signup close date must be after the open date.';
+                        }
+                        return;
+                    }
+                    var openIso = new Date(openMs).toISOString();
+                    var closeIso = new Date(closeMs).toISOString();
+                    saveSignupSeasonSettings({
+                        openDate: openIso,
+                        closeDate: closeIso
+                    });
+                    if (msg) {
+                        msg.style.color = '#4caf50';
+                        msg.textContent = 'Signup season saved.';
+                    }
+                });
+            }
+            if (clearBtn && !clearBtn.dataset.bound) {
+                clearBtn.dataset.bound = '1';
+                clearBtn.addEventListener('click', function() {
+                    if (!isAdminLoggedIn()) return;
+                    clearSignupSeasonSettings();
+                    var openInput = document.getElementById('signupOpenDateInput');
+                    var closeInput = document.getElementById('signupCloseDateInput');
+                    if (openInput) openInput.value = '';
+                    if (closeInput) closeInput.value = '';
+                    if (msg) {
+                        msg.style.color = '#4caf50';
+                        msg.textContent = 'Signup season cleared. Signups are now closed.';
+                    }
+                });
+            }
+        }
+
+        async function fetchSignupSeasonSettingsFromSupabase() {
+            if (isLocalPreviewMode()) return loadSignupSeasonSettings();
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            try {
+                var response = await client
+                    .from(config.stateTable)
+                    .select('value')
+                    .eq('key', SUPABASE_PUBLIC_STATE_KEYS.signupSeason)
+                    .limit(1);
+                if (response.error) {
+                    logSupabaseOperation('SignupSeason', 'error', 'SELECT error while loading signup season settings.', response.error);
+                    logSupabaseRlsHint('SignupSeason', response.error);
+                    return null;
+                }
+                var row = Array.isArray(response.data) && response.data.length ? response.data[0] : null;
+                var normalized = normalizeSignupSeasonSettings(row && row.value);
+                localStorage.setItem(SIGNUP_SEASON_SETTINGS_KEY, JSON.stringify(normalized));
+                return normalized;
+            } catch (err) {
+                logSupabaseOperation('SignupSeason', 'error', 'Unexpected SELECT failure while loading signup season settings.', err);
+                logSupabaseRlsHint('SignupSeason', err);
+                return null;
+            }
+        }
+
+        async function enforceSignupSeasonForSubmission() {
+            if (isLocalPreviewMode()) {
+                var localStatus = getSignupSeasonStatus(loadSignupSeasonSettings());
+                renderSignupSeasonAvailability();
+                return {
+                    allowed: localStatus.isOpen,
+                    status: localStatus,
+                    message: localStatus.message
+                };
+            }
+            var remoteSettings = await fetchSignupSeasonSettingsFromSupabase();
+            if (remoteSettings === null) {
+                return {
+                    allowed: false,
+                    status: null,
+                    message: 'We could not verify whether signups are open. Please try again later.'
+                };
+            }
+            var status = renderSignupSeasonAvailability(remoteSettings);
+            return {
+                allowed: status.isOpen,
+                status: status,
+                message: status.message
+            };
+        }
+
         async function sendAdminPaymentNotification(details) {
             loadPaymentNotificationSettings();
 
@@ -1164,6 +1428,7 @@
         function renderPayPalSettings() {
             loadPaymentLinks();
             loadPaymentNotificationSettings();
+            populateSignupSeasonEditor();
             const teamInput = document.getElementById('paypalTeamLink');
             const freeInput = document.getElementById('paypalFreeAgentLink');
             const cashAppInput = document.getElementById('cashAppLink');
@@ -1939,6 +2204,7 @@
             ensurePaymentSignupUI();
             loadPaymentLinks();
             renderPaymentMethodsInfo();
+            renderSignupSeasonAvailability();
             await applySavedBranding();
             await applySavedHeroBackground();
             applySavedCtaButton();
@@ -1948,6 +2214,7 @@
             ensureNavHamburger();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
+            bindSignupSeasonAdminControls();
             bindCtaButtonControls();
             renderPayPalSettings();
             try {
@@ -2582,6 +2849,7 @@
                 renderAdminSignupNotifications && renderAdminSignupNotifications();
                 renderPayPalSettings && renderPayPalSettings();
                 bindPayPalSettingsControls && bindPayPalSettingsControls();
+                bindSignupSeasonAdminControls && bindSignupSeasonAdminControls();
                 populateCtaButtonEditor && populateCtaButtonEditor();
                 bindCtaButtonControls && bindCtaButtonControls();
                 // restore to hashed page or default to the admin dashboard
@@ -2602,9 +2870,11 @@
             enforceNonEditableAdminUI();
             bindAdminBrandingControls();
             bindPayPalSettingsControls();
+            bindSignupSeasonAdminControls();
             bindCtaButtonControls();
             renderPayPalSettings();
             renderPaymentMethodsInfo();
+            renderSignupSeasonAvailability();
             // member
             if (sessionStorage.getItem('memberLoggedIn') === 'true') {
                 const username = sessionStorage.getItem('memberUsername');
@@ -2825,6 +3095,16 @@
 
         async function handlePaymentFormSubmit(e) {
             e.preventDefault();
+            const availability = await enforceSignupSeasonForSubmission();
+            const msg = document.getElementById('paymentMsg');
+            if (!availability.allowed) {
+                if (msg) {
+                    msg.style.color = '#e65100';
+                    msg.textContent = availability.message;
+                }
+                logPaymentSignupEvent('warn', 'Blocked signup submission because the signup window is closed or unavailable.', availability.status || { message: availability.message });
+                return;
+            }
             const name = document.getElementById('payName').value.trim();
             const email = document.getElementById('payEmail').value.trim();
             const phone = (document.getElementById('payPhone') || {}).value ? document.getElementById('payPhone').value.trim() : '';
@@ -2849,7 +3129,6 @@
                 // $500 only for teamNeedsJerseys; all others are $50
                 link = type === 'teamNeedsJerseys' ? PAYMENT_LINKS.team : PAYMENT_LINKS.freeAgent;
             }
-            const msg = document.getElementById('paymentMsg');
             logPaymentSignupEvent('info', 'Signup form submit received.', { type: type, method: method, email: email });
 
             if (!phone) {
