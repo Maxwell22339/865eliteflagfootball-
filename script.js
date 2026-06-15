@@ -3434,7 +3434,11 @@
             const reader = new FileReader();
             reader.onload = function(ev) {
                 const dataUrl = ev && ev.target ? ev.target.result : '';
-                if (!dataUrl) return;
+                if (!dataUrl) {
+                    console.error('Failed to read schedule team logo upload.');
+                    alert('Unable to read the selected image. Please choose the file again and try once more.');
+                    return;
+                }
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                     hiddenInput.value = compressed;
                     preview.src = compressed;
