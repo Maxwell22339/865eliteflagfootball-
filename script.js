@@ -5737,6 +5737,14 @@
                 String(parts.day).padStart(2, '0');
         }
 
+        function buildSignupDeadlineIso(dateValue) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue || '')) return '';
+            var parts = dateValue.split('-').map(function(part) { return parseInt(part, 10); });
+            if (parts.length !== 3 || parts.some(function(part) { return !Number.isFinite(part); })) return '';
+            var iso = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59)).toISOString();
+            return formatSignupDeadlineInputValue(iso) === dateValue ? iso : '';
+        }
+
         function setDeadlineDisabledLinkState(link, disabled) {
             if (!link) return;
             if (disabled) {
@@ -5848,13 +5856,11 @@
                     var dateInput = document.getElementById('signupDeadlineDateInput');
                     var val = dateInput ? dateInput.value : '';
                     if (!val) { if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a deadline date.'; } return; }
-                    var parts = val.split('-').map(function(part) { return parseInt(part, 10); });
-                    if (parts.length !== 3 || parts.some(function(part) { return !Number.isFinite(part); })) {
+                    var iso = buildSignupDeadlineIso(val);
+                    if (!iso) {
                         if (msgEl) { msgEl.style.color = '#e65100'; msgEl.textContent = 'Please select a valid deadline date.'; }
                         return;
                     }
-                    // Store end-of-day UTC for the chosen date.
-                    var iso = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59)).toISOString();
                     try {
                         localStorage.setItem(SIGNUP_DEADLINE_KEY, iso);
                         queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.signupDeadline, iso, 'SignupDeadline');
