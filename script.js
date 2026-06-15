@@ -1715,7 +1715,7 @@
         function readFileAsDataUrl(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
-                reader.onload = function(event) { resolve(String((event.target && event.target.result) || '')); };
+                reader.onload = function() { resolve(String(reader.result || '')); };
                 reader.onerror = function() { reject(new Error('Unable to read image.')); };
                 reader.readAsDataURL(file);
             });
