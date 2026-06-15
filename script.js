@@ -1715,7 +1715,7 @@
         function readFileAsDataUrl(file) {
             return new Promise(function(resolve, reject) {
                 var reader = new FileReader();
-                reader.onload = function(event) { resolve(String((event.target && event.target.result) || '')); };
+                reader.onload = function() { resolve(String(reader.result || '')); };
                 reader.onerror = function() { reject(new Error('Unable to read image.')); };
                 reader.readAsDataURL(file);
             });
@@ -3432,12 +3432,23 @@
             if (!hiddenInput || !preview) return;
 
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                hiddenInput.value = ev.target.result;
-                preview.src = ev.target.result;
-                preview.classList.remove('hidden');
-                if (emptyState) emptyState.style.display = 'none';
-                markUnsaved();
+            reader.onload = function() {
+                const dataUrl = reader.result || '';
+                if (!dataUrl) {
+                    console.error('Failed to read schedule team logo upload.');
+                    alert('Unable to read the selected image. Please choose the file again and try once more.');
+                    return;
+                }
+                compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
+                    hiddenInput.value = compressed;
+                    preview.src = compressed;
+                    preview.classList.remove('hidden');
+                    if (emptyState) emptyState.style.display = 'none';
+                    markUnsaved();
+                }).catch(function(error) {
+                    console.error('Failed to process schedule team logo upload.', error);
+                    alert('Unable to process the selected image. Please select a valid image file and try again.');
+                });
             };
             reader.readAsDataURL(file);
         });
@@ -3459,8 +3470,8 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const dataUrl = ev && ev.target ? ev.target.result : '';
+            reader.onload = function() {
+                const dataUrl = reader.result || '';
                 if (!dataUrl) return;
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                     setStatsTeamLogo(teamName, compressed);
@@ -4004,14 +4015,14 @@
 
             if (isLocalPreviewMode()) {
                 const reader = new FileReader();
-                reader.onload = async function(ev) {
+                reader.onload = async function() {
                     const docs = await loadDocuments();
                     docs.push({
                         id: generateDocumentId(),
                         title: title,
                         filename: file.name,
                         mimeType: file.type || '',
-                        publicUrl: ev.target.result,
+                        publicUrl: reader.result,
                         uploadedAt: new Date().toISOString()
                     });
                     await saveDocuments(docs);
@@ -5117,8 +5128,8 @@
                             return;
                         }
                         var reader = new FileReader();
-                        reader.onload = function(ev) {
-                            var dataUrl = ev && ev.target ? ev.target.result : '';
+                        reader.onload = function() {
+                            var dataUrl = reader.result || '';
                             if (!dataUrl) return;
                             compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                                 setStatsTeamLogo(teamName, compressed);
