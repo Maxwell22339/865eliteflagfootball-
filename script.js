@@ -3444,6 +3444,16 @@
                     preview.src = compressed;
                     preview.classList.remove('hidden');
                     if (emptyState) emptyState.style.display = 'none';
+                    // Also persist logo to statsTeamLogos store (keyed by team name) so that
+                    // resolveScheduleTeamLogo's fallback can find it after a page reload,
+                    // even if the inline homeLogo/awayLogo field is later cleared or lost.
+                    var teamKey = String(input.dataset.key || '').replace('Logo', 'Team');
+                    var teamNameInput = block ? block.querySelector('input[data-key="' + teamKey + '"]') : null;
+                    var teamName = teamNameInput ? teamNameInput.value.trim() : '';
+                    if (teamName) {
+                        setStatsTeamLogo(teamName, compressed);
+                        renderLeagueSchedulePublic();
+                    }
                     markUnsaved();
                 }).catch(function(error) {
                     console.error('Failed to process schedule team logo upload.', error);
@@ -3478,6 +3488,8 @@
                     const preview = row ? row.querySelector('.standings-admin-logo-preview') : null;
                     if (preview) preview.innerHTML = renderStandingsTeamLogo(teamName);
                     renderLeagueStandingsPublic();
+                    // Re-render schedule so any matchup featuring this team picks up the logo.
+                    renderLeagueSchedulePublic();
                     markUnsaved();
                 }).catch(function(error) {
                     console.error('Failed to process standings team logo upload.', error);
@@ -4198,7 +4210,7 @@
             var logo = getStatsTeamLogo(teamName);
             var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
             var logoMarkup = logo
-                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">'
+                ? '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'stats-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">'
                 : '<div class="stats-team-logo-placeholder">' + initials + '</div>';
             return '<div class="stats-team-cell">' + logoMarkup + '<span>' + safeName + '</span></div>';
         }
@@ -4551,9 +4563,10 @@
                 : outcome === 'loss'
                     ? '<div class="schedule-team-badge loss">L</div>'
                     : '';
+            var initials = escapeHtml(getScheduleTeamInitials(teamName));
             var logoMarkup = resolvedLogo
-                ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo">'
-                : '<div class="schedule-team-logo schedule-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName)) + '</div>';
+                ? '<img class="schedule-team-logo" src="' + safeLogo + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'schedule-team-logo schedule-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">'
+                : '<div class="schedule-team-logo schedule-team-logo-placeholder">' + initials + '</div>';
 
             return '<div class="schedule-team ' + sideClass + '">' +
                 badgeMarkup +
@@ -4690,10 +4703,11 @@
         function renderStandingsTeamLogo(teamName) {
             var safeName = escapeHtml(teamName || 'Team');
             var logo = getStatsTeamLogo(teamName);
+            var initials = escapeHtml(getScheduleTeamInitials(teamName || 'TBD'));
             if (logo) {
-                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo">';
+                return '<img class="stats-team-logo" src="' + escapeHtml(logo) + '" alt="' + safeName + ' logo" data-initials="' + initials + '" onerror="this.onerror=null;var d=document.createElement(\'div\');d.className=\'stats-team-logo-placeholder\';d.textContent=this.dataset.initials||\'?\';this.parentNode.replaceChild(d,this);">';
             }
-            return '<div class="stats-team-logo-placeholder">' + escapeHtml(getScheduleTeamInitials(teamName || 'TBD')) + '</div>';
+            return '<div class="stats-team-logo-placeholder">' + initials + '</div>';
         }
 
         function buildStandingsTeamAdminEditor(teamName) {
