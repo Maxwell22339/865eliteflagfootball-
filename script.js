@@ -3432,8 +3432,8 @@
             if (!hiddenInput || !preview) return;
 
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const dataUrl = ev && ev.target ? ev.target.result : '';
+            reader.onload = function() {
+                const dataUrl = reader.result || '';
                 if (!dataUrl) {
                     console.error('Failed to read schedule team logo upload.');
                     alert('Unable to read the selected image. Please choose the file again and try once more.');
@@ -3470,8 +3470,8 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const dataUrl = ev && ev.target ? ev.target.result : '';
+            reader.onload = function() {
+                const dataUrl = reader.result || '';
                 if (!dataUrl) return;
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                     setStatsTeamLogo(teamName, compressed);
@@ -4015,14 +4015,14 @@
 
             if (isLocalPreviewMode()) {
                 const reader = new FileReader();
-                reader.onload = async function(ev) {
+                reader.onload = async function() {
                     const docs = await loadDocuments();
                     docs.push({
                         id: generateDocumentId(),
                         title: title,
                         filename: file.name,
                         mimeType: file.type || '',
-                        publicUrl: ev.target.result,
+                        publicUrl: reader.result,
                         uploadedAt: new Date().toISOString()
                     });
                     await saveDocuments(docs);
@@ -5128,8 +5128,8 @@
                             return;
                         }
                         var reader = new FileReader();
-                        reader.onload = function(ev) {
-                            var dataUrl = ev && ev.target ? ev.target.result : '';
+                        reader.onload = function() {
+                            var dataUrl = reader.result || '';
                             if (!dataUrl) return;
                             compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                                 setStatsTeamLogo(teamName, compressed);
