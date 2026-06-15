@@ -3433,11 +3433,18 @@
 
             const reader = new FileReader();
             reader.onload = function(ev) {
-                hiddenInput.value = ev.target.result;
-                preview.src = ev.target.result;
-                preview.classList.remove('hidden');
-                if (emptyState) emptyState.style.display = 'none';
-                markUnsaved();
+                const dataUrl = ev && ev.target ? ev.target.result : '';
+                if (!dataUrl) return;
+                compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
+                    hiddenInput.value = compressed;
+                    preview.src = compressed;
+                    preview.classList.remove('hidden');
+                    if (emptyState) emptyState.style.display = 'none';
+                    markUnsaved();
+                }).catch(function(error) {
+                    console.error('Failed to process schedule team logo upload.', error);
+                    alert('Unable to process the selected image. Please select a valid image file and try again.');
+                });
             };
             reader.readAsDataURL(file);
         });

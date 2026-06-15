@@ -1311,6 +1311,17 @@
             align-items: center;
         }
 
+        #leagueStandingsTable .stats-team-logo,
+        #leagueStandingsTable .stats-team-logo-placeholder {
+            width: 72px;
+            height: 72px;
+            border-width: 3px;
+        }
+
+        #leagueStandingsTable .stats-team-logo-placeholder {
+            font-size: 1rem;
+        }
+
         .stats-team-admin-editor {
             display: flex;
             flex-direction: column;
