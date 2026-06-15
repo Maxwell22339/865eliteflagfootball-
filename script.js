@@ -2874,6 +2874,7 @@
                 enablePageEdit(true);
                 renderUsersTableForAdmin();
                 renderDocsAdmin && renderDocsAdmin();
+                renderLeagueAdminTables && renderLeagueAdminTables();
                 renderAllStats && renderAllStats();
                 renderAdminPaymentRequests && renderAdminPaymentRequests();
                 renderAdminSignupNotifications && renderAdminSignupNotifications();
