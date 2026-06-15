@@ -602,6 +602,31 @@
             color: #e0e0e0;
         }
 
+        .stats-table-wrapper {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+
+        .stats-grid-table {
+            min-width: 980px;
+            margin: 0;
+        }
+
+        .stats-grid-table th,
+        .stats-grid-table td {
+            white-space: nowrap;
+        }
+
+        .recap-stats-admin-btns {
+            text-align: center;
+            margin: 10px 0;
+            display: none;
+        }
+
         .schedule-table tr:hover {
             background: #1e2d50;
         }
@@ -1304,6 +1329,12 @@
             padding: 4px;
         }
 
+        .stats-remove-btn {
+            background: #c62828;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+        }
+
         .doc-actions button {
             background: #ff6f00;
             color: white;
@@ -1512,6 +1543,41 @@
             .schedule-table th,
             .schedule-table td {
                 padding: 10px;
+            }
+
+            #player-stats .stats-grid-table,
+            #season-recap .stats-grid-table {
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+                table-layout: fixed;
+            }
+
+            #player-stats .stats-grid-table th,
+            #player-stats .stats-grid-table td,
+            #season-recap .stats-grid-table th,
+            #season-recap .stats-grid-table td {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+                min-width: 0;
+            }
+
+            #player-stats .stats-filter-row,
+            #season-recap .stats-filter-row {
+                display: none !important;
+            }
+
+            #player-stats .stats-team-cell,
+            #season-recap .stats-team-cell {
+                min-width: 0;
+                gap: 6px;
+            }
+
+            #player-stats .stats-team-cell span,
+            #season-recap .stats-team-cell span {
+                overflow-wrap: anywhere;
+                word-break: break-word;
             }
 
             .schedule-admin-matchup {
@@ -1949,6 +2015,39 @@ table.zebra tbody tr:hover {
     .schedule-table th,
     .schedule-table td {
         padding: 8px 6px;
+    }
+
+    #player-stats .stats-grid-table,
+    #season-recap .stats-grid-table {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        table-layout: fixed;
+    }
+
+    #player-stats .stats-grid-table th,
+    #player-stats .stats-grid-table td,
+    #season-recap .stats-grid-table th,
+    #season-recap .stats-grid-table td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-size: 0.7rem;
+        line-height: 1.25;
+        min-width: 0;
+    }
+
+    #player-stats .stats-team-logo,
+    #player-stats .stats-team-logo-placeholder,
+    #season-recap .stats-team-logo,
+    #season-recap .stats-team-logo-placeholder {
+        width: 28px;
+        height: 28px;
+    }
+
+    #player-stats .stats-filter-row,
+    #season-recap .stats-filter-row {
+        display: none !important;
     }
 
     .hero-actions {

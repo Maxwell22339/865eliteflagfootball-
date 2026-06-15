@@ -474,70 +474,74 @@
 
             <!-- Offensive Player Stats -->
             <h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.5rem; text-align:center;">Offensive Player Stats</h3>
-            <table class="schedule-table" id="offensiveStatsTable">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                    </tr>
-                </thead>
-                <tbody id="offensiveStatsBody">
-                    <tr>
-                        <td>—</td>
-                        <td>—</td>
-                        <td>—</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="stats-table-wrapper">
+                <table class="schedule-table stats-grid-table" id="offensiveStatsTable">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Player Name</th>
+                            <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="offensiveStatsBody">
+                        <tr>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <div id="offensiveStatsAdminBtns" style="text-align:center; margin:10px 0; display:none;">
                 <button class="cta-button small" onclick="addStatsRow('offensiveStatsBody','offensive')">+ Add Offensive Player</button>
             </div>
 
             <!-- Defensive Player Stats -->
             <h3 style="color:#ff6f00; margin-top:2rem; margin-bottom:0.5rem; text-align:center;">Defensive Player Stats</h3>
-            <table class="schedule-table" id="defensiveStatsTable">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                    </tr>
-                </thead>
-                <tbody id="defensiveStatsBody">
-                    <tr>
-                        <td>—</td>
-                        <td>—</td>
-                        <td>—</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td>0</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="stats-table-wrapper">
+                <table class="schedule-table stats-grid-table" id="defensiveStatsTable">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Player Name</th>
+                            <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="defensiveStatsBody">
+                        <tr>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <div id="defensiveStatsAdminBtns" style="text-align:center; margin:10px 0; display:none;">
                 <button class="cta-button small" onclick="addStatsRow('defensiveStatsBody','defensive')">+ Add Defensive Player</button>
             </div>
@@ -572,45 +576,55 @@
             </div>
 
             <h3 style="color:#ff6f00; margin-top:1.5rem; margin-bottom:0.5rem; text-align:center;">Offensive Season Recap</h3>
-            <table class="schedule-table" id="recapOffensiveStatsTable">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                    </tr>
-                </thead>
-                <tbody id="recapOffensiveStatsBody">
-                    <tr><td colspan="11" style="text-align:center; color:#aaa;">No archived offensive stats yet.</td></tr>
-                </tbody>
-            </table>
+            <div class="stats-table-wrapper">
+                <table class="schedule-table stats-grid-table" id="recapOffensiveStatsTable">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Player Name</th>
+                            <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>INT's<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="recapOffensiveStatsBody">
+                        <tr><td colspan="11" style="text-align:center; color:#aaa;">No archived offensive stats yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="recapOffensiveStatsAdminBtns" class="recap-stats-admin-btns" aria-hidden="true">
+                <button class="cta-button small" type="button" onclick="addSeasonArchiveStatsRow('offensive')">+ Add Archived Offensive Player</button>
+            </div>
 
             <h3 style="color:#ff6f00; margin-top:2rem; margin-bottom:0.5rem; text-align:center;">Defensive Season Recap</h3>
-            <table class="schedule-table" id="recapDefensiveStatsTable">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Player Name</th>
-                        <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                        <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
-                    </tr>
-                </thead>
-                <tbody id="recapDefensiveStatsBody">
-                    <tr><td colspan="7" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>
-                </tbody>
-            </table>
+            <div class="stats-table-wrapper">
+                <table class="schedule-table stats-grid-table" id="recapDefensiveStatsTable">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Player Name</th>
+                            <th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                            <th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="recapDefensiveStatsBody">
+                        <tr><td colspan="8" style="text-align:center; color:#aaa;">No archived defensive stats yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="recapDefensiveStatsAdminBtns" class="recap-stats-admin-btns" aria-hidden="true">
+                <button class="cta-button small" type="button" onclick="addSeasonArchiveStatsRow('defensive')">+ Add Archived Defensive Player</button>
+            </div>
         </div>
     </section>
 
