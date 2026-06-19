@@ -3452,14 +3452,17 @@
                     var teamKey = logoKey.endsWith('Logo') ? logoKey.slice(0, -4) + 'Team' : '';
                     var teamNameInput = (teamKey && block) ? block.querySelector('input[data-key="' + teamKey + '"]') : null;
                     var teamName = teamNameInput ? teamNameInput.value.trim() : '';
-                    if (teamName) {
-                        setStatsTeamLogo(teamName, compressed);
-                        renderLeagueSchedulePublic();
-                    }
-                    // Auto-save the full schedule rows to localStorage immediately so the
-                    // uploaded logo persists across page reloads without requiring the admin
-                    // to manually click "Save Schedule".
+                    // Persist logo + auto-save inside try/catch so that a localStorage
+                    // QuotaExceededError or SecurityError does not bubble up to .catch()
+                    // and show a misleading "Unable to process the selected image" alert.
                     try {
+                        if (teamName) {
+                            setStatsTeamLogo(teamName, compressed);
+                            renderLeagueSchedulePublic();
+                        }
+                        // Auto-save the full schedule rows to localStorage immediately so the
+                        // uploaded logo persists across page reloads without requiring the admin
+                        // to manually click "Save Schedule".
                         var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
                         if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
                     } catch (saveErr) {
@@ -4196,7 +4199,11 @@
         }
 
         function saveStatsTeamLogos(logos) {
-            localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+            try {
+                localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+            } catch (e) {
+                console.warn('Failed to save team logos to localStorage.', e);
+            }
             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, logos || {}, 'StatsTeamLogos');
         }
 
@@ -4678,7 +4685,11 @@
         }
 
         function saveLeagueCollection(key, rows) {
-            localStorage.setItem(key, JSON.stringify(rows));
+            try {
+                localStorage.setItem(key, JSON.stringify(rows));
+            } catch (e) {
+                console.warn('Failed to save league data to localStorage.', e);
+            }
             var remoteKey = key === LEAGUE_STANDINGS_KEY
                 ? SUPABASE_PUBLIC_STATE_KEYS.leagueStandings
                 : SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule;
@@ -4698,7 +4709,15 @@
         }
 
         function saveLeagueSchedule(rows) {
-            saveLeagueCollection(LEAGUE_SCHEDULE_KEY, rows.map(normalizeLeagueScheduleRow));
+            // Strip logo data URLs from the persisted rows to keep localStorage and Supabase
+            // payloads small.  Logos are stored separately in statsTeamLogos and resolved at
+            // render time by resolveAdminTeamLogo / resolveScheduleTeamLogo.
+            saveLeagueCollection(LEAGUE_SCHEDULE_KEY, rows.map(function(r) {
+                var normalized = normalizeLeagueScheduleRow(r);
+                normalized.homeLogo = '';
+                normalized.awayLogo = '';
+                return normalized;
+            }));
         }
 
         function syncLeagueStandingsFromPublicTable() {
