@@ -3459,8 +3459,12 @@
                     // Auto-save the full schedule rows to localStorage immediately so the
                     // uploaded logo persists across page reloads without requiring the admin
                     // to manually click "Save Schedule".
-                    var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
-                    if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
+                    try {
+                        var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
+                        if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
+                    } catch (saveErr) {
+                        console.error('Failed to auto-save schedule after logo upload.', saveErr);
+                    }
                     markUnsaved();
                 }).catch(function(error) {
                     console.error('Failed to process schedule team logo upload.', error);
@@ -3469,7 +3473,7 @@
             };
             reader.readAsDataURL(file);
         });
-        document.addEventListener('change', function(e) {
+        (document.getElementById('siteContent') || document).addEventListener('change', function(e) {
             const input = e.target;
             if (!input.classList || !input.classList.contains('standings-admin-logo-upload')) return;
 
@@ -4569,6 +4573,12 @@
             return String(logo || '').trim() || getStatsTeamLogo(teamName);
         }
 
+        // Resolves a logo for the admin schedule table: prefers the inline row value,
+        // falls back to the statsTeamLogos store keyed by team name.
+        function resolveAdminTeamLogo(rowLogo, teamName) {
+            return String(rowLogo || '').trim() || getStatsTeamLogo(String(teamName || ''));
+        }
+
         function renderScheduleTeamMarkup(name, logo, sideClass, outcome) {
             var teamName = name || 'TBD';
             var safeName = escapeHtml(teamName);
@@ -4840,8 +4850,8 @@
                 // Resolve logos: prefer inline row value, fall back to statsTeamLogos keyed by
                 // team name so logos survive a page reload even when the Supabase copy of the
                 // schedule row didn't include the large base64 payload.
-                var resolvedHomeLogo = row.homeLogo || getStatsTeamLogo(row.homeTeam || '');
-                var resolvedAwayLogo = row.awayLogo || getStatsTeamLogo(row.awayTeam || '');
+                var resolvedHomeLogo = resolveAdminTeamLogo(row.homeLogo, row.homeTeam);
+                var resolvedAwayLogo = resolveAdminTeamLogo(row.awayLogo, row.awayTeam);
                 html += '<tr>' +
                     '<td><input type="text" data-key="week" value="' + escapeHtml(row.week || '') + '" placeholder="Week 1"></td>' +
                     '<td><input type="text" data-key="date" value="' + escapeHtml(row.date || '') + '" placeholder="MM/DD/YYYY"></td>' +
