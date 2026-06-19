@@ -3456,6 +3456,15 @@
                         setStatsTeamLogo(teamName, compressed);
                         renderLeagueSchedulePublic();
                     }
+                    // Auto-save the full schedule rows to localStorage immediately so the
+                    // uploaded logo persists across page reloads without requiring the admin
+                    // to manually click "Save Schedule".
+                    try {
+                        var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
+                        if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
+                    } catch (saveErr) {
+                        console.error('Failed to auto-save schedule after logo upload.', saveErr);
+                    }
                     markUnsaved();
                 }).catch(function(error) {
                     console.error('Failed to process schedule team logo upload.', error);
@@ -3464,8 +3473,7 @@
             };
             reader.readAsDataURL(file);
         });
-        var standingsAdminPanel = document.getElementById('leagueStandingsAdminPanel');
-        standingsAdminPanel?.addEventListener('change', function(e) {
+        (document.getElementById('siteContent') || document).addEventListener('change', function(e) {
             const input = e.target;
             if (!input.classList || !input.classList.contains('standings-admin-logo-upload')) return;
 
@@ -4565,6 +4573,12 @@
             return String(logo || '').trim() || getStatsTeamLogo(teamName);
         }
 
+        // Resolves a logo for the admin schedule table: prefers the inline row value,
+        // falls back to the statsTeamLogos store keyed by team name.
+        function resolveAdminTeamLogo(rowLogo, teamName) {
+            return String(rowLogo || '').trim() || getStatsTeamLogo(String(teamName || ''));
+        }
+
         function renderScheduleTeamMarkup(name, logo, sideClass, outcome) {
             var teamName = name || 'TBD';
             var safeName = escapeHtml(teamName);
@@ -4833,6 +4847,11 @@
 
             editableRows.map(normalizeLeagueScheduleRow).forEach(function(row, rowIdx) {
                 var scoreParts = getScheduleAdminScoreParts(row.status);
+                // Resolve logos: prefer inline row value, fall back to statsTeamLogos keyed by
+                // team name so logos survive a page reload even when the Supabase copy of the
+                // schedule row didn't include the large base64 payload.
+                var resolvedHomeLogo = resolveAdminTeamLogo(row.homeLogo, row.homeTeam);
+                var resolvedAwayLogo = resolveAdminTeamLogo(row.awayLogo, row.awayTeam);
                 html += '<tr>' +
                     '<td><input type="text" data-key="week" value="' + escapeHtml(row.week || '') + '" placeholder="Week 1"></td>' +
                     '<td><input type="text" data-key="date" value="' + escapeHtml(row.date || '') + '" placeholder="MM/DD/YYYY"></td>' +
@@ -4843,18 +4862,18 @@
                                 '<label>Team 1 Name</label>' +
                                 '<input type="text" data-key="homeTeam" value="' + escapeHtml(row.homeTeam || '') + '" placeholder="Team 1 name">' +
                                 '<label>Team 1 Logo</label>' +
-                                '<img class="schedule-admin-logo-preview' + (row.homeLogo ? '' : ' hidden') + '" src="' + escapeHtml(row.homeLogo || '') + '" alt="Team 1 logo preview">' +
-                                '<div class="schedule-admin-logo-empty"' + (row.homeLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
-                                '<input type="hidden" data-key="homeLogo" value="' + escapeHtml(row.homeLogo || '') + '">' +
+                                '<img class="schedule-admin-logo-preview' + (resolvedHomeLogo ? '' : ' hidden') + '" src="' + escapeHtml(resolvedHomeLogo) + '" alt="Team 1 logo preview">' +
+                                '<div class="schedule-admin-logo-empty"' + (resolvedHomeLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
+                                '<input type="hidden" data-key="homeLogo" value="' + escapeHtml(resolvedHomeLogo) + '">' +
                                 '<input type="file" accept="image/*" class="schedule-admin-logo-upload" data-key="homeLogo">' +
                             '</div>' +
                             '<div class="schedule-admin-team-block">' +
                                 '<label>Team 2 Name</label>' +
                                 '<input type="text" data-key="awayTeam" value="' + escapeHtml(row.awayTeam || '') + '" placeholder="Team 2 name">' +
                                 '<label>Team 2 Logo</label>' +
-                                '<img class="schedule-admin-logo-preview' + (row.awayLogo ? '' : ' hidden') + '" src="' + escapeHtml(row.awayLogo || '') + '" alt="Team 2 logo preview">' +
-                                '<div class="schedule-admin-logo-empty"' + (row.awayLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
-                                '<input type="hidden" data-key="awayLogo" value="' + escapeHtml(row.awayLogo || '') + '">' +
+                                '<img class="schedule-admin-logo-preview' + (resolvedAwayLogo ? '' : ' hidden') + '" src="' + escapeHtml(resolvedAwayLogo) + '" alt="Team 2 logo preview">' +
+                                '<div class="schedule-admin-logo-empty"' + (resolvedAwayLogo ? ' style="display:none;"' : '') + '>No logo selected</div>' +
+                                '<input type="hidden" data-key="awayLogo" value="' + escapeHtml(resolvedAwayLogo) + '">' +
                                 '<input type="file" accept="image/*" class="schedule-admin-logo-upload" data-key="awayLogo">' +
                             '</div>' +
                         '</div>' +
