@@ -1480,6 +1480,7 @@
         }
 
         const BRANDING_STORAGE_FOLDER = 'branding';
+        const TEAM_LOGO_STORAGE_FOLDER = 'team-logos';
         const BRANDING_LOGO_FILENAME = 'site-logo.jpg';
         const BRANDING_HOME_BACKGROUND_FILENAME = 'home-hero-background.jpg';
         const BRAND_MARK_TEXT = '865 Elite';
@@ -1633,6 +1634,73 @@
         // only a small public URL needs to be saved in the state table.  This avoids
         // storing large base64 blobs in the database column, which can cause silent
         // upsert failures and lost branding on page refresh.
+        function dataUrlToBlob(dataUrl) {
+            if (typeof dataUrl !== 'string') return null;
+            if (!/^data:/i.test(dataUrl)) return null;
+            try {
+                var parts = dataUrl.split(',');
+                if (parts.length < 2) return null;
+                var mimeMatch = parts[0].match(/:(.*?);/);
+                var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+                var binaryStr = atob(parts[1]);
+                var bytes = new Uint8Array(binaryStr.length);
+                for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+                return { blob: new Blob([bytes], { type: mime }), mime: mime };
+            } catch (err) {
+                return null;
+            }
+        }
+
+        function getFileExtensionForMimeType(mimeType) {
+            if (/png/i.test(mimeType)) return 'png';
+            if (/webp/i.test(mimeType)) return 'webp';
+            if (/gif/i.test(mimeType)) return 'gif';
+            if (/svg\+xml/i.test(mimeType)) return 'svg';
+            return 'jpg';
+        }
+
+        function sanitizeStorageSegment(value, fallback) {
+            var sanitized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            return sanitized || (fallback || 'asset');
+        }
+
+        async function uploadTeamLogoToSupabase(dataUrl, teamName) {
+            if (isLocalPreviewMode()) return null;
+            var client = getSiteSupabaseClient();
+            if (!client) return null;
+            var config = getSiteSupabaseConfig();
+            var bucket = config.galleryBucket || 'gallery-images';
+            try {
+                var converted = dataUrlToBlob(dataUrl);
+                if (!converted || !converted.blob) return null;
+                var extension = getFileExtensionForMimeType(converted.mime);
+                var slug = sanitizeStorageSegment(teamName, 'team');
+                // UUID fallback is for collision resistance in file names, not security.
+                var randomToken = (window.crypto && typeof window.crypto.randomUUID === 'function')
+                    ? window.crypto.randomUUID()
+                    : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+                var storagePath = TEAM_LOGO_STORAGE_FOLDER + '/' + slug + '-' + Date.now() + '-' + randomToken + '.' + extension;
+                var uploadResp = await client.storage.from(bucket).upload(storagePath, converted.blob, { upsert: true, contentType: converted.mime });
+                if (uploadResp.error) {
+                    logSupabaseOperation('TeamLogos', 'warn', 'Storage upload failed for team logo.', uploadResp.error);
+                    return null;
+                }
+                var urlResp = client.storage.from(bucket).getPublicUrl(storagePath);
+                var publicUrl = urlResp && urlResp.data && urlResp.data.publicUrl;
+                if (!publicUrl) return null;
+                try {
+                    var parsed = new URL(publicUrl);
+                    return parsed.origin + parsed.pathname;
+                } catch (urlErr) {
+                    logSupabaseOperation('TeamLogos', 'warn', 'Failed parsing Supabase logo URL; falling back to raw URL value.', urlErr);
+                    return publicUrl.split('?')[0];
+                }
+            } catch (err) {
+                logSupabaseOperation('TeamLogos', 'warn', 'Unexpected error uploading team logo, falling back to local data URL.', err);
+                return null;
+            }
+        }
+
         async function uploadBrandingImageToSupabase(dataUrl, filename) {
             if (isLocalPreviewMode()) return null;
             var client = getSiteSupabaseClient();
@@ -1640,14 +1708,10 @@
             var config = getSiteSupabaseConfig();
             var bucket = config.galleryBucket || 'gallery-images';
             try {
-                // Convert data URL → Blob
-                var parts = dataUrl.split(',');
-                var mimeMatch = parts[0].match(/:(.*?);/);
-                var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                var binaryStr = atob(parts[1]);
-                var bytes = new Uint8Array(binaryStr.length);
-                for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-                var blob = new Blob([bytes], { type: mime });
+                var converted = dataUrlToBlob(dataUrl);
+                if (!converted || !converted.blob) return null;
+                var mime = converted.mime;
+                var blob = converted.blob;
 
                 var storagePath = BRANDING_STORAGE_FOLDER + '/' + filename;
                 // upsert: true replaces the existing file at that path
@@ -3441,31 +3505,37 @@
                     return;
                 }
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
-                    hiddenInput.value = compressed;
-                    preview.src = compressed;
-                    preview.classList.remove('hidden');
-                    if (emptyState) emptyState.style.display = 'none';
-                    // Also persist logo to statsTeamLogos store (keyed by team name) so that
-                    // resolveScheduleTeamLogo's fallback can find it after a page reload,
-                    // even if the inline homeLogo/awayLogo field is later cleared or lost.
                     var logoKey = String(input.dataset.key || '');
                     var teamKey = logoKey.endsWith('Logo') ? logoKey.slice(0, -4) + 'Team' : '';
                     var teamNameInput = (teamKey && block) ? block.querySelector('input[data-key="' + teamKey + '"]') : null;
                     var teamName = teamNameInput ? teamNameInput.value.trim() : '';
-                    if (teamName) {
-                        setStatsTeamLogo(teamName, compressed);
-                        renderLeagueSchedulePublic();
-                    }
-                    // Auto-save the full schedule rows to localStorage immediately so the
-                    // uploaded logo persists across page reloads without requiring the admin
-                    // to manually click "Save Schedule".
-                    try {
-                        var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
-                        if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
-                    } catch (saveErr) {
-                        console.error('Failed to auto-save schedule after logo upload.', saveErr);
-                    }
-                    markUnsaved();
+                    return uploadTeamLogoToSupabase(compressed, teamName || logoKey).then(function(uploadedLogoUrl) {
+                        var persistedLogo = uploadedLogoUrl || compressed;
+                        if (!uploadedLogoUrl && !isLocalPreviewMode()) {
+                            showLeagueAdminMessage('leagueScheduleAdminMsg', 'Logo saved locally only. Other users will not see it until Supabase upload succeeds.', '#ffb300');
+                        }
+                        hiddenInput.value = persistedLogo;
+                        preview.src = persistedLogo;
+                        preview.classList.remove('hidden');
+                        if (emptyState) emptyState.style.display = 'none';
+                        // Also persist logo to statsTeamLogos store (keyed by team name) so that
+                        // resolveScheduleTeamLogo's fallback can find it after a page reload,
+                        // even if the inline homeLogo/awayLogo field is later cleared or lost.
+                        if (teamName) {
+                            setStatsTeamLogo(teamName, persistedLogo);
+                            renderLeagueSchedulePublic();
+                        }
+                        // Auto-save the full schedule rows to localStorage immediately so the
+                        // uploaded logo persists across page reloads without requiring the admin
+                        // to manually click "Save Schedule".
+                        try {
+                            var autoSaveRows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
+                            if (autoSaveRows.length) saveLeagueSchedule(autoSaveRows);
+                        } catch (saveErr) {
+                            console.error('Failed to auto-save schedule after logo upload.', saveErr);
+                        }
+                        markUnsaved();
+                    });
                 }).catch(function(error) {
                     console.error('Failed to process schedule team logo upload.', error);
                     alert('Unable to process the selected image. Please select a valid image file and try again.');
@@ -3494,7 +3564,13 @@
                 const dataUrl = reader.result || '';
                 if (!dataUrl) return;
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
-                    setStatsTeamLogo(teamName, compressed);
+                    return uploadTeamLogoToSupabase(compressed, teamName).then(function(uploadedLogoUrl) {
+                        if (!uploadedLogoUrl && !isLocalPreviewMode()) {
+                            showLeagueAdminMessage('leagueStandingsAdminMsg', 'Logo saved locally only. Other users will not see it until Supabase upload succeeds.', '#ffb300');
+                        }
+                        setStatsTeamLogo(teamName, uploadedLogoUrl || compressed);
+                    });
+                }).then(function() {
                     const preview = row ? row.querySelector('.standings-admin-logo-preview') : null;
                     if (preview) preview.innerHTML = renderStandingsTeamLogo(teamName);
                     renderLeagueStandingsPublic();
@@ -4196,7 +4272,7 @@
         }
 
         function saveStatsTeamLogos(logos) {
-            localStorage.setItem(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
+            safeLocalStorageSet(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, logos || {}, 'StatsTeamLogos');
         }
 
@@ -4678,7 +4754,7 @@
         }
 
         function saveLeagueCollection(key, rows) {
-            localStorage.setItem(key, JSON.stringify(rows));
+            safeLocalStorageSet(key, JSON.stringify(rows));
             var remoteKey = key === LEAGUE_STANDINGS_KEY
                 ? SUPABASE_PUBLIC_STATE_KEYS.leagueStandings
                 : SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule;
@@ -5177,7 +5253,10 @@
                             var dataUrl = reader.result || '';
                             if (!dataUrl) return;
                             compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
-                                setStatsTeamLogo(teamName, compressed);
+                                return uploadTeamLogoToSupabase(compressed, teamName).then(function(uploadedLogoUrl) {
+                                    setStatsTeamLogo(teamName, uploadedLogoUrl || compressed);
+                                });
+                            }).then(function() {
                                 renderAllStats();
                                 markUnsaved();
                             }).catch(function() {
