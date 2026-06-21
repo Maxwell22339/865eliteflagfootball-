@@ -1637,14 +1637,18 @@
         function dataUrlToBlob(dataUrl) {
             if (typeof dataUrl !== 'string') return null;
             if (!/^data:/i.test(dataUrl)) return null;
-            var parts = dataUrl.split(',');
-            if (parts.length < 2) return null;
-            var mimeMatch = parts[0].match(/:(.*?);/);
-            var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-            var binaryStr = atob(parts[1]);
-            var bytes = new Uint8Array(binaryStr.length);
-            for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-            return { blob: new Blob([bytes], { type: mime }), mime: mime };
+            try {
+                var parts = dataUrl.split(',');
+                if (parts.length < 2) return null;
+                var mimeMatch = parts[0].match(/:(.*?);/);
+                var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+                var binaryStr = atob(parts[1]);
+                var bytes = new Uint8Array(binaryStr.length);
+                for (var i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+                return { blob: new Blob([bytes], { type: mime }), mime: mime };
+            } catch (err) {
+                return null;
+            }
         }
 
         function getFileExtensionForMimeType(mimeType) {
@@ -1671,6 +1675,7 @@
                 if (!converted || !converted.blob) return null;
                 var extension = getFileExtensionForMimeType(converted.mime);
                 var slug = sanitizeStorageSegment(teamName, 'team');
+                // UUID fallback is for collision resistance in file names, not security.
                 var randomToken = (window.crypto && typeof window.crypto.randomUUID === 'function')
                     ? window.crypto.randomUUID()
                     : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
@@ -3507,7 +3512,7 @@
                     return uploadTeamLogoToSupabase(compressed, teamName || logoKey).then(function(uploadedLogoUrl) {
                         var persistedLogo = uploadedLogoUrl || compressed;
                         if (!uploadedLogoUrl && !isLocalPreviewMode()) {
-                            showLeagueAdminMessage('leagueScheduleAdminMsg', 'Logo saved locally. Supabase upload failed, so shared sync may lag.', '#ffb300');
+                            showLeagueAdminMessage('leagueScheduleAdminMsg', 'Logo saved locally only. Other users will not see it until Supabase upload succeeds.', '#ffb300');
                         }
                         hiddenInput.value = persistedLogo;
                         preview.src = persistedLogo;
@@ -3561,7 +3566,7 @@
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                     return uploadTeamLogoToSupabase(compressed, teamName).then(function(uploadedLogoUrl) {
                         if (!uploadedLogoUrl && !isLocalPreviewMode()) {
-                            showLeagueAdminMessage('leagueStandingsAdminMsg', 'Logo saved locally. Supabase upload failed, so shared sync may lag.', '#ffb300');
+                            showLeagueAdminMessage('leagueStandingsAdminMsg', 'Logo saved locally only. Other users will not see it until Supabase upload succeeds.', '#ffb300');
                         }
                         setStatsTeamLogo(teamName, uploadedLogoUrl || compressed);
                     });
