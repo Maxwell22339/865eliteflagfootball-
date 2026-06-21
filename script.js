@@ -1636,6 +1636,7 @@
         // upsert failures and lost branding on page refresh.
         function dataUrlToBlob(dataUrl) {
             if (typeof dataUrl !== 'string') return null;
+            if (!/^data:/i.test(dataUrl)) return null;
             var parts = dataUrl.split(',');
             if (parts.length < 2) return null;
             var mimeMatch = parts[0].match(/:(.*?);/);
@@ -1672,7 +1673,7 @@
                 var slug = sanitizeStorageSegment(teamName, 'team');
                 var randomToken = (window.crypto && typeof window.crypto.randomUUID === 'function')
                     ? window.crypto.randomUUID()
-                    : Math.random().toString(36).slice(2, 10);
+                    : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
                 var storagePath = TEAM_LOGO_STORAGE_FOLDER + '/' + slug + '-' + Date.now() + '-' + randomToken + '.' + extension;
                 var uploadResp = await client.storage.from(bucket).upload(storagePath, converted.blob, { upsert: true, contentType: converted.mime });
                 if (uploadResp.error) {
@@ -1686,6 +1687,7 @@
                     var parsed = new URL(publicUrl);
                     return parsed.origin + parsed.pathname;
                 } catch (urlErr) {
+                    logSupabaseOperation('TeamLogos', 'warn', 'Failed parsing Supabase logo URL; falling back to raw URL value.', urlErr);
                     return publicUrl.split('?')[0];
                 }
             } catch (err) {
@@ -3504,6 +3506,9 @@
                     var teamName = teamNameInput ? teamNameInput.value.trim() : '';
                     return uploadTeamLogoToSupabase(compressed, teamName || logoKey).then(function(uploadedLogoUrl) {
                         var persistedLogo = uploadedLogoUrl || compressed;
+                        if (!uploadedLogoUrl && !isLocalPreviewMode()) {
+                            showLeagueAdminMessage('leagueScheduleAdminMsg', 'Logo saved locally. Supabase upload failed, so shared sync may lag.', '#ffb300');
+                        }
                         hiddenInput.value = persistedLogo;
                         preview.src = persistedLogo;
                         preview.classList.remove('hidden');
@@ -3555,6 +3560,9 @@
                 if (!dataUrl) return;
                 compressImageDataUrl(dataUrl, STATS_TEAM_LOGO_MAX_WIDTH, STATS_TEAM_LOGO_MAX_HEIGHT, STATS_TEAM_LOGO_QUALITY).then(function(compressed) {
                     return uploadTeamLogoToSupabase(compressed, teamName).then(function(uploadedLogoUrl) {
+                        if (!uploadedLogoUrl && !isLocalPreviewMode()) {
+                            showLeagueAdminMessage('leagueStandingsAdminMsg', 'Logo saved locally. Supabase upload failed, so shared sync may lag.', '#ffb300');
+                        }
                         setStatsTeamLogo(teamName, uploadedLogoUrl || compressed);
                     });
                 }).then(function() {
