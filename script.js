@@ -1635,7 +1635,8 @@
         // storing large base64 blobs in the database column, which can cause silent
         // upsert failures and lost branding on page refresh.
         function dataUrlToBlob(dataUrl) {
-            var parts = String(dataUrl || '').split(',');
+            if (typeof dataUrl !== 'string') return null;
+            var parts = dataUrl.split(',');
             if (parts.length < 2) return null;
             var mimeMatch = parts[0].match(/:(.*?);/);
             var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
@@ -1669,9 +1670,11 @@
                 if (!converted || !converted.blob) return null;
                 var extension = getFileExtensionForMimeType(converted.mime);
                 var slug = sanitizeStorageSegment(teamName, 'team');
-                var randomToken = Math.random().toString(36).slice(2, 8);
+                var randomToken = (window.crypto && typeof window.crypto.randomUUID === 'function')
+                    ? window.crypto.randomUUID()
+                    : Math.random().toString(36).slice(2, 10);
                 var storagePath = TEAM_LOGO_STORAGE_FOLDER + '/' + slug + '-' + Date.now() + '-' + randomToken + '.' + extension;
-                var uploadResp = await client.storage.from(bucket).upload(storagePath, converted.blob, { upsert: false, contentType: converted.mime });
+                var uploadResp = await client.storage.from(bucket).upload(storagePath, converted.blob, { upsert: true, contentType: converted.mime });
                 if (uploadResp.error) {
                     logSupabaseOperation('TeamLogos', 'warn', 'Storage upload failed for team logo.', uploadResp.error);
                     return null;
@@ -1679,7 +1682,12 @@
                 var urlResp = client.storage.from(bucket).getPublicUrl(storagePath);
                 var publicUrl = urlResp && urlResp.data && urlResp.data.publicUrl;
                 if (!publicUrl) return null;
-                return publicUrl.split('?')[0];
+                try {
+                    var parsed = new URL(publicUrl);
+                    return parsed.origin + parsed.pathname;
+                } catch (urlErr) {
+                    return publicUrl.split('?')[0];
+                }
             } catch (err) {
                 logSupabaseOperation('TeamLogos', 'warn', 'Unexpected error uploading team logo, falling back to local data URL.', err);
                 return null;
