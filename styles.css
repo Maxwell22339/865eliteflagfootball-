@@ -823,6 +823,13 @@
             color: #aaa;
         }
 
+        .schedule-public-table-wrap {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         .schedule-admin-table-wrap {
             width: 100%;
             max-width: 100%;
@@ -831,7 +838,7 @@
         }
 
         #leagueScheduleAdminPanel .schedule-table {
-            min-width: 980px;
+            min-width: 1200px;
         }
 
 
