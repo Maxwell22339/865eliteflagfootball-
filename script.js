@@ -5013,7 +5013,7 @@
                 return;
             }
             const rows = loadLeagueSchedule();
-            rows.push(blankLeagueRow(leagueScheduleFields));
+            rows.unshift(blankLeagueRow(leagueScheduleFields));
             renderLeagueScheduleAdminTable(rows);
         }
 
