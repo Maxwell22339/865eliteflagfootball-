@@ -37,7 +37,6 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
-            overflow-x: hidden; /* Prevent overflow in containers */
         }
 
         nav {
