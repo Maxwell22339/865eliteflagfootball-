@@ -857,6 +857,24 @@
             font-weight: bold;
         }
 
+        .standings-sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .standings-sortable:hover {
+            color: #ff8f00;
+        }
+
+        .standings-net-positive {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        .standings-net-negative {
+            color: #f44336;
+            font-weight: bold;
+        }
+
         .teams {
             background: #1a1a2e;
         }

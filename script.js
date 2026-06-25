@@ -4855,15 +4855,65 @@
             renderLeagueScheduleAdminTable(rows);
         }
 
+        // Standings sort state
+        var standingsSortState = { column: null, direction: 'desc' };
+
+        function getStandingsNetPoints(row) {
+            return (parseInt(row.pointsScored, 10) || 0) - (parseInt(row.pointsAgainst, 10) || 0);
+        }
+
+        function sortStandingsRows(rows, column, direction) {
+            var sorted = rows.slice();
+            sorted.sort(function(a, b) {
+                var valA, valB;
+                switch (column) {
+                    case 'wins': valA = parseInt(a.wins, 10) || 0; valB = parseInt(b.wins, 10) || 0; break;
+                    case 'losses': valA = parseInt(a.losses, 10) || 0; valB = parseInt(b.losses, 10) || 0; break;
+                    case 'pointsScored': valA = parseInt(a.pointsScored, 10) || 0; valB = parseInt(b.pointsScored, 10) || 0; break;
+                    case 'pointsAgainst': valA = parseInt(a.pointsAgainst, 10) || 0; valB = parseInt(b.pointsAgainst, 10) || 0; break;
+                    case 'netPoints': valA = getStandingsNetPoints(a); valB = getStandingsNetPoints(b); break;
+                    default: return 0;
+                }
+                if (direction === 'asc') return valA - valB;
+                return valB - valA;
+            });
+            return sorted;
+        }
+
+        function renderStandingsSortArrow(column) {
+            var arrow = '';
+            if (standingsSortState.column === column) {
+                arrow = standingsSortState.direction === 'asc' ? ' \u25B2' : ' \u25BC';
+            }
+            return arrow;
+        }
+
         function renderLeagueStandingsPublic() {
             const tbody = document.getElementById('leagueStandingsBody');
             if (!tbody) return;
-            const rows = loadLeagueStandings();
+            const thead = document.querySelector('#leagueStandingsTable thead tr');
+            if (thead) {
+                thead.innerHTML =
+                    '<th>Logo</th>' +
+                    '<th>Team</th>' +
+                    '<th class="standings-sortable" data-sort-col="wins" style="cursor:pointer;">Wins' + renderStandingsSortArrow('wins') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="losses" style="cursor:pointer;">Losses' + renderStandingsSortArrow('losses') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="pointsScored" style="cursor:pointer;">Points Scored' + renderStandingsSortArrow('pointsScored') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="pointsAgainst" style="cursor:pointer;">Points Allowed' + renderStandingsSortArrow('pointsAgainst') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="netPoints" style="cursor:pointer;">Net Points' + renderStandingsSortArrow('netPoints') + '</th>';
+            }
+            var rows = loadLeagueStandings();
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
                 return;
             }
+            if (standingsSortState.column) {
+                rows = sortStandingsRows(rows, standingsSortState.column, standingsSortState.direction);
+            }
             tbody.innerHTML = rows.map(function(row) {
+                var net = getStandingsNetPoints(row);
+                var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
+                var netPrefix = net > 0 ? '+' : '';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
@@ -4871,6 +4921,7 @@
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
                     '<td>' + escapeHtml(row.pointsScored || '0') + '</td>' +
                     '<td>' + escapeHtml(row.pointsAgainst || '0') + '</td>' +
+                    '<td class="' + netClass + '">' + netPrefix + net + '</td>' +
                 '</tr>';
             }).join('');
         }
@@ -4977,6 +5028,25 @@
             renderLeagueScheduleAdminTable(loadLeagueSchedule());
         }
 
+        // Standings sort click handler (delegated)
+        function handleStandingsSortClick(e) {
+            var th = e.target.closest('.standings-sortable');
+            if (!th) return;
+            var col = th.getAttribute('data-sort-col');
+            if (!col) return;
+            if (standingsSortState.column === col) {
+                standingsSortState.direction = standingsSortState.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                standingsSortState.column = col;
+                standingsSortState.direction = 'desc';
+            }
+            renderLeagueStandingsPublic();
+        }
+        (function() {
+            var table = document.getElementById('leagueStandingsTable');
+            if (table) table.addEventListener('click', handleStandingsSortClick);
+        })();
+
         function collectLeagueAdminRows(bodyId, fields) {
             const tbody = document.getElementById(bodyId);
             if (!tbody) return [];
@@ -5007,12 +5077,13 @@
         function addLeagueAdminRow(type) {
             if (!isAdminLoggedIn()) return;
             if (type === 'standings') {
-                const rows = loadLeagueStandings();
+                const rows = collectLeagueAdminRows('leagueStandingsAdminBody', leagueStandingsFields);
                 rows.push(blankLeagueRow(leagueStandingsFields));
-                renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows, 'standings');
+                renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, rows.length ? rows : [blankLeagueRow(leagueStandingsFields)], 'standings');
                 return;
             }
-            const rows = loadLeagueSchedule();
+            // Collect current DOM state so unsaved score edits are preserved
+            const rows = collectLeagueAdminRows('leagueScheduleAdminBody', leagueScheduleFields);
             rows.unshift(blankLeagueRow(leagueScheduleFields));
             renderLeagueScheduleAdminTable(rows);
         }
