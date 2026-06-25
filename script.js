@@ -52,6 +52,9 @@
             }
         }
 
+        // --- In-memory cache for team logos (stored in IndexedDB, not localStorage) ---
+        var _statsTeamLogosCache = null;
+
         // --- IndexedDB helpers (for large binary items: images, documents, page HTML) ---
         var _idbPromise = null;
         function openIDB() {
@@ -106,6 +109,41 @@
             });
             return Promise.all(promises).then(function() {
                 try { localStorage.setItem('idb_migrated_v1', '1'); } catch (e) {}
+            });
+        }
+
+        // --- Migrate statsTeamLogos from localStorage to IndexedDB (runs on every load) ---
+        function initStatsTeamLogosFromIDB() {
+            // STATS_TEAM_LOGOS_KEY is defined later in the script but is always resolved
+            // by the time this function is called (after multiple awaits in the startup IIFE).
+            var key = 'statsTeamLogos_v1';
+            return idbGet(key).then(function(val) {
+                if (val && typeof val === 'object' && !Array.isArray(val)) {
+                    _statsTeamLogosCache = val;
+                    // Remove any stale copy still in localStorage
+                    try { localStorage.removeItem(key); } catch (e) {}
+                } else {
+                    // No IDB entry yet — try migrating from localStorage
+                    try {
+                        var raw = localStorage.getItem(key);
+                        if (raw) {
+                            var parsed = JSON.parse(raw);
+                            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                                _statsTeamLogosCache = parsed;
+                                idbSet(key, parsed).then(function() {
+                                    try { localStorage.removeItem(key); } catch (e) {}
+                                }).catch(function(err) {
+                                    console.warn('Failed migrating statsTeamLogos to IDB.', err);
+                                });
+                                return;
+                            }
+                        }
+                    } catch (e) {}
+                    _statsTeamLogosCache = {};
+                }
+            }).catch(function(err) {
+                console.warn('Failed loading statsTeamLogos from IDB.', err);
+                if (_statsTeamLogosCache === null) _statsTeamLogosCache = {};
             });
         }
 
@@ -472,12 +510,31 @@
                 else if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.signupSeason)) localStorage.removeItem(SIGNUP_SEASON_SETTINGS_KEY);
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.countdown) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown] != null) localStorage.setItem('countdownDate_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.countdown]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueStandings) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings] != null) localStorage.setItem('leagueStandings_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueStandings]));
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule] != null) localStorage.setItem('leagueSchedule_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule] != null) {
+                    // Strip base64 logo blobs from schedule rows before caching locally; logos live in statsTeamLogos (IDB)
+                    var schedRows = valueByKey[SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule];
+                    var localScheduleRows = Array.isArray(schedRows) ? schedRows.map(function(r) {
+                        if (!r) return r;
+                        var stripped = Object.assign({}, r);
+                        if (String(stripped.homeLogo || '').substring(0, 5) === 'data:') stripped.homeLogo = '';
+                        if (String(stripped.awayLogo || '').substring(0, 5) === 'data:') stripped.awayLogo = '';
+                        return stripped;
+                    }) : schedRows;
+                    localStorage.setItem('leagueSchedule_v1', JSON.stringify(localScheduleRows));
+                }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.offensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats] != null) localStorage.setItem('offensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.offensiveStats]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.defensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats] != null) localStorage.setItem('defensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.defensiveStats]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats] != null) localStorage.setItem('recapOffensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapOffensiveStats]));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats] != null) localStorage.setItem('recapDefensivePlayerStats_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapDefensiveStats]));
-                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos] != null) localStorage.setItem('statsTeamLogos_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos]));
+                if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos] != null) {
+                    // Store in IndexedDB + in-memory cache instead of localStorage to avoid quota issues
+                    var syncedLogos = valueByKey[SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos];
+                    if (syncedLogos && typeof syncedLogos === 'object' && !Array.isArray(syncedLogos)) {
+                        _statsTeamLogosCache = Object.assign({}, syncedLogos);
+                        idbSet('statsTeamLogos_v1', syncedLogos).catch(function() {});
+                        try { localStorage.removeItem('statsTeamLogos_v1'); } catch (e) {}
+                    }
+                }
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] != null) localStorage.setItem('currentSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.currentSeasonLabel] || ''));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] != null) localStorage.setItem('recapSeasonLabel_v1', String(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.recapSeasonLabel] || ''));
                 if (hasKey(SUPABASE_PUBLIC_STATE_KEYS.seasonArchives) && valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives] != null) localStorage.setItem('seasonArchives_v1', JSON.stringify(valueByKey[SUPABASE_PUBLIC_STATE_KEYS.seasonArchives]));
@@ -2289,6 +2346,7 @@
         (async function() {
             await clearLegacyLogoCaches();
             await migrateLocalStorageToIDB();
+            await initStatsTeamLogosFromIDB();
             await clearPersistedLegacyLogoState();
             await hydrateSharedPublicStateFromSupabase();
             await restoreSiteContent();
@@ -4255,6 +4313,9 @@
         }
 
         function loadStatsTeamLogos() {
+            // Use in-memory cache populated from IndexedDB (avoids large localStorage writes)
+            if (_statsTeamLogosCache !== null) return Object.assign({}, _statsTeamLogosCache);
+            // Fallback for initial render before IDB has loaded (reads legacy localStorage value)
             try {
                 var saved = JSON.parse(localStorage.getItem(STATS_TEAM_LOGOS_KEY) || '{}');
                 if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
@@ -4272,8 +4333,14 @@
         }
 
         function saveStatsTeamLogos(logos) {
-            safeLocalStorageSet(STATS_TEAM_LOGOS_KEY, JSON.stringify(logos || {}));
-            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, logos || {}, 'StatsTeamLogos');
+            var normalized = logos || {};
+            _statsTeamLogosCache = Object.assign({}, normalized);
+            // Persist to IndexedDB instead of localStorage to avoid the 5-10 MB quota
+            idbSet(STATS_TEAM_LOGOS_KEY, normalized).catch(function(err) {
+                console.warn('Failed saving statsTeamLogos to IDB.', err);
+            });
+            try { localStorage.removeItem(STATS_TEAM_LOGOS_KEY); } catch (e) {}
+            queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, normalized, 'StatsTeamLogos');
         }
 
         function getStatsTeamLogo(teamName) {
@@ -4754,7 +4821,20 @@
         }
 
         function saveLeagueCollection(key, rows) {
-            safeLocalStorageSet(key, JSON.stringify(rows));
+            // For the local cache, strip base64 logo blobs from schedule rows to keep
+            // well within the localStorage 5-10 MB quota. Logos are preserved in the
+            // statsTeamLogos store (IndexedDB) and resolved at render time.
+            var localRows = rows;
+            if (key === LEAGUE_SCHEDULE_KEY) {
+                localRows = rows.map(function(r) {
+                    if (!r) return r;
+                    var stripped = Object.assign({}, r);
+                    if (String(stripped.homeLogo || '').substring(0, 5) === 'data:') stripped.homeLogo = '';
+                    if (String(stripped.awayLogo || '').substring(0, 5) === 'data:') stripped.awayLogo = '';
+                    return stripped;
+                });
+            }
+            safeLocalStorageSet(key, JSON.stringify(localRows));
             var remoteKey = key === LEAGUE_STANDINGS_KEY
                 ? SUPABASE_PUBLIC_STATE_KEYS.leagueStandings
                 : SUPABASE_PUBLIC_STATE_KEYS.leagueSchedule;
