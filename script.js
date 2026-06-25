@@ -4896,11 +4896,11 @@
                 thead.innerHTML =
                     '<th>Logo</th>' +
                     '<th>Team</th>' +
-                    '<th class="standings-sortable" data-sort-col="wins" style="cursor:pointer;">Wins' + renderStandingsSortArrow('wins') + '</th>' +
-                    '<th class="standings-sortable" data-sort-col="losses" style="cursor:pointer;">Losses' + renderStandingsSortArrow('losses') + '</th>' +
-                    '<th class="standings-sortable" data-sort-col="pointsScored" style="cursor:pointer;">Points Scored' + renderStandingsSortArrow('pointsScored') + '</th>' +
-                    '<th class="standings-sortable" data-sort-col="pointsAgainst" style="cursor:pointer;">Points Allowed' + renderStandingsSortArrow('pointsAgainst') + '</th>' +
-                    '<th class="standings-sortable" data-sort-col="netPoints" style="cursor:pointer;">Net Points' + renderStandingsSortArrow('netPoints') + '</th>';
+                    '<th class="standings-sortable" data-sort-col="wins">Wins' + renderStandingsSortArrow('wins') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="losses">Losses' + renderStandingsSortArrow('losses') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="pointsScored">Points Scored' + renderStandingsSortArrow('pointsScored') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="pointsAgainst">Points Allowed' + renderStandingsSortArrow('pointsAgainst') + '</th>' +
+                    '<th class="standings-sortable" data-sort-col="netPoints">Net Points' + renderStandingsSortArrow('netPoints') + '</th>';
             }
             var rows = loadLeagueStandings();
             if (!rows.length) {
