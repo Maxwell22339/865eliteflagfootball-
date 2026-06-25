@@ -5455,14 +5455,8 @@
         }
         function saveAllChanges() {
             if (!isAdminLoggedIn()) return;
-            if (pageEditing) {
-                syncLeagueStandingsFromPublicTable();
-                syncLeagueScheduleFromPublicTable();
-                renderLeagueStandingsPublic();
-                renderLeagueSchedulePublic();
-            } else {
-                saveScheduleFromAdminForm();
-            }
+            saveStandingsFromAdminForm();
+            saveScheduleFromAdminForm();
             persistSiteContent();
             // also save payment links currently in inputs
             var teamLink = document.getElementById('paypalTeamLink');
