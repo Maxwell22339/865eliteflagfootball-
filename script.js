@@ -114,29 +114,35 @@
 
         // --- Migrate statsTeamLogos from localStorage to IndexedDB (runs on every load) ---
         function initStatsTeamLogosFromIDB() {
-            return idbGet('statsTeamLogos_v1').then(function(val) {
+            // STATS_TEAM_LOGOS_KEY is defined later in the script but is always resolved
+            // by the time this function is called (after multiple awaits in the startup IIFE).
+            var key = 'statsTeamLogos_v1';
+            return idbGet(key).then(function(val) {
                 if (val && typeof val === 'object' && !Array.isArray(val)) {
                     _statsTeamLogosCache = val;
                     // Remove any stale copy still in localStorage
-                    try { localStorage.removeItem('statsTeamLogos_v1'); } catch (e) {}
+                    try { localStorage.removeItem(key); } catch (e) {}
                 } else {
                     // No IDB entry yet — try migrating from localStorage
                     try {
-                        var raw = localStorage.getItem('statsTeamLogos_v1');
+                        var raw = localStorage.getItem(key);
                         if (raw) {
                             var parsed = JSON.parse(raw);
                             if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                                 _statsTeamLogosCache = parsed;
-                                idbSet('statsTeamLogos_v1', parsed).then(function() {
-                                    try { localStorage.removeItem('statsTeamLogos_v1'); } catch (e) {}
-                                }).catch(function() {});
+                                idbSet(key, parsed).then(function() {
+                                    try { localStorage.removeItem(key); } catch (e) {}
+                                }).catch(function(err) {
+                                    console.warn('Failed migrating statsTeamLogos to IDB.', err);
+                                });
                                 return;
                             }
                         }
                     } catch (e) {}
                     _statsTeamLogosCache = {};
                 }
-            }).catch(function() {
+            }).catch(function(err) {
+                console.warn('Failed loading statsTeamLogos from IDB.', err);
                 if (_statsTeamLogosCache === null) _statsTeamLogosCache = {};
             });
         }
@@ -4330,7 +4336,9 @@
             var normalized = logos || {};
             _statsTeamLogosCache = Object.assign({}, normalized);
             // Persist to IndexedDB instead of localStorage to avoid the 5-10 MB quota
-            idbSet(STATS_TEAM_LOGOS_KEY, normalized).catch(function() {});
+            idbSet(STATS_TEAM_LOGOS_KEY, normalized).catch(function(err) {
+                console.warn('Failed saving statsTeamLogos to IDB.', err);
+            });
             try { localStorage.removeItem(STATS_TEAM_LOGOS_KEY); } catch (e) {}
             queueSharedPublicStatePersist(SUPABASE_PUBLIC_STATE_KEYS.statsTeamLogos, normalized, 'StatsTeamLogos');
         }
