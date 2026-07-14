@@ -870,8 +870,8 @@
                                         '<th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                         '<th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                         '<th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                        '<th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
-                                        '<th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Receiving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
+                                        '<th>Receiving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                         '<th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>' +
                                     '</tr>' +
                                 '</thead>' +
@@ -953,7 +953,7 @@
                 }
                 var offensiveTableHead = document.querySelector('#offensiveStatsTable thead tr');
                 if (offensiveTableHead && offensiveTableHead.querySelectorAll('th').length < 11) {
-                    offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+                    offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receiving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receiving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
                 }
                 var defensiveTableHead = document.querySelector('#defensiveStatsTable thead tr');
                 if (defensiveTableHead && defensiveTableHead.querySelectorAll('th').length < 8) {
@@ -974,7 +974,7 @@
 
             var recapTableHead = document.querySelector('#recapOffensiveStatsTable thead tr');
             if (recapTableHead && recapTableHead.querySelectorAll('th').length < 11) {
-                recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
+                recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receiving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receiving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
             }
             var recapLabelDisplay = document.getElementById('seasonRecapLabelDisplay');
             if (recapLabelDisplay && !document.getElementById('seasonRecapSortHint')) {
@@ -4281,7 +4281,7 @@
                 status: '0-0'
             }
         ];
-        const offensiveCols = ['Team','Player Name','Player Position','Passing TD','Passing Yards','INT\'s','Rushing Yards','Rushing Touchdowns','Recieving Yards','Recieving Touchdowns','Receptions'];
+        const offensiveCols = ['Team','Player Name','Player Position','Passing TD','Passing Yards','INT\'s','Rushing Yards','Rushing Touchdowns','Receiving Yards','Receiving Touchdowns','Receptions'];
         const defensiveCols = ['Team','Player Name','Player Position','Tackles','Sacks','Interceptions','Pass Break Ups','Defensive TDs'];
         const statsSortState = {
             offensive: { column: 3, direction: 'desc' },
