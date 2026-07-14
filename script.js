@@ -701,6 +701,7 @@
             panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
             hamburger.textContent = shouldOpen ? '\u2715' : '\u2630';
             hamburger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            hamburger.setAttribute('aria-label', shouldOpen ? 'Close menu' : 'Open menu');
             if (shouldOpen) syncNavQuickSelect();
         }
 
@@ -2145,11 +2146,10 @@
             var nav = document.querySelector('header nav');
             if (!nav) return;
             var quickSelectById = document.getElementById('navQuickSelectPanel');
-            if (quickSelectById) {
-                quickSelectById.classList.add('hidden');
-                quickSelectById.style.display = 'none';
-                quickSelectById.setAttribute('aria-hidden', 'true');
-            }
+            if (!quickSelectById) return;
+            quickSelectById.classList.add('hidden');
+            quickSelectById.style.display = 'none';
+            quickSelectById.setAttribute('aria-hidden', 'true');
             document.querySelectorAll('.nav-quick-select:not(#navQuickSelectPanel)').forEach(function(panel) {
                 panel.classList.add('hidden');
                 panel.style.display = 'none';
@@ -2160,7 +2160,6 @@
                 navLinks.classList.remove('nav-open', 'nav-active', 'nav-expanded');
                 navLinks.removeAttribute('style');
             }
-            if (!quickSelectById) return;
 
             var hamburger = document.getElementById('navHamburger');
             if (!hamburger) {
@@ -2169,20 +2168,18 @@
                 hamburger.className = 'nav-hamburger';
                 hamburger.type = 'button';
                 hamburger.textContent = '\u2630';
-                hamburger.setAttribute('aria-label', 'Open menu');
                 hamburger.setAttribute('aria-expanded', 'false');
                 hamburger.setAttribute('aria-controls', 'navQuickSelectPanel');
                 nav.insertBefore(hamburger, quickSelectById);
             }
 
-            if (hamburger.dataset.bound !== 'true') {
-                hamburger.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setNavQuickSelectOpen();
-                });
-                hamburger.dataset.bound = 'true';
-            }
+            hamburger.onclick = function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                setNavQuickSelectOpen();
+            };
+
+            setNavQuickSelectOpen(false);
         }
 
         async function restoreSiteContent() {
