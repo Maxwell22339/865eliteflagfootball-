@@ -2144,7 +2144,7 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            nav.querySelectorAll('#navHamburger, .nav-hamburger').forEach(function(el) {
+            document.querySelectorAll('#navHamburger, .nav-hamburger').forEach(function(el) {
                 el.remove();
             });
             document.querySelectorAll('#navQuickSelectPanel, .nav-quick-select').forEach(function(panel) {
@@ -2155,9 +2155,7 @@
             var navLinks = nav.querySelector('.nav-links');
             if (navLinks) {
                 navLinks.classList.remove('nav-open');
-                ['display', 'position', 'top', 'right', 'left', 'width', 'height', 'max-height', 'overflow-y', 'transform'].forEach(function(prop) {
-                    navLinks.style.removeProperty(prop);
-                });
+                navLinks.removeAttribute('style');
             }
         }
 
