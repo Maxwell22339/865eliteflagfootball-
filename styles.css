@@ -1594,7 +1594,7 @@
             #player-stats .stats-grid-table,
             #season-recap .stats-grid-table {
                 width: max-content;
-                min-width: 760px;
+                min-width: 0;
                 max-width: none;
                 table-layout: auto;
             }
@@ -2123,7 +2123,7 @@ table.zebra tbody tr:hover {
     #player-stats .stats-grid-table,
     #season-recap .stats-grid-table {
         width: max-content;
-        min-width: 720px;
+        min-width: 0;
         max-width: none;
         table-layout: auto;
     }
