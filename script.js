@@ -2144,13 +2144,24 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            document.querySelectorAll('#navHamburger, .nav-hamburger').forEach(function(el) {
+            var legacyHamburger = document.getElementById('navHamburger');
+            if (legacyHamburger) legacyHamburger.remove();
+            document.querySelectorAll('.nav-hamburger').forEach(function(el) {
                 el.remove();
             });
-            document.querySelectorAll('#navQuickSelectPanel, .nav-quick-select').forEach(function(panel) {
+
+            function hideNavQuickSelectPanel(panel) {
+                if (!panel) return;
                 panel.classList.add('hidden');
                 panel.style.display = 'none';
                 panel.setAttribute('aria-hidden', 'true');
+            }
+
+            var quickSelectById = document.getElementById('navQuickSelectPanel');
+            hideNavQuickSelectPanel(quickSelectById);
+            document.querySelectorAll('.nav-quick-select').forEach(function(panel) {
+                if (panel === quickSelectById) return;
+                hideNavQuickSelectPanel(panel);
             });
             var navLinks = nav.querySelector('.nav-links');
             if (navLinks) {
