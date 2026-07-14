@@ -2144,13 +2144,26 @@
         function ensureNavHamburger() {
             var nav = document.querySelector('header nav');
             if (!nav) return;
-            var existing = document.getElementById('navHamburger');
-            if (existing) existing.remove();
-            var panel = document.getElementById('navQuickSelectPanel');
-            if (panel) {
+            var legacyHamburger = document.getElementById('navHamburger');
+            if (legacyHamburger) legacyHamburger.remove();
+            document.querySelectorAll('.nav-hamburger').forEach(function(el) {
+                el.remove();
+            });
+            var quickSelectById = document.getElementById('navQuickSelectPanel');
+            if (quickSelectById) {
+                quickSelectById.classList.add('hidden');
+                quickSelectById.style.display = 'none';
+                quickSelectById.setAttribute('aria-hidden', 'true');
+            }
+            document.querySelectorAll('.nav-quick-select:not(#navQuickSelectPanel)').forEach(function(panel) {
                 panel.classList.add('hidden');
                 panel.style.display = 'none';
                 panel.setAttribute('aria-hidden', 'true');
+            });
+            var navLinks = nav.querySelector('.nav-links');
+            if (navLinks) {
+                navLinks.classList.remove('nav-open', 'nav-active', 'nav-expanded');
+                navLinks.removeAttribute('style');
             }
         }
 
