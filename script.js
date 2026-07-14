@@ -2149,19 +2149,16 @@
             document.querySelectorAll('.nav-hamburger').forEach(function(el) {
                 el.remove();
             });
-
-            function hideNavQuickSelectPanel(panel) {
-                if (!panel) return;
+            var quickSelectById = document.getElementById('navQuickSelectPanel');
+            if (quickSelectById) {
+                quickSelectById.classList.add('hidden');
+                quickSelectById.style.display = 'none';
+                quickSelectById.setAttribute('aria-hidden', 'true');
+            }
+            document.querySelectorAll('.nav-quick-select:not(#navQuickSelectPanel)').forEach(function(panel) {
                 panel.classList.add('hidden');
                 panel.style.display = 'none';
                 panel.setAttribute('aria-hidden', 'true');
-            }
-
-            var quickSelectById = document.getElementById('navQuickSelectPanel');
-            hideNavQuickSelectPanel(quickSelectById);
-            document.querySelectorAll('.nav-quick-select').forEach(function(panel) {
-                if (panel === quickSelectById) return;
-                hideNavQuickSelectPanel(panel);
             });
             var navLinks = nav.querySelector('.nav-links');
             if (navLinks) {
