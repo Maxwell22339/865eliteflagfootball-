@@ -2146,12 +2146,18 @@
             if (!nav) return;
             var existing = document.getElementById('navHamburger');
             if (existing) existing.remove();
-            var panel = document.getElementById('navQuickSelectPanel');
-            if (panel) {
-                panel.classList.add('hidden');
-                panel.style.display = 'none';
-                panel.setAttribute('aria-hidden', 'true');
-            }
+            var hamburger = document.createElement('button');
+            hamburger.id = 'navHamburger';
+            hamburger.className = 'nav-hamburger';
+            hamburger.setAttribute('aria-label', 'Toggle navigation');
+            hamburger.setAttribute('aria-expanded', 'false');
+            hamburger.textContent = '\u2630'; // ☰
+            nav.appendChild(hamburger);
+            hamburger.addEventListener('click', function() {
+                setNavQuickSelectOpen();
+            });
+            updateNavQuickSelectOptions();
+            setNavQuickSelectOpen(false);
         }
 
         async function restoreSiteContent() {
