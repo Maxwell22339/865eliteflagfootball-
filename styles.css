@@ -1599,11 +1599,19 @@
                 table-layout: auto;
             }
 
+            #player-stats .stats-table-wrapper,
+            #season-recap .stats-table-wrapper {
+                overflow-x: auto;
+            }
+
             #player-stats .stats-grid-table th,
-            #player-stats .stats-grid-table td,
-            #season-recap .stats-grid-table th,
-            #season-recap .stats-grid-table td {
+            #season-recap .stats-grid-table th {
                 white-space: nowrap;
+            }
+
+            #player-stats .stats-grid-table td,
+            #season-recap .stats-grid-table td {
+                white-space: normal;
                 overflow-wrap: normal;
                 word-break: normal;
                 min-width: auto;
@@ -2128,14 +2136,22 @@ table.zebra tbody tr:hover {
         table-layout: auto;
     }
 
+    #player-stats .stats-table-wrapper,
+    #season-recap .stats-table-wrapper {
+        overflow-x: auto;
+    }
+
     #player-stats .stats-grid-table th,
-    #player-stats .stats-grid-table td,
-    #season-recap .stats-grid-table th,
-    #season-recap .stats-grid-table td {
+    #season-recap .stats-grid-table th {
         white-space: nowrap;
+    }
+
+    #player-stats .stats-grid-table td,
+    #season-recap .stats-grid-table td {
+        white-space: normal;
         overflow-wrap: normal;
         word-break: normal;
-        font-size: 0.875rem;
+        font-size: 1rem;
         line-height: 1.4;
         min-width: auto;
     }
@@ -2163,6 +2179,12 @@ table.zebra tbody tr:hover {
     }
 
     .hero-info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .nav-links {
         grid-template-columns: 1fr;
     }
 }
