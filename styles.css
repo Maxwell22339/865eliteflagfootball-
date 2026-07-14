@@ -1594,7 +1594,7 @@
             #player-stats .stats-grid-table,
             #season-recap .stats-grid-table {
                 width: max-content;
-                min-width: 980px;
+                min-width: 820px;
                 max-width: none;
                 table-layout: auto;
             }
@@ -1726,7 +1726,7 @@
 
         /* Keep hamburger visible on mobile */
 
-        /* Mobile: always show hamburger, hide nav row */
+        /* Mobile: show the same navigation links instead of a separate quick-select menu */
         @media (max-width: 900px) {
             nav {
                 flex-direction: column;
@@ -1781,7 +1781,7 @@
             }
             .nav-hamburger,
             .nav-quick-select {
-                display: none !important;
+                display: none;
             }
         }
 
@@ -2123,7 +2123,7 @@ table.zebra tbody tr:hover {
     #player-stats .stats-grid-table,
     #season-recap .stats-grid-table {
         width: max-content;
-        min-width: 980px;
+        min-width: 820px;
         max-width: none;
         table-layout: auto;
     }
