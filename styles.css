@@ -1690,21 +1690,22 @@
 
         /* Keep hamburger visible on mobile */
 
-        /* Mobile: show the same navigation links instead of a separate quick-select menu */
+        /* Mobile: use burger menu + quick-select panel */
         @media (max-width: 900px) {
             nav {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 16px;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
                 padding-left: 0;
             }
             .logo {
                 position: static;
                 top: auto;
                 left: auto;
-                width: 100%;
-                justify-content: center;
-                margin: 0 auto;
+                width: auto;
+                justify-content: flex-start;
+                margin: 0;
             }
             .brand-mark,
             .brand-mark.has-logo {
@@ -1718,34 +1719,14 @@
                 max-height: 72px;
             }
             .nav-links {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 12px;
-                width: 100%;
-            }
-            .nav-links li {
-                width: 100%;
-            }
-            .nav-links a,
-            .dark-mode-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                min-height: 48px;
-                padding: 12px 14px;
-                border-radius: 12px;
-                background: rgba(0, 31, 91, 0.28);
-                border: 1px solid rgba(255, 255, 255, 0.16);
-                text-align: center;
-                font-weight: 700;
-            }
-            .dark-mode-toggle-item {
-                grid-column: 1 / -1;
-            }
-            .nav-hamburger,
-            .nav-quick-select {
                 display: none;
+            }
+            .nav-hamburger {
+                display: inline-flex;
+            }
+            .nav-quick-select {
+                right: 0;
+                width: min(320px, calc(100vw - 24px));
             }
         }
 
