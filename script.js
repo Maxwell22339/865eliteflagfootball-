@@ -2162,7 +2162,7 @@
             });
             var navLinks = nav.querySelector('.nav-links');
             if (navLinks) {
-                navLinks.classList.remove('nav-open');
+                navLinks.classList.remove('nav-open', 'nav-active', 'nav-expanded');
                 navLinks.removeAttribute('style');
             }
         }
