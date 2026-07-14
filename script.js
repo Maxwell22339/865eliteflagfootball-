@@ -952,11 +952,11 @@
                     if (seasonLabelDisplay) seasonLabelDisplay.insertAdjacentHTML('afterend', '<p id="statsSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
                 }
                 var offensiveTableHead = document.querySelector('#offensiveStatsTable thead tr');
-                if (offensiveTableHead) {
+                if (offensiveTableHead && offensiveTableHead.querySelectorAll('th').length < 11) {
                     offensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
                 }
                 var defensiveTableHead = document.querySelector('#defensiveStatsTable thead tr');
-                if (defensiveTableHead) {
+                if (defensiveTableHead && defensiveTableHead.querySelectorAll('th').length < 8) {
                     defensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
                 }
                 if (statsContainer && !document.getElementById('seasonStatsAdminPanel')) {
@@ -973,7 +973,7 @@
             insertStatsAdminButtonsAfterTable('recapDefensiveStatsTable', 'recapDefensiveStatsAdminBtns', '+ Add Archived Defensive Player', 'defensive');
 
             var recapTableHead = document.querySelector('#recapOffensiveStatsTable thead tr');
-            if (recapTableHead) {
+            if (recapTableHead && recapTableHead.querySelectorAll('th').length < 11) {
                 recapTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing TD<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Passing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>INT\'s<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Rushing Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Yards<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Recieving Touchdowns<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Receptions<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
             }
             var recapLabelDisplay = document.getElementById('seasonRecapLabelDisplay');
@@ -981,7 +981,7 @@
                 recapLabelDisplay.insertAdjacentHTML('afterend', '<p id="seasonRecapSortHint" style="text-align:center; margin:-4px auto 18px; color:#bbb; max-width:720px;">Click any stat column header to sort, or use the <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↓</strong> / <strong style=\"color:#ff9800;\" aria-hidden=\"true\">↑</strong> <span class=\"sr-only\">high-to-low / low-to-high</span> buttons below each column to sort. Click an active button again to clear the sort.</p>');
             }
             var recapDefensiveTableHead = document.querySelector('#recapDefensiveStatsTable thead tr');
-            if (recapDefensiveTableHead) {
+            if (recapDefensiveTableHead && recapDefensiveTableHead.querySelectorAll('th').length < 8) {
                 recapDefensiveTableHead.innerHTML = '<th>Team</th><th>Player Name</th><th>Player Position<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Tackles<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Sacks<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Interceptions<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Pass Break Ups<span class="stat-sort-indicator" aria-hidden="true"></span></th><th>Defensive TDs<span class="stat-sort-indicator" aria-hidden="true"></span></th>';
             }
 
@@ -5939,7 +5939,8 @@
         function addTableControls(tableId, options) {
             options = options || {};
             var table = document.getElementById(tableId);
-            if (!table) return;
+            if (!table || table.dataset.controlsAdded === 'true') return;
+            table.dataset.controlsAdded = 'true';
             
             var wrapper = document.createElement('div');
             wrapper.className = 'table-controls';
@@ -6211,21 +6212,59 @@
         function initEnhancements() {
             // Add table controls to stats tables (if they exist)
             setTimeout(function() {
-                // Try to find stats tables and add controls
-                var statsTables = document.querySelectorAll('.stats-table, #playerStatsTable, #teamStatsTable');
-                statsTables.forEach(function(table, index) {
-                    if (table.id) {
-                        addTableControls(table.id, {
-                            search: true,
-                            filter: true,
-                            filterOptions: [], // Will be populated dynamically
-                            export: true,
-                            zebra: true,
-                            filename: 'stats-' + index + '.csv'
-                        });
-                    }
+                // Helper: collect unique team names (column 0) from a stats data array
+                function getTeamNames(key) {
+                    var data = loadPlayerStats(key) || [];
+                    var seen = {};
+                    var teams = [];
+                    data.forEach(function(row) {
+                        var name = row && row[0] ? String(row[0]).trim() : '';
+                        if (name && !seen[name.toLowerCase()]) {
+                            seen[name.toLowerCase()] = true;
+                            teams.push(name);
+                        }
+                    });
+                    return teams.sort();
+                }
+
+                // Offensive player stats
+                addTableControls('offensiveStatsTable', {
+                    search: true,
+                    filter: true,
+                    filterOptions: getTeamNames(OFFENSIVE_STATS_KEY),
+                    export: true,
+                    zebra: true,
+                    filename: 'offensive-stats.csv'
                 });
-                
+
+                // Defensive player stats
+                addTableControls('defensiveStatsTable', {
+                    search: true,
+                    filter: true,
+                    filterOptions: getTeamNames(DEFENSIVE_STATS_KEY),
+                    export: true,
+                    zebra: true,
+                    filename: 'defensive-stats.csv'
+                });
+
+                // League standings (search only; column-click sort already handles ordering)
+                addTableControls('leagueStandingsTable', {
+                    search: true,
+                    filter: false,
+                    export: true,
+                    zebra: true,
+                    filename: 'league-standings.csv'
+                });
+
+                // League schedule (search only)
+                addTableControls('leagueScheduleTable', {
+                    search: true,
+                    filter: false,
+                    export: true,
+                    zebra: true,
+                    filename: 'league-schedule.csv'
+                });
+
                 // Enhance forms
                 enhanceFormValidation('loginForm');
                 enhanceFormValidation('memberRegisterForm');
