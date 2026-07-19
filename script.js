@@ -6011,7 +6011,7 @@
                 }
             });
             return teams.sort(function(a, b) {
-                return a.localeCompare(b);
+                return a.localeCompare(b, undefined, { sensitivity: 'base' });
             });
         }
 
@@ -6114,7 +6114,7 @@
                 }
 
                 var existingFilterValue = filterDropdown.value || '';
-                var filterOptions = Array.isArray(options.filterOptions) ? options.filterOptions : [];
+                var filterOptions = options.filterOptions;
                 filterDropdown.innerHTML = '';
                 filterDropdown.setAttribute('aria-label', options.filterLabel || 'Filter by team');
 
@@ -6237,16 +6237,15 @@
             if (!tbody) return;
             
             var rows = tbody.querySelectorAll('tr');
-            var normalizedSearchText = String(searchText || '').toLowerCase();
+            var searchTextLower = String(searchText || '').toLowerCase();
             var filterValueLower = String(filterValue || '').toLowerCase();
             
             rows.forEach(function(row) {
                 var text = row.textContent.toLowerCase();
-                var matchesSearch = !normalizedSearchText || text.includes(normalizedSearchText);
+                var matchesSearch = !searchTextLower || text.includes(searchTextLower);
                 var filterText = text;
                 if (typeof filterColumnIndex === 'number' && filterColumnIndex >= 0 && filterColumnIndex < row.children.length) {
-                    var filterCell = row.children[filterColumnIndex];
-                    filterText = filterCell ? filterCell.textContent.toLowerCase() : '';
+                    filterText = row.children[filterColumnIndex].textContent.toLowerCase();
                 }
                 var matchesFilter = !filterValueLower || filterText.includes(filterValueLower);
                 
