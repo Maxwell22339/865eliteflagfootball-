@@ -6000,13 +6000,13 @@
         // =====================================================
         
         function getUniqueTeamNamesFromRows(rows) {
-            var seen = {};
+            var seenTeams = {};
             var teams = [];
             (Array.isArray(rows) ? rows : []).forEach(function(row) {
                 var name = row && row[0] ? String(row[0]).trim() : '';
                 var normalizedName = name.toLowerCase();
-                if (!name || seen[normalizedName]) return;
-                seen[normalizedName] = true;
+                if (!name || seenTeams[normalizedName]) return;
+                seenTeams[normalizedName] = true;
                 teams.push(name);
             });
             return teams.sort(function(a, b) {
@@ -6067,11 +6067,12 @@
             var table = document.getElementById(tableId);
             if (!table || !table.parentNode) return;
 
-            var tableWrapper = table.parentNode;
-            if (!tableWrapper.classList.contains('responsive-table-wrapper')) {
+            var currentParent = table.parentNode;
+            var tableWrapper = currentParent;
+            if (!currentParent.classList.contains('responsive-table-wrapper')) {
                 tableWrapper = document.createElement('div');
                 tableWrapper.className = 'responsive-table-wrapper';
-                table.parentNode.insertBefore(tableWrapper, table);
+                currentParent.insertBefore(tableWrapper, table);
                 tableWrapper.appendChild(table);
             }
 
@@ -6225,18 +6226,18 @@
             if (!tbody) return;
             
             var rows = tbody.querySelectorAll('tr');
-            searchText = String(searchText || '').toLowerCase();
-            var normalizedFilterValue = String(filterValue || '').toLowerCase();
+            var normalizedSearchText = String(searchText || '').toLowerCase();
+            var filterValueLower = String(filterValue || '').toLowerCase();
             
             rows.forEach(function(row) {
                 var text = row.textContent.toLowerCase();
-                var matchesSearch = !searchText || text.includes(searchText);
+                var matchesSearch = !normalizedSearchText || text.includes(normalizedSearchText);
                 var filterText = text;
                 if (typeof filterColumnIndex === 'number') {
                     var filterCell = row.children[filterColumnIndex];
                     filterText = filterCell ? filterCell.textContent.toLowerCase() : '';
                 }
-                var matchesFilter = !normalizedFilterValue || filterText.includes(normalizedFilterValue);
+                var matchesFilter = !filterValueLower || filterText.includes(filterValueLower);
                 
                 if (matchesSearch && matchesFilter) {
                     row.style.display = '';
