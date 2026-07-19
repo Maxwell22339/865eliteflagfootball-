@@ -4982,6 +4982,45 @@
             return sorted;
         }
 
+        function updateStandingsSortState(column, direction) {
+            if (!column) {
+                standingsSortState.column = null;
+                standingsSortState.direction = 'desc';
+                return;
+            }
+            standingsSortState.column = column;
+            standingsSortState.direction = direction === 'asc' ? 'asc' : 'desc';
+        }
+
+        function syncLeagueStandingsControls() {
+            addTableControls('leagueStandingsTable', {
+                search: true,
+                searchPlaceholder: 'Search teams...',
+                searchLabel: 'Search teams',
+                filter: false,
+                export: true,
+                zebra: true,
+                filename: 'league-standings.csv',
+                sort: {
+                    label: 'Sort standings by',
+                    options: [
+                        { value: '', label: 'Default Order' },
+                        { value: 'wins', label: 'Wins' },
+                        { value: 'losses', label: 'Losses' },
+                        { value: 'pointsScored', label: 'Points Scored' },
+                        { value: 'pointsAgainst', label: 'Points Allowed' },
+                        { value: 'netPoints', label: 'Net Points' }
+                    ],
+                    value: standingsSortState.column || '',
+                    direction: standingsSortState.direction || 'desc',
+                    onChange: function(nextColumn, nextDirection) {
+                        updateStandingsSortState(nextColumn, nextDirection);
+                        renderLeagueStandingsPublic();
+                    }
+                }
+            });
+        }
+
         function renderStandingsSortArrow(column) {
             var arrow = '';
             if (standingsSortState.column === column) {
@@ -5004,6 +5043,7 @@
                     '<th class="standings-sortable" data-sort-col="pointsAgainst">Points Allowed' + renderStandingsSortArrow('pointsAgainst') + '</th>' +
                     '<th class="standings-sortable" data-sort-col="netPoints">Net Points' + renderStandingsSortArrow('netPoints') + '</th>';
             }
+            syncLeagueStandingsControls();
             var rows = loadLeagueStandings();
             if (!rows.length) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
@@ -5137,10 +5177,9 @@
             var col = th.getAttribute('data-sort-col');
             if (!col) return;
             if (standingsSortState.column === col) {
-                standingsSortState.direction = standingsSortState.direction === 'desc' ? 'asc' : 'desc';
+                updateStandingsSortState(col, standingsSortState.direction === 'desc' ? 'asc' : 'desc');
             } else {
-                standingsSortState.column = col;
-                standingsSortState.direction = 'desc';
+                updateStandingsSortState(col, 'desc');
             }
             renderLeagueStandingsPublic();
         }
@@ -5546,6 +5585,7 @@
                 saveHandler: function(rows) { saveSelectedSeasonArchiveStats('defensive', rows); },
                 removeHandler: function(rowIndex) { removeSeasonArchiveStatsRow('defensive', rowIndex); }
             });
+            syncStatsTableControls();
         }
 
         function addStatsRow(bodyId, type) {
@@ -5599,6 +5639,7 @@
             renderStatsTable('offensiveStatsBody', OFFENSIVE_STATS_KEY, offensiveCols, 'offensive', isAdmin, true);
             renderStatsTable('defensiveStatsBody', DEFENSIVE_STATS_KEY, defensiveCols, 'defensive', isAdmin, true);
             renderSeasonRecapStats();
+            syncStatsTableControls();
         }
         renderLeagueAdminTables();
         ensureLeagueScheduleResultsUI();
@@ -5958,97 +5999,244 @@
         // Search & Filter Functionality for Stats Tables
         // =====================================================
         
+        function getUniqueTeamNamesFromRows(rows) {
+            var seen = {};
+            var teams = [];
+            (Array.isArray(rows) ? rows : []).forEach(function(row) {
+                var name = row && row[0] ? String(row[0]).trim() : '';
+                var normalizedName = name.toLowerCase();
+                if (!name || seen[normalizedName]) return;
+                seen[normalizedName] = true;
+                teams.push(name);
+            });
+            return teams.sort(function(a, b) {
+                return a.localeCompare(b);
+            });
+        }
+
+        function getStatsRowsForControlType(type) {
+            if (type === 'offensive') return loadPlayerStats(OFFENSIVE_STATS_KEY) || [];
+            if (type === 'defensive') return loadPlayerStats(DEFENSIVE_STATS_KEY) || [];
+            var selectedArchive = getSelectedSeasonArchive();
+            if (!selectedArchive) return [];
+            if (type === 'recapOffensive') return Array.isArray(selectedArchive.offensive) ? selectedArchive.offensive : [];
+            if (type === 'recapDefensive') return Array.isArray(selectedArchive.defensive) ? selectedArchive.defensive : [];
+            return [];
+        }
+
+        function syncStatsTableControls() {
+            [
+                {
+                    tableId: 'offensiveStatsTable',
+                    filename: 'offensive-stats.csv',
+                    rows: getStatsRowsForControlType('offensive')
+                },
+                {
+                    tableId: 'defensiveStatsTable',
+                    filename: 'defensive-stats.csv',
+                    rows: getStatsRowsForControlType('defensive')
+                },
+                {
+                    tableId: 'recapOffensiveStatsTable',
+                    filename: 'season-recap-offensive-stats.csv',
+                    rows: getStatsRowsForControlType('recapOffensive')
+                },
+                {
+                    tableId: 'recapDefensiveStatsTable',
+                    filename: 'season-recap-defensive-stats.csv',
+                    rows: getStatsRowsForControlType('recapDefensive')
+                }
+            ].forEach(function(config) {
+                addTableControls(config.tableId, {
+                    search: true,
+                    searchPlaceholder: 'Search players...',
+                    searchLabel: 'Search players',
+                    filter: true,
+                    filterLabel: 'Filter by team',
+                    filterOptions: getUniqueTeamNamesFromRows(config.rows),
+                    filterColumnIndex: 0,
+                    export: true,
+                    zebra: true,
+                    filename: config.filename
+                });
+            });
+        }
+
         function addTableControls(tableId, options) {
             options = options || {};
             var table = document.getElementById(tableId);
-            if (!table || table.dataset.controlsAdded === 'true') return;
-            table.dataset.controlsAdded = 'true';
-            
-            var wrapper = document.createElement('div');
-            wrapper.className = 'table-controls';
-            
-            // Search box
-            if (options.search !== false) {
-                var searchBox = document.createElement('input');
-                searchBox.type = 'text';
-                searchBox.className = 'search-box';
-                searchBox.placeholder = 'Search players...';
-                searchBox.setAttribute('aria-label', 'Search players');
-                
-                searchBox.addEventListener('input', function() {
-                    filterTable(table, this.value, filterDropdown ? filterDropdown.value : '');
-                });
-                
-                wrapper.appendChild(searchBox);
+            if (!table || !table.parentNode) return;
+
+            var tableWrapper = table.parentNode;
+            if (!tableWrapper.classList.contains('responsive-table-wrapper')) {
+                tableWrapper = document.createElement('div');
+                tableWrapper.className = 'responsive-table-wrapper';
+                table.parentNode.insertBefore(tableWrapper, table);
+                tableWrapper.appendChild(table);
             }
-            
-            // Filter dropdown
-            var filterDropdown = null;
-            if (options.filter && options.filterOptions) {
-                filterDropdown = document.createElement('select');
-                filterDropdown.className = 'filter-dropdown';
-                filterDropdown.setAttribute('aria-label', 'Filter by team');
-                
+
+            var wrapperId = tableId + 'Controls';
+            var wrapper = document.getElementById(wrapperId);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'table-controls';
+                wrapper.id = wrapperId;
+                tableWrapper.parentNode.insertBefore(wrapper, tableWrapper);
+            }
+
+            var searchBox = wrapper.querySelector('.search-box');
+            if (options.search === false) {
+                if (searchBox) searchBox.remove();
+            } else {
+                if (!searchBox) {
+                    searchBox = document.createElement('input');
+                    searchBox.type = 'text';
+                    searchBox.className = 'search-box';
+                    wrapper.appendChild(searchBox);
+                }
+                searchBox.placeholder = options.searchPlaceholder || 'Search players...';
+                searchBox.setAttribute('aria-label', options.searchLabel || 'Search players');
+            }
+
+            var filterDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="filter"]');
+            if (options.filter) {
+                if (!filterDropdown) {
+                    filterDropdown = document.createElement('select');
+                    filterDropdown.className = 'filter-dropdown';
+                    filterDropdown.dataset.controlRole = 'filter';
+                    if (searchBox && searchBox.nextSibling) wrapper.insertBefore(filterDropdown, searchBox.nextSibling);
+                    else wrapper.appendChild(filterDropdown);
+                }
+
+                var existingFilterValue = filterDropdown.value || '';
+                var filterOptions = Array.isArray(options.filterOptions) ? options.filterOptions : [];
+                filterDropdown.innerHTML = '';
+                filterDropdown.setAttribute('aria-label', options.filterLabel || 'Filter by team');
+
                 var defaultOption = document.createElement('option');
                 defaultOption.value = '';
                 defaultOption.textContent = 'All Teams';
                 filterDropdown.appendChild(defaultOption);
-                
-                options.filterOptions.forEach(function(opt) {
+
+                filterOptions.forEach(function(opt) {
                     var option = document.createElement('option');
                     option.value = opt;
                     option.textContent = opt;
                     filterDropdown.appendChild(option);
                 });
-                
-                filterDropdown.addEventListener('change', function() {
-                    filterTable(table, searchBox ? searchBox.value : '', this.value);
-                });
-                
-                wrapper.appendChild(filterDropdown);
+
+                if (existingFilterValue && filterOptions.indexOf(existingFilterValue) !== -1) {
+                    filterDropdown.value = existingFilterValue;
+                } else {
+                    filterDropdown.value = '';
+                }
+            } else if (filterDropdown) {
+                filterDropdown.remove();
+                filterDropdown = null;
             }
-            
-            // Export button
-            if (options.export !== false) {
-                var exportBtn = document.createElement('button');
-                exportBtn.className = 'export-btn';
-                exportBtn.innerHTML = '<span class="icon-download"></span>Export to CSV';
-                exportBtn.setAttribute('aria-label', 'Export table to CSV');
-                
-                exportBtn.addEventListener('click', function() {
+
+            var sortFieldDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="sort-field"]');
+            var sortDirectionDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="sort-direction"]');
+            if (options.sort && Array.isArray(options.sort.options)) {
+                if (!sortFieldDropdown) {
+                    sortFieldDropdown = document.createElement('select');
+                    sortFieldDropdown.className = 'filter-dropdown';
+                    sortFieldDropdown.dataset.controlRole = 'sort-field';
+                    wrapper.appendChild(sortFieldDropdown);
+                }
+                if (!sortDirectionDropdown) {
+                    sortDirectionDropdown = document.createElement('select');
+                    sortDirectionDropdown.className = 'filter-dropdown';
+                    sortDirectionDropdown.dataset.controlRole = 'sort-direction';
+                    wrapper.appendChild(sortDirectionDropdown);
+                }
+
+                sortFieldDropdown.setAttribute('aria-label', options.sort.label || 'Sort table by');
+                sortFieldDropdown.innerHTML = '';
+                options.sort.options.forEach(function(opt) {
+                    var option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    sortFieldDropdown.appendChild(option);
+                });
+                sortFieldDropdown.value = options.sort.value || '';
+
+                sortDirectionDropdown.setAttribute('aria-label', 'Sort order');
+                sortDirectionDropdown.innerHTML = '<option value="desc">Highest First</option><option value="asc">Lowest First</option>';
+                sortDirectionDropdown.value = options.sort.direction === 'asc' ? 'asc' : 'desc';
+                sortDirectionDropdown.disabled = !sortFieldDropdown.value;
+            } else {
+                if (sortFieldDropdown) sortFieldDropdown.remove();
+                if (sortDirectionDropdown) sortDirectionDropdown.remove();
+                sortFieldDropdown = null;
+                sortDirectionDropdown = null;
+            }
+
+            var exportBtn = wrapper.querySelector('.export-btn');
+            if (options.export === false) {
+                if (exportBtn) exportBtn.remove();
+            } else {
+                if (!exportBtn) {
+                    exportBtn = document.createElement('button');
+                    exportBtn.className = 'export-btn';
+                    exportBtn.innerHTML = '<span class="icon-download"></span>Export to CSV';
+                    exportBtn.setAttribute('aria-label', 'Export table to CSV');
+                    wrapper.appendChild(exportBtn);
+                }
+                exportBtn.onclick = function() {
                     exportTableToCSV(table, options.filename || 'data.csv');
-                });
-                
-                wrapper.appendChild(exportBtn);
+                };
             }
-            
-            table.parentNode.insertBefore(wrapper, table);
-            
-            // Wrap table for horizontal scrolling on mobile
-            if (!table.parentNode.classList.contains('responsive-table-wrapper')) {
-                var tableWrapper = document.createElement('div');
-                tableWrapper.className = 'responsive-table-wrapper';
-                table.parentNode.insertBefore(tableWrapper, table);
-                tableWrapper.appendChild(table);
+
+            if (searchBox) {
+                searchBox.oninput = function() {
+                    filterTable(table, this.value, filterDropdown ? filterDropdown.value : '', options.filterColumnIndex);
+                };
             }
-            
-            // Add zebra striping class
+            if (filterDropdown) {
+                filterDropdown.onchange = function() {
+                    filterTable(table, searchBox ? searchBox.value : '', this.value, options.filterColumnIndex);
+                };
+                if (searchBox || filterDropdown.value) {
+                    filterTable(table, searchBox ? searchBox.value : '', filterDropdown.value, options.filterColumnIndex);
+                }
+            } else if (searchBox && searchBox.value) {
+                filterTable(table, searchBox.value, '', options.filterColumnIndex);
+            }
+
+            if (sortFieldDropdown && sortDirectionDropdown) {
+                var handleSortChange = function() {
+                    sortDirectionDropdown.disabled = !sortFieldDropdown.value;
+                    if (typeof options.sort.onChange === 'function') {
+                        options.sort.onChange(sortFieldDropdown.value, sortDirectionDropdown.value);
+                    }
+                };
+                sortFieldDropdown.onchange = handleSortChange;
+                sortDirectionDropdown.onchange = handleSortChange;
+            }
+
             if (options.zebra !== false) {
                 table.classList.add('zebra');
             }
         }
         
-        function filterTable(table, searchText, filterValue) {
+        function filterTable(table, searchText, filterValue, filterColumnIndex) {
             var tbody = table.querySelector('tbody');
             if (!tbody) return;
             
             var rows = tbody.querySelectorAll('tr');
-            searchText = searchText.toLowerCase();
+            searchText = String(searchText || '').toLowerCase();
+            var normalizedFilterValue = String(filterValue || '').toLowerCase();
             
             rows.forEach(function(row) {
                 var text = row.textContent.toLowerCase();
                 var matchesSearch = !searchText || text.includes(searchText);
-                var matchesFilter = !filterValue || text.includes(filterValue.toLowerCase());
+                var filterText = text;
+                if (typeof filterColumnIndex === 'number') {
+                    var filterCell = row.children[filterColumnIndex];
+                    filterText = filterCell ? filterCell.textContent.toLowerCase() : '';
+                }
+                var matchesFilter = !normalizedFilterValue || filterText.includes(normalizedFilterValue);
                 
                 if (matchesSearch && matchesFilter) {
                     row.style.display = '';
@@ -6234,53 +6422,14 @@
         function initEnhancements() {
             // Add table controls to stats tables (if they exist)
             setTimeout(function() {
-                // Helper: collect unique team names (column 0) from a stats data array
-                function getTeamNames(key) {
-                    var data = loadPlayerStats(key) || [];
-                    var seen = {};
-                    var teams = [];
-                    data.forEach(function(row) {
-                        var name = row && row[0] ? String(row[0]).trim() : '';
-                        if (name && !seen[name.toLowerCase()]) {
-                            seen[name.toLowerCase()] = true;
-                            teams.push(name);
-                        }
-                    });
-                    return teams.sort();
-                }
-
-                // Offensive player stats
-                addTableControls('offensiveStatsTable', {
-                    search: true,
-                    filter: true,
-                    filterOptions: getTeamNames(OFFENSIVE_STATS_KEY),
-                    export: true,
-                    zebra: true,
-                    filename: 'offensive-stats.csv'
-                });
-
-                // Defensive player stats
-                addTableControls('defensiveStatsTable', {
-                    search: true,
-                    filter: true,
-                    filterOptions: getTeamNames(DEFENSIVE_STATS_KEY),
-                    export: true,
-                    zebra: true,
-                    filename: 'defensive-stats.csv'
-                });
-
-                // League standings (search only; column-click sort already handles ordering)
-                addTableControls('leagueStandingsTable', {
-                    search: true,
-                    filter: false,
-                    export: true,
-                    zebra: true,
-                    filename: 'league-standings.csv'
-                });
+                syncStatsTableControls();
+                syncLeagueStandingsControls();
 
                 // League schedule (search only)
                 addTableControls('leagueScheduleTable', {
                     search: true,
+                    searchPlaceholder: 'Search schedule...',
+                    searchLabel: 'Search schedule',
                     filter: false,
                     export: true,
                     zebra: true,
