@@ -5999,7 +5999,7 @@
         // Search & Filter Functionality for Stats Tables
         // =====================================================
         
-        function getUniqueTeamNamesFromRows(rows) {
+        function getUniqueTeamNames(rows) {
             var seenTeams = {};
             var teams = [];
             (Array.isArray(rows) ? rows : []).forEach(function(row) {
@@ -6054,7 +6054,7 @@
                     searchLabel: 'Search players',
                     filter: true,
                     filterLabel: 'Filter by team',
-                    filterOptions: getUniqueTeamNamesFromRows(config.rows),
+                    filterOptions: getUniqueTeamNames(config.rows),
                     filterColumnIndex: 0,
                     export: true,
                     zebra: true,
@@ -6244,7 +6244,7 @@
                 var text = row.textContent.toLowerCase();
                 var matchesSearch = !normalizedSearchText || text.includes(normalizedSearchText);
                 var filterText = text;
-                if (typeof filterColumnIndex === 'number') {
+                if (typeof filterColumnIndex === 'number' && filterColumnIndex >= 0 && filterColumnIndex < row.children.length) {
                     var filterCell = row.children[filterColumnIndex];
                     filterText = filterCell ? filterCell.textContent.toLowerCase() : '';
                 }
