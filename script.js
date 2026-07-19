@@ -6005,9 +6005,10 @@
             (Array.isArray(rows) ? rows : []).forEach(function(row) {
                 var name = row && row[0] ? String(row[0]).trim() : '';
                 var normalizedName = name.toLowerCase();
-                if (!name || seenTeams[normalizedName]) return;
-                seenTeams[normalizedName] = true;
-                teams.push(name);
+                if (name && !seenTeams[normalizedName]) {
+                    seenTeams[normalizedName] = true;
+                    teams.push(name);
+                }
             });
             return teams.sort(function(a, b) {
                 return a.localeCompare(b);
@@ -6066,6 +6067,9 @@
             options = options || {};
             var table = document.getElementById(tableId);
             if (!table || !table.parentNode) return;
+            var filterSelector = '.filter-dropdown[data-control-role="filter"]';
+            var sortFieldSelector = '.filter-dropdown[data-control-role="sort-field"]';
+            var sortDirectionSelector = '.filter-dropdown[data-control-role="sort-direction"]';
 
             var currentParent = table.parentNode;
             var tableWrapper = currentParent;
@@ -6099,7 +6103,7 @@
                 searchBox.setAttribute('aria-label', options.searchLabel || 'Search players');
             }
 
-            var filterDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="filter"]');
+            var filterDropdown = wrapper.querySelector(filterSelector);
             if (options.filter) {
                 if (!filterDropdown) {
                     filterDropdown = document.createElement('select');
@@ -6136,8 +6140,8 @@
                 filterDropdown = null;
             }
 
-            var sortFieldDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="sort-field"]');
-            var sortDirectionDropdown = wrapper.querySelector('.filter-dropdown[data-control-role="sort-direction"]');
+            var sortFieldDropdown = wrapper.querySelector(sortFieldSelector);
+            var sortDirectionDropdown = wrapper.querySelector(sortDirectionSelector);
             if (options.sort && Array.isArray(options.sort.options)) {
                 if (!sortFieldDropdown) {
                     sortFieldDropdown = document.createElement('select');
@@ -6220,7 +6224,14 @@
                 table.classList.add('zebra');
             }
         }
-        
+
+        /**
+         * Filters table rows using free-text search and an optional single-column filter.
+         * @param {HTMLTableElement} table
+         * @param {string} searchText
+         * @param {string} filterValue
+         * @param {number} [filterColumnIndex]
+         */
         function filterTable(table, searchText, filterValue, filterColumnIndex) {
             var tbody = table.querySelector('tbody');
             if (!tbody) return;
