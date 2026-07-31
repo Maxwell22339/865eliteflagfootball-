@@ -2375,6 +2375,8 @@
             enforceHeaderLogoLayout();
             ensureSeasonStatsAndRecapUI();
             ensureLeagueScheduleResultsUI();
+            renderLeagueAdminTables();
+            renderAllStats();
             ensurePaymentSignupUI();
             loadPaymentLinks();
             renderPaymentMethodsInfo();
@@ -4992,6 +4994,18 @@
             standingsSortState.direction = direction === 'asc' ? 'asc' : 'desc';
         }
 
+        function syncLeagueScheduleControls() {
+            addTableControls('leagueScheduleTable', {
+                search: true,
+                searchPlaceholder: 'Search schedule...',
+                searchLabel: 'Search schedule',
+                filter: false,
+                export: true,
+                zebra: true,
+                filename: 'league-schedule.csv'
+            });
+        }
+
         function syncLeagueStandingsControls() {
             addTableControls('leagueStandingsTable', {
                 search: true,
@@ -5043,10 +5057,10 @@
                     '<th class="standings-sortable" data-sort-col="pointsAgainst">Points Allowed' + renderStandingsSortArrow('pointsAgainst') + '</th>' +
                     '<th class="standings-sortable" data-sort-col="netPoints">Net Points' + renderStandingsSortArrow('netPoints') + '</th>';
             }
-            syncLeagueStandingsControls();
             var rows = loadLeagueStandings();
             if (!rows.length) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                syncLeagueStandingsControls();
                 return;
             }
             if (standingsSortState.column) {
@@ -5066,6 +5080,7 @@
                     '<td class="' + netClass + '">' + netPrefix + net + '</td>' +
                 '</tr>';
             }).join('');
+            syncLeagueStandingsControls();
         }
 
         function renderLeagueSchedulePublic() {
@@ -5166,6 +5181,7 @@
         function renderLeagueAdminTables() {
             renderLeagueStandingsPublic();
             renderLeagueSchedulePublic();
+            syncLeagueScheduleControls();
             renderLeagueAdminTable('leagueStandingsAdminBody', leagueStandingsFields, loadLeagueStandings(), 'standings');
             renderLeagueScheduleAdminTable(loadLeagueSchedule());
         }
@@ -6437,15 +6453,7 @@
                 syncLeagueStandingsControls();
 
                 // League schedule (search only)
-                addTableControls('leagueScheduleTable', {
-                    search: true,
-                    searchPlaceholder: 'Search schedule...',
-                    searchLabel: 'Search schedule',
-                    filter: false,
-                    export: true,
-                    zebra: true,
-                    filename: 'league-schedule.csv'
-                });
+                syncLeagueScheduleControls();
 
                 // Enhance forms
                 enhanceFormValidation('loginForm');
