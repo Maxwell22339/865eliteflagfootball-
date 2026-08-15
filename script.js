@@ -5064,20 +5064,29 @@
                 syncLeagueStandingsControls();
                 return;
             }
-            // Always sort by wins descending by default to create ranking
+            
+            // First, sort by wins descending to calculate the true rank for each team
+            var ranksSortedByWins = sortStandingsRows(rows, 'wins', 'desc');
+            var rankMap = {};
+            ranksSortedByWins.forEach(function(row, index) {
+                rankMap[row.team] = index + 1;
+            });
+            
+            // Now apply the user's selected sort (or default to wins)
             if (!standingsSortState.column) {
-                rows = sortStandingsRows(rows, 'wins', 'desc');
+                rows = ranksSortedByWins;
             } else {
                 rows = sortStandingsRows(rows, standingsSortState.column, standingsSortState.direction);
             }
-            tbody.innerHTML = rows.map(function(row, index) {
+            
+            tbody.innerHTML = rows.map(function(row) {
                 var net = getStandingsNetPoints(row);
                 var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
                 var netPrefix = net > 0 ? '+' : '';
-                var rank = index + 1;
+                var rank = rankMap[row.team] || '—';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
-                    '<td>' + rank + '</td>' +
+                    '<td>' + escapeHtml(String(rank)) + '</td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
                     '<td>' + escapeHtml(row.wins || '0') + '</td>' +
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
