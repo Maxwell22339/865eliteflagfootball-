@@ -5050,6 +5050,7 @@
             if (thead) {
                 thead.innerHTML =
                     '<th>Logo</th>' +
+                    '<th>Rank</th>' +
                     '<th>Team</th>' +
                     '<th class="standings-sortable" data-sort-col="wins">Wins' + renderStandingsSortArrow('wins') + '</th>' +
                     '<th class="standings-sortable" data-sort-col="losses">Losses' + renderStandingsSortArrow('losses') + '</th>' +
@@ -5059,19 +5060,24 @@
             }
             var rows = loadLeagueStandings();
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
                 syncLeagueStandingsControls();
                 return;
             }
-            if (standingsSortState.column) {
+            // Always sort by wins descending by default to create ranking
+            if (!standingsSortState.column) {
+                rows = sortStandingsRows(rows, 'wins', 'desc');
+            } else {
                 rows = sortStandingsRows(rows, standingsSortState.column, standingsSortState.direction);
             }
-            tbody.innerHTML = rows.map(function(row) {
+            tbody.innerHTML = rows.map(function(row, index) {
                 var net = getStandingsNetPoints(row);
                 var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
                 var netPrefix = net > 0 ? '+' : '';
+                var rank = index + 1;
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
+                    '<td>' + rank + '</td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
                     '<td>' + escapeHtml(row.wins || '0') + '</td>' +
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
