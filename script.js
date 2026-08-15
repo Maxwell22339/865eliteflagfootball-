@@ -5067,9 +5067,15 @@
             
             // First, sort by wins descending to calculate the true rank for each team
             var ranksSortedByWins = sortStandingsRows(rows, 'wins', 'desc');
-            var rankMap = {};
+            // Attach rank to each row object for safe retrieval
             ranksSortedByWins.forEach(function(row, index) {
-                rankMap[row.team] = index + 1;
+                row.__rank = index + 1;
+            });
+            // Rebuild rankMap using team name and wins as composite key to handle edge cases
+            var rankMap = {};
+            ranksSortedByWins.forEach(function(row) {
+                var key = (row.team || '') + '|' + (row.wins || '0');
+                rankMap[key] = row.__rank;
             });
             
             // Now apply the user's selected sort (or default to wins)
@@ -5083,7 +5089,8 @@
                 var net = getStandingsNetPoints(row);
                 var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
                 var netPrefix = net > 0 ? '+' : '';
-                var rank = rankMap[row.team] || '—';
+                var key = (row.team || '') + '|' + (row.wins || '0');
+                var rank = rankMap[key] || row.__rank || '—';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
                     '<td>' + escapeHtml(String(rank)) + '</td>' +
