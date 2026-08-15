@@ -5066,8 +5066,9 @@
             }
             
             // First, sort by wins descending to calculate the true rank for each team
+            // Note: sortStandingsRows preserves row object references via Array.slice(),
+            // so __rank properties attached here will remain accessible after custom sorting
             var ranksSortedByWins = sortStandingsRows(rows, 'wins', 'desc');
-            // Attach rank to each row object for safe retrieval
             ranksSortedByWins.forEach(function(row, index) {
                 row.__rank = index + 1;
             });
@@ -5083,7 +5084,7 @@
                 var net = getStandingsNetPoints(row);
                 var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
                 var netPrefix = net > 0 ? '+' : '';
-                var rank = row.__rank || '—';
+                var rank = row.__rank != null ? row.__rank : '—';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
                     '<td>' + escapeHtml(String(rank)) + '</td>' +
