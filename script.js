@@ -5050,6 +5050,7 @@
             if (thead) {
                 thead.innerHTML =
                     '<th>Logo</th>' +
+                    '<th>Rank</th>' +
                     '<th>Team</th>' +
                     '<th class="standings-sortable" data-sort-col="wins">Wins' + renderStandingsSortArrow('wins') + '</th>' +
                     '<th class="standings-sortable" data-sort-col="losses">Losses' + renderStandingsSortArrow('losses') + '</th>' +
@@ -5059,19 +5060,34 @@
             }
             var rows = loadLeagueStandings();
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#aaa;">Standings will be posted soon.</td></tr>';
                 syncLeagueStandingsControls();
                 return;
             }
-            if (standingsSortState.column) {
+            
+            // First, sort by wins descending to calculate the true rank for each team
+            // Note: sortStandingsRows preserves row object references via Array.slice(),
+            // so __rank properties attached here will remain accessible after custom sorting
+            var ranksSortedByWins = sortStandingsRows(rows, 'wins', 'desc');
+            ranksSortedByWins.forEach(function(row, index) {
+                row.__rank = index + 1;
+            });
+            
+            // Now apply the user's selected sort (or default to wins)
+            if (!standingsSortState.column) {
+                rows = ranksSortedByWins;
+            } else {
                 rows = sortStandingsRows(rows, standingsSortState.column, standingsSortState.direction);
             }
+            
             tbody.innerHTML = rows.map(function(row) {
                 var net = getStandingsNetPoints(row);
                 var netClass = net > 0 ? 'standings-net-positive' : (net < 0 ? 'standings-net-negative' : '');
                 var netPrefix = net > 0 ? '+' : '';
+                var rank = row.__rank != null ? row.__rank : '—';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
+                    '<td class="standings-rank">' + escapeHtml(String(rank)) + '</td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
                     '<td>' + escapeHtml(row.wins || '0') + '</td>' +
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
