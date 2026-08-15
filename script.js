@@ -5087,7 +5087,7 @@
                 var rank = row.__rank != null ? row.__rank : '—';
                 return '<tr>' +
                     '<td><div class="standings-logo-cell">' + renderStandingsTeamLogo(row.team || '') + '</div></td>' +
-                    '<td>' + escapeHtml(String(rank)) + '</td>' +
+                    '<td class="standings-rank">' + escapeHtml(String(rank)) + '</td>' +
                     '<td>' + escapeHtml(row.team || '\u2014') + '</td>' +
                     '<td>' + escapeHtml(row.wins || '0') + '</td>' +
                     '<td>' + escapeHtml(row.losses || '0') + '</td>' +
